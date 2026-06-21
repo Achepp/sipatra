@@ -97,6 +97,11 @@ export default function App() {
   const [settings, setSettings] = useState<Pengaturan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // States for PWA & Splash Screen
+  const [showSplash, setShowSplash] = useState(true);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
   // States for modals and UI interactions
   const [showAddSessionModal, setShowAddSessionModal] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
@@ -158,6 +163,25 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
+
+    // PWA beforeinstallprompt handler
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Hide install button if already in standalone display mode
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstallable(false);
+    }
+
+    // Splash screen timer
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 1800);
 
     // Subscribe to real-time changes on public tables
     const paymentsChannel = supabase
@@ -241,12 +265,25 @@ export default function App() {
       .subscribe();
 
     return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      clearTimeout(splashTimer);
       supabase.removeChannel(paymentsChannel);
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(attendeesChannel);
       supabase.removeChannel(expensesChannel);
     };
   }, []);
+
+  // PWA installation trigger
+  const handleInstallPWA = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+    }
+  };
 
   // Kas calculations
   const totalIncome = payments.filter(p => p.status_pembayaran === 'verified').reduce((sum, p) => sum + p.nominal_tagihan, 0);
@@ -486,6 +523,36 @@ export default function App() {
     }
   };
 
+  // --- SPLASH SCREEN RENDER ---
+  if (showSplash) {
+    return (
+      <div className="min-h-screen w-full bg-gradient-to-br from-emerald-650 via-emerald-800 to-slate-950 flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="space-y-6 max-w-sm w-full">
+          {/* Animated Badminton Logo */}
+          <div className="w-24 h-24 bg-white/10 rounded-[2.2rem] border border-white/20 flex items-center justify-center mx-auto shadow-2xl p-4 animate-pulse-gentle">
+            <img src="/logo.svg" alt="Logo SI-PATRA" className="w-full h-full object-contain" />
+          </div>
+          {/* App Title */}
+          <div className="space-y-2">
+            <h1 className="text-4xl font-black text-white tracking-wider">SI-PATRA</h1>
+            <p className="text-emerald-300 text-[10px] font-extrabold uppercase tracking-widest leading-relaxed">
+              Sistem Manajemen Iuran & Sesi Badminton
+            </p>
+          </div>
+          {/* Progress bar loading */}
+          <div className="pt-8 space-y-3">
+            <div className="w-40 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden border border-white/5">
+              <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full animate-loading-bar"></div>
+            </div>
+            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider animate-pulse">
+              Memuat Sistem...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 w-full">
@@ -509,8 +576,8 @@ export default function App() {
         <header className="bg-slate-800/80 backdrop-blur-md text-white p-4 sticky top-0 z-10 rounded-b-[2rem] border-b border-slate-700/50 shadow-lg">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-tr from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-lg font-black text-white text-base">
-                {currentUser.name.charAt(0)}
+              <div className="w-10 h-10 bg-slate-700/50 rounded-xl border border-slate-650 flex items-center justify-center p-1.5">
+                <img src="/logo.svg" alt="SI-PATRA" className="w-full h-full object-contain" />
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selamat datang,</p>
@@ -544,6 +611,8 @@ export default function App() {
               verifyPayment={verifyPayment}
               setViewProofUrl={setViewProofUrl}
               setSelectedPayment={setSelectedPayment}
+              isInstallable={isInstallable}
+              handleInstallPWA={handleInstallPWA}
             />
           )}
 
@@ -637,7 +706,8 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 
 // --- DASHBOARD COMPONENT ---
 function Dashboard({ 
-  user, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment 
+  user, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
+  isInstallable, handleInstallPWA
 }: any) {
   const isAdmin = user.role === 'admin';
   
@@ -651,6 +721,27 @@ function Dashboard({
 
   return (
     <div className="space-y-6">
+      
+      {/* PWA INSTALLATION BANNER */}
+      {isInstallable && (
+        <div className="bg-slate-800 border border-slate-750 p-4 rounded-3xl flex justify-between items-center shadow-md animate-bounce">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-600/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20">
+              <span className="text-lg">📱</span>
+            </div>
+            <div>
+              <p className="font-extrabold text-xs text-slate-100">Instal Aplikasi SI-PATRA</p>
+              <p className="text-[9px] text-slate-450 font-semibold mt-0.5">Akses instan dari Home Screen Anda</p>
+            </div>
+          </div>
+          <button 
+            onClick={handleInstallPWA}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-[0.97]"
+          >
+            Install
+          </button>
+        </div>
+      )}
       
       {/* STATS OVERVIEW CARD */}
       <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-900 rounded-[2rem] p-6 text-white shadow-xl shadow-emerald-950/20 relative overflow-hidden">
@@ -788,7 +879,7 @@ function Dashboard({
                         </span>
                         <button 
                           onClick={() => setSelectedPayment(p)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-50 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
                         >
                           Bayar
                         </button>
@@ -1152,7 +1243,7 @@ function SessionsAdmin({
                                   {isUploaded && p.bukti_transfer && (
                                     <button 
                                       onClick={() => setViewProofUrl(p.bukti_transfer)}
-                                      className="px-2 py-1 bg-slate-750 hover:bg-slate-700 text-slate-350 text-[9px] font-extrabold rounded-md transition-colors"
+                                      className="px-2 py-1 bg-slate-750 hover:bg-slate-700 text-slate-355 text-[9px] font-extrabold rounded-md transition-colors"
                                     >
                                       Bukti
                                     </button>
@@ -1745,8 +1836,8 @@ function LoginScreen({ onLogin, members }: any) {
         
         {/* Upper Brand Section */}
         <div className="p-10 pb-6 text-center">
-          <div className="w-14 h-14 bg-gradient-to-tr from-emerald-400 to-teal-650 text-white rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-emerald-955/40">
-            <Activity size={28} strokeWidth={2.5} />
+          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg border border-white/5">
+            <img src="/logo.svg" alt="Logo SI-PATRA" className="w-10 h-10 object-contain animate-pulse-gentle" />
           </div>
           <h1 className="text-2xl font-black text-slate-100 tracking-tight mb-1">SI-PATRA</h1>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Sesi Badminton & Kas</p>

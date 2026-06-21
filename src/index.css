@@ -19,3 +19,32 @@ body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   background-color: #f8fafc; /* slate-50 */
 }
+
+/* Custom Splash Screen Animations */
+@keyframes loadingBar {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-loading-bar {
+  animation: loadingBar 1.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes pulse-gentle {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 2s infinite ease-in-out;
+}
