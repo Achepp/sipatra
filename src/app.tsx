@@ -5,17 +5,27 @@ import {
   LogOut, QrCode, Upload, Bell, ChevronRight, 
   User as UserIcon, Activity, Calendar, MapPin, 
   TrendingUp, PlusCircle, DollarSign, AlertCircle, 
-  ChevronDown, Check, RefreshCw
+  ChevronDown, Check, RefreshCw, Key, Shield, UserCheck
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 // --- TYPES ---
+interface Profile {
+  id: string;
+  nama: string;
+  email: string;
+  nomor_hp: string;
+  role: 'admin' | 'member';
+  created_at: string;
+}
+
 interface Member {
   id: number;
   name: string;
   email: string;
   role: string;
   status: string;
+  user_id: string | null;
 }
 
 interface Session {
@@ -83,12 +93,13 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<Member | null>(() => {
-    const saved = localStorage.getItem('sipatra_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  // Auth states
+  const [session, setSession] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [memberRecord, setMemberRecord] = useState<Member | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   
+  // Database states
   const [members, setMembers] = useState<Member[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [attendees, setAttendees] = useState<SessionAttendee[]>([]);
@@ -97,19 +108,41 @@ export default function App() {
   const [settings, setSettings] = useState<Pengaturan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // States for PWA & Splash Screen
+  // PWA & Splash Screen states
   const [showSplash, setShowSplash] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
-  // States for modals and UI interactions
+  // Modals & UI states
   const [showAddSessionModal, setShowAddSessionModal] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [viewProofUrl, setViewProofUrl] = useState<string | null>(null);
 
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (profileError) throw profileError;
+      setProfile(profileData);
+
+      const { data: memberData } = await supabase
+        .from('members')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      setMemberRecord(memberData || null);
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
+
   const fetchData = async () => {
-    setIsLoading(true);
     try {
       const { data: membersData, error: membersError } = await supabase
         .from('members')
@@ -155,118 +188,109 @@ export default function App() {
         setSettings(settingsData[0]);
       }
     } catch (err) {
-      console.error('Error fetching data from Supabase:', err);
-    } finally {
-      setIsLoading(false);
+      console.error('Error fetching core data from Supabase:', err);
     }
   };
 
+  // Auth monitoring & PWA initialization
   useEffect(() => {
-    fetchData();
+    // 1. Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        fetchUserProfile(session.user.id).then(() => {
+          fetchData().then(() => setIsLoading(false));
+        });
+      } else {
+        setIsLoading(false);
+      }
+    });
 
-    // PWA beforeinstallprompt handler
+    // 2. Listen to auth state changes
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        setIsLoading(true);
+        fetchUserProfile(session.user.id).then(() => {
+          fetchData().then(() => setIsLoading(false));
+        });
+      } else {
+        setProfile(null);
+        setMemberRecord(null);
+        setIsLoading(false);
+      }
+    });
+
+    // 3. PWA install prompt handler
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsInstallable(true);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Hide install button if already in standalone display mode
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstallable(false);
     }
 
-    // Splash screen timer
+    // 4. Splash screen timer
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
     }, 1800);
 
-    // Subscribe to real-time changes on public tables
+    // 5. Supabase Realtime channels
     const paymentsChannel = supabase
       .channel('payments_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'payments' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setPayments(prev => {
-              if (prev.some(t => t.id === payload.new.id)) return prev;
-              return [...prev, payload.new as Payment];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setPayments(prev => prev.map(t => t.id === payload.new.id ? (payload.new as Payment) : t));
-          } else if (payload.eventType === 'DELETE') {
-            setPayments(prev => prev.filter(t => t.id !== payload.old.id));
-          }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setPayments(prev => prev.some(t => t.id === payload.new.id) ? prev : [...prev, payload.new as Payment]);
+        } else if (payload.eventType === 'UPDATE') {
+          setPayments(prev => prev.map(t => t.id === payload.new.id ? (payload.new as Payment) : t));
+        } else if (payload.eventType === 'DELETE') {
+          setPayments(prev => prev.filter(t => t.id !== payload.old.id));
         }
-      )
-      .subscribe();
+      }).subscribe();
 
     const sessionsChannel = supabase
       .channel('sessions_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'sessions' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setSessions(prev => {
-              if (prev.some(s => s.id === payload.new.id)) return prev;
-              return [payload.new as Session, ...prev];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setSessions(prev => prev.map(s => s.id === payload.new.id ? (payload.new as Session) : s));
-          } else if (payload.eventType === 'DELETE') {
-            setSessions(prev => prev.filter(s => s.id !== payload.old.id));
-          }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setSessions(prev => prev.some(s => s.id === payload.new.id) ? prev : [payload.new as Session, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setSessions(prev => prev.map(s => s.id === payload.new.id ? (payload.new as Session) : s));
+        } else if (payload.eventType === 'DELETE') {
+          setSessions(prev => prev.filter(s => s.id !== payload.old.id));
         }
-      )
-      .subscribe();
+      }).subscribe();
 
     const attendeesChannel = supabase
       .channel('attendees_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'session_attendees' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setAttendees(prev => {
-              if (prev.some(a => a.id === payload.new.id)) return prev;
-              return [...prev, payload.new as SessionAttendee];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setAttendees(prev => prev.map(a => a.id === payload.new.id ? (payload.new as SessionAttendee) : a));
-          } else if (payload.eventType === 'DELETE') {
-            setAttendees(prev => prev.filter(a => a.id !== payload.old.id));
-          }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'session_attendees' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setAttendees(prev => prev.some(a => a.id === payload.new.id) ? prev : [...prev, payload.new as SessionAttendee]);
+        } else if (payload.eventType === 'UPDATE') {
+          setAttendees(prev => prev.map(a => a.id === payload.new.id ? (payload.new as SessionAttendee) : a));
+        } else if (payload.eventType === 'DELETE') {
+          setAttendees(prev => prev.filter(a => a.id !== payload.old.id));
         }
-      )
-      .subscribe();
+      }).subscribe();
 
     const expensesChannel = supabase
       .channel('expenses_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'session_expenses' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setSessionExpenses(prev => {
-              if (prev.some(e => e.id === payload.new.id)) return prev;
-              return [...prev, payload.new as SessionExpense];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setSessionExpenses(prev => prev.map(e => e.id === payload.new.id ? (payload.new as SessionExpense) : e));
-          } else if (payload.eventType === 'DELETE') {
-            setSessionExpenses(prev => prev.filter(e => e.id !== payload.old.id));
-          }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'session_expenses' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setSessionExpenses(prev => prev.some(e => e.id === payload.new.id) ? prev : [...prev, payload.new as SessionExpense]);
+        } else if (payload.eventType === 'UPDATE') {
+          setSessionExpenses(prev => prev.map(e => e.id === payload.new.id ? (payload.new as SessionExpense) : e));
+        } else if (payload.eventType === 'DELETE') {
+          setSessionExpenses(prev => prev.filter(e => e.id !== payload.old.id));
         }
-      )
-      .subscribe();
+      }).subscribe();
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       clearTimeout(splashTimer);
+      authSubscription.unsubscribe();
       supabase.removeChannel(paymentsChannel);
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(attendeesChannel);
@@ -274,7 +298,15 @@ export default function App() {
     };
   }, []);
 
-  // PWA installation trigger
+  // Protected Route Logic
+  const adminOnlyTabs = ['anggota', 'pengaturan'];
+  useEffect(() => {
+    if (profile && profile.role !== 'admin' && adminOnlyTabs.includes(activeTab)) {
+      alert('Akses Ditolak: Anda tidak diizinkan membuka menu ini.');
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, profile]);
+
   const handleInstallPWA = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
@@ -290,18 +322,9 @@ export default function App() {
   const totalExpense = sessionExpenses.reduce((sum, e) => sum + e.nominal, 0);
   const saldoKas = totalIncome - totalExpense;
 
-  const handleLogin = (member: Member) => {
-    setCurrentUser(member);
-    localStorage.setItem('sipatra_user', JSON.stringify(member));
-    setActiveTab('dashboard');
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('sipatra_user');
-    setActiveTab('dashboard');
-    setSelectedSessionId(null);
-    setSelectedPayment(null);
+  const handleLogout = async () => {
+    setIsLoading(true);
+    await supabase.auth.signOut();
   };
 
   // --- BACKEND MUTATIONS ---
@@ -328,20 +351,18 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error adding session:', err);
-      alert('Gagal membuat sesi baru. Silakan coba lagi.');
+      alert('Gagal membuat sesi baru.');
     }
   };
 
   const saveAttendance = async (sessionId: number, selectedMemberIds: number[]) => {
     try {
-      // Delete existing attendance
       const { error: deleteError } = await supabase
         .from('session_attendees')
         .delete()
         .eq('session_id', sessionId);
       if (deleteError) throw deleteError;
 
-      // Insert new attendance
       if (selectedMemberIds.length > 0) {
         const insertData = selectedMemberIds.map(memberId => ({
           session_id: sessionId,
@@ -353,7 +374,6 @@ export default function App() {
         if (insertError) throw insertError;
       }
 
-      // Sync state
       const { data: newAttendees, error: fetchError } = await supabase
         .from('session_attendees')
         .select('*')
@@ -363,7 +383,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error saving attendance:', err);
-      alert('Gagal menyimpan kehadiran. Silakan coba lagi.');
+      alert('Gagal menyimpan kehadiran.');
     }
   };
 
@@ -386,7 +406,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error adding session expense:', err);
-      alert('Gagal menambahkan pengeluaran sesi.');
+      alert('Gagal menambahkan pengeluaran.');
     }
   };
 
@@ -409,7 +429,7 @@ export default function App() {
     try {
       const sessionAttendees = attendees.filter(a => a.session_id === sessionId);
       if (sessionAttendees.length === 0) {
-        alert('Tidak ada anggota yang hadir pada sesi ini. Tandai kehadiran terlebih dahulu.');
+        alert('Tidak ada anggota yang hadir. Tandai kehadiran terlebih dahulu.');
         return;
       }
       
@@ -422,7 +442,6 @@ export default function App() {
 
       const costPerPerson = Math.round(totalSessionExpense / sessionAttendees.length);
 
-      // Create payments records
       const paymentsToInsert = sessionAttendees.map(a => ({
         session_id: sessionId,
         member_id: a.member_id,
@@ -430,13 +449,11 @@ export default function App() {
         status_pembayaran: 'pending'
       }));
 
-      // Insert payments into Supabase
       const { error: insertPaymentsError } = await supabase
         .from('payments')
         .insert(paymentsToInsert);
       if (insertPaymentsError) throw insertPaymentsError;
 
-      // Update session status
       const { error: updateSessionError } = await supabase
         .from('sessions')
         .update({
@@ -446,14 +463,12 @@ export default function App() {
         .eq('id', sessionId);
       if (updateSessionError) throw updateSessionError;
 
-      // Update state
       setSessions(prev => prev.map(s => s.id === sessionId ? {
         ...s,
         status_tagihan: 'generated',
         biaya_per_orang: costPerPerson
       } : s));
 
-      // Fetch newly created payments
       const { data: newPaymentsData, error: payError } = await supabase
         .from('payments')
         .select('*')
@@ -462,10 +477,10 @@ export default function App() {
         setPayments(newPaymentsData);
       }
 
-      alert(`Sukses! Tagihan berhasil diterbitkan bagi ${sessionAttendees.length} peserta hadir. Masing-masing: ${formatRp(costPerPerson)}`);
+      alert(`Sukses! Tagihan diterbitkan. Masing-masing: ${formatRp(costPerPerson)}`);
     } catch (err) {
       console.error('Error generating bills:', err);
-      alert('Gagal menerbitkan tagihan. Silakan coba lagi.');
+      alert('Gagal menerbitkan tagihan.');
     }
   };
 
@@ -474,19 +489,16 @@ export default function App() {
     const fileName = `${paymentId}_${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    // Upload image to Supabase Storage bucket 'payment-proofs'
     const { error: uploadError } = await supabase.storage
       .from('payment-proofs')
       .upload(filePath, file);
 
     if (uploadError) throw uploadError;
 
-    // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('payment-proofs')
       .getPublicUrl(filePath);
 
-    // Update payment in Supabase
     const dateStr = new Date().toISOString();
     const { error: updateError } = await supabase
       .from('payments')
@@ -499,7 +511,6 @@ export default function App() {
 
     if (updateError) throw updateError;
 
-    // Update local state to trigger instant UI refresh
     setPayments(prev => prev.map(t => t.id === paymentId ? {
       ...t,
       status_pembayaran: 'uploaded',
@@ -519,7 +530,72 @@ export default function App() {
       setPayments(prev => prev.map(t => t.id === paymentId ? { ...t, status_pembayaran: status } : t));
     } catch (err) {
       console.error('Error verifying payment:', err);
-      alert('Gagal memperbarui status verifikasi pembayaran.');
+      alert('Gagal memverifikasi pembayaran.');
+    }
+  };
+
+  const updateProfile = async (nama: string, nomor_hp: string) => {
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ nama, nomor_hp })
+        .eq('id', session.user.id);
+      if (profileError) throw profileError;
+
+      if (memberRecord) {
+        const { error: memberError } = await supabase
+          .from('members')
+          .update({ name: nama })
+          .eq('id', memberRecord.id);
+        if (memberError) throw memberError;
+      }
+
+      await fetchUserProfile(session.user.id);
+      alert('Profil berhasil disimpan!');
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      alert('Gagal menyimpan profil.');
+    }
+  };
+
+  const updateSettings = async (namaKomunitas: string, rekeningPenerima: string, qrisFile?: File) => {
+    try {
+      let qrisUrl = settings?.qris_image_url || '';
+      
+      if (qrisFile) {
+        const fileExt = qrisFile.name.split('.').pop();
+        const fileName = `qris_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('payment-proofs')
+          .upload(fileName, qrisFile);
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('payment-proofs')
+          .getPublicUrl(fileName);
+        qrisUrl = publicUrl;
+      }
+
+      const { error } = await supabase
+        .from('pengaturan')
+        .update({
+          nama_komunitas: namaKomunitas,
+          rekening_penerima: rekeningPenerima,
+          qris_image_url: qrisUrl
+        })
+        .eq('id', settings?.id);
+
+      if (error) throw error;
+      alert('Pengaturan berhasil disimpan!');
+      
+      // Refresh settings
+      const { data: settingsData } = await supabase.from('pengaturan').select('*').limit(1);
+      if (settingsData && settingsData.length > 0) {
+        setSettings(settingsData[0]);
+      }
+    } catch (err) {
+      console.error('Error updating settings:', err);
+      alert('Gagal menyimpan pengaturan.');
     }
   };
 
@@ -528,18 +604,15 @@ export default function App() {
     return (
       <div className="min-h-screen w-full bg-gradient-to-br from-emerald-650 via-emerald-800 to-slate-950 flex flex-col items-center justify-center p-6 text-center select-none">
         <div className="space-y-6 max-w-sm w-full">
-          {/* Animated Badminton Logo */}
           <div className="w-24 h-24 bg-white/10 rounded-[2.2rem] border border-white/20 flex items-center justify-center mx-auto shadow-2xl p-4 animate-pulse-gentle">
             <img src="/logo.svg" alt="Logo SI-PATRA" className="w-full h-full object-contain" />
           </div>
-          {/* App Title */}
           <div className="space-y-2">
             <h1 className="text-4xl font-black text-white tracking-wider">SI-PATRA</h1>
             <p className="text-emerald-300 text-[10px] font-extrabold uppercase tracking-widest leading-relaxed">
               Sistem Manajemen Iuran & Sesi Badminton
             </p>
           </div>
-          {/* Progress bar loading */}
           <div className="pt-8 space-y-3">
             <div className="w-40 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden border border-white/5">
               <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full animate-loading-bar"></div>
@@ -553,6 +626,7 @@ export default function App() {
     );
   }
 
+  // --- LOADING RENDER ---
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 w-full">
@@ -564,12 +638,15 @@ export default function App() {
     );
   }
 
-  if (!currentUser) {
-    return <LoginScreen onLogin={handleLogin} members={members} />;
+  // --- AUTH SCREENS ---
+  if (!session || !profile) {
+    return <AuthScreen onLoginSuccess={fetchUserProfile} members={members} />;
   }
 
+  const isAdmin = profile.role === 'admin';
+
   return (
-    <div className="min-h-screen bg-slate-950 flex justify-center text-slate-100 font-sans">
+    <div className="min-h-screen bg-slate-955 flex justify-center text-slate-100 font-sans">
       <div className="w-full max-w-md bg-slate-900 min-h-screen shadow-2xl relative pb-20 flex flex-col border-x border-slate-800">
         
         {/* HEADER */}
@@ -581,12 +658,12 @@ export default function App() {
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selamat datang,</p>
-                <p className="font-bold text-sm text-slate-100 truncate w-36 tracking-wide">{currentUser.name}</p>
+                <p className="font-bold text-sm text-slate-100 truncate w-36 tracking-wide">{profile.nama}</p>
               </div>
             </div>
             <div className="flex gap-2.5 items-center">
-              <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${currentUser.role === 'admin' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
-                {currentUser.role === 'admin' ? 'Bendahara' : 'Anggota'}
+              <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${isAdmin ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
+                {isAdmin ? 'Bendahara' : 'Anggota'}
               </span>
               <button onClick={handleLogout} className="p-2 bg-slate-700/60 hover:bg-slate-700 hover:text-red-400 rounded-full transition-colors duration-200">
                 <LogOut size={16} />
@@ -599,7 +676,8 @@ export default function App() {
         <main className="flex-1 overflow-y-auto p-4 hide-scrollbar space-y-6">
           {activeTab === 'dashboard' && (
             <Dashboard 
-              user={currentUser} 
+              user={profile} 
+              memberRecord={memberRecord}
               saldoKas={saldoKas} 
               totalIncome={totalIncome} 
               totalExpense={totalExpense} 
@@ -617,7 +695,7 @@ export default function App() {
           )}
 
           {activeTab === 'tagihan' && (
-            currentUser.role === 'admin' ? (
+            isAdmin ? (
               <SessionsAdmin 
                 sessions={sessions} 
                 members={members} 
@@ -638,7 +716,7 @@ export default function App() {
               />
             ) : (
               <MyBillsMember 
-                user={currentUser}
+                user={memberRecord}
                 sessions={sessions}
                 payments={payments}
                 settings={settings}
@@ -659,17 +737,38 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'anggota' && currentUser.role === 'admin' && (
+          {activeTab === 'anggota' && isAdmin && (
             <MembersList members={members} />
+          )}
+
+          {activeTab === 'profile' && !isAdmin && (
+            <ProfileMember 
+              profile={profile} 
+              updateProfile={updateProfile} 
+            />
+          )}
+
+          {activeTab === 'pengaturan' && isAdmin && (
+            <SettingsAdmin 
+              settings={settings} 
+              updateSettings={updateSettings} 
+            />
           )}
         </main>
 
         {/* BOTTOM NAVIGATION */}
         <nav className="fixed bottom-0 w-full max-w-md bg-slate-900 border-t border-slate-800 flex justify-around p-3 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.3)] z-20">
           <NavItem icon={<Home size={20} />} label="Beranda" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-          <NavItem icon={<Receipt size={20} />} label={currentUser.role === 'admin' ? 'Kelola Sesi' : 'Tagihan'} active={activeTab === 'tagihan'} onClick={() => setActiveTab('tagihan')} />
-          <NavItem icon={<Wallet size={20} />} label="Kas" active={activeTab === 'kas'} onClick={() => setActiveTab('kas')} />
-          {currentUser.role === 'admin' && <NavItem icon={<Users size={20} />} label="Anggota" active={activeTab === 'anggota'} onClick={() => setActiveTab('anggota')} />}
+          <NavItem icon={<Receipt size={20} />} label={isAdmin ? 'Sesi' : 'Tagihan Saya'} active={activeTab === 'tagihan'} onClick={() => setActiveTab('tagihan')} />
+          <NavItem icon={<Wallet size={20} />} label={isAdmin ? 'Laporan' : 'Kas'} active={activeTab === 'kas'} onClick={() => setActiveTab('kas')} />
+          {isAdmin ? (
+            <>
+              <NavItem icon={<Users size={20} />} label="Anggota" active={activeTab === 'anggota'} onClick={() => setActiveTab('anggota')} />
+              <NavItem icon={<Shield size={20} />} label="Pengaturan" active={activeTab === 'pengaturan'} onClick={() => setActiveTab('pengaturan')} />
+            </>
+          ) : (
+            <NavItem icon={<UserIcon size={20} />} label="Profil Saya" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+          )}
         </nav>
 
         {/* IMAGE PROOF VIEWER MODAL */}
@@ -706,7 +805,7 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 
 // --- DASHBOARD COMPONENT ---
 function Dashboard({ 
-  user, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
+  user, memberRecord, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
   isInstallable, handleInstallPWA
 }: any) {
   const isAdmin = user.role === 'admin';
@@ -715,9 +814,10 @@ function Dashboard({
   const pendingPayments = payments.filter((p: any) => p.status_pembayaran === 'uploaded');
   
   // Member specific active bills
-  const myPayments = payments.filter((p: any) => p.member_id === user.id);
+  const myPayments = memberRecord ? payments.filter((p: any) => p.member_id === memberRecord.id) : [];
   const myActiveBills = myPayments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected');
   const myPaidCount = myPayments.filter((p: any) => p.status_pembayaran === 'verified').length;
+  const myTotalPaidAmount = myPayments.filter((p: any) => p.status_pembayaran === 'verified').reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
 
   return (
     <div className="space-y-6">
@@ -750,19 +850,29 @@ function Dashboard({
         </div>
         
         <span className="text-[10px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider text-emerald-100">
-          Total Saldo Kas
+          {isAdmin ? 'Total Saldo Kas' : 'Total Pembayaran Saya'}
         </span>
-        <h2 className="text-3xl font-black mt-3 mb-6 tracking-tight">{formatRp(saldoKas)}</h2>
+        <h2 className="text-3xl font-black mt-3 mb-6 tracking-tight">
+          {isAdmin ? formatRp(saldoKas) : formatRp(myTotalPaidAmount)}
+        </h2>
         
         <div className="flex gap-4 border-t border-white/10 pt-4">
           <div className="flex-1">
-            <p className="text-emerald-200 text-[10px] font-bold uppercase tracking-wider">Total Pemasukan</p>
-            <p className="font-extrabold text-sm text-slate-50">{formatRp(totalIncome)}</p>
+            <p className="text-emerald-200 text-[10px] font-bold uppercase tracking-wider">
+              {isAdmin ? 'Total Pemasukan' : 'Sesi Diikuti'}
+            </p>
+            <p className="font-extrabold text-sm text-slate-50">
+              {isAdmin ? formatRp(totalIncome) : `${myPayments.length} Game`}
+            </p>
           </div>
           <div className="w-px bg-white/10"></div>
           <div className="flex-1">
-            <p className="text-emerald-200 text-[10px] font-bold uppercase tracking-wider">Total Pengeluaran</p>
-            <p className="font-extrabold text-sm text-slate-50">{formatRp(totalExpense)}</p>
+            <p className="text-emerald-200 text-[10px] font-bold uppercase tracking-wider">
+              {isAdmin ? 'Total Pengeluaran' : 'Lunas'}
+            </p>
+            <p className="font-extrabold text-sm text-slate-50">
+              {isAdmin ? formatRp(totalExpense) : `${myPaidCount} Sesi`}
+            </p>
           </div>
         </div>
       </div>
@@ -867,19 +977,19 @@ function Dashboard({
                     <div key={p.id} className={`bg-slate-800/60 p-4 rounded-2xl border ${isRejected ? 'border-red-500/30' : 'border-slate-800'} flex justify-between items-center gap-3 shadow-md`}>
                       <div className="flex-1 min-w-0">
                         <p className="font-extrabold text-sm text-slate-100 truncate">{session?.nama_sesi || 'Sesi Badminton'}</p>
-                        <div className="flex items-center gap-1.5 text-slate-400 mt-1">
+                        <div className="flex items-center gap-1.5 text-slate-450 mt-1">
                           <Calendar size={11} />
                           <span className="text-[10px] font-semibold">{formatDate(session?.tanggal_main || '')}</span>
                         </div>
                         <p className="text-sm font-black text-red-400 mt-1">{formatRp(p.nominal_tagihan)}</p>
                       </div>
                       <div className="text-right flex flex-col items-end gap-1.5">
-                        <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/35 animate-pulse' : 'bg-amber-500/20 text-amber-300 border border-amber-500/35'}`}>
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-amber-500/20 text-amber-300 border border-amber-500/35'}`}>
                           {isRejected ? 'Ditolak' : 'Belum Bayar'}
                         </span>
                         <button 
                           onClick={() => setSelectedPayment(p)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-50 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
                         >
                           Bayar
                         </button>
@@ -893,17 +1003,17 @@ function Dashboard({
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-black text-sm uppercase tracking-wider text-slate-300">Riwayat Sesi Saya</h3>
-              <span className="text-[10px] font-bold text-slate-400">{myPaidCount} Sesi Lunas</span>
+              <h3 className="font-black text-sm uppercase tracking-wider text-slate-300">Status Pembayaran Terakhir</h3>
             </div>
             
             <div className="space-y-3">
-              {myPayments.filter((p: any) => p.status_pembayaran === 'verified' || p.status_pembayaran === 'uploaded').slice(0, 3).map((p: any) => {
+              {myPayments.filter((p: any) => p.status_pembayaran !== 'pending').slice(0, 2).map((p: any) => {
                 const session = sessions.find((s: any) => s.id === p.session_id);
                 const isVerified = p.status_pembayaran === 'verified';
+                const isUploaded = p.status_pembayaran === 'uploaded';
                 return (
                   <div key={p.id} className="bg-slate-800/30 p-3.5 rounded-2xl border border-slate-800/70 flex items-center gap-3.5">
-                    <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                    <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : isUploaded ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
                       {isVerified ? <CheckCircle size={16} /> : <Clock size={16} />}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -912,8 +1022,8 @@ function Dashboard({
                     </div>
                     <div className="text-right">
                       <p className="text-xs font-black text-slate-100">{formatRp(p.nominal_tagihan)}</p>
-                      <p className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${isVerified ? 'text-emerald-400' : 'text-blue-400 animate-pulse'}`}>
-                        {isVerified ? 'Lunas' : 'Verifikasi'}
+                      <p className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${isVerified ? 'text-emerald-400' : isUploaded ? 'text-blue-400 animate-pulse' : 'text-red-405'}`}>
+                        {p.status_pembayaran}
                       </p>
                     </div>
                   </div>
@@ -1042,17 +1152,16 @@ function SessionsAdmin({
                 </div>
               </div>
 
-              {/* EXPANDED INTERACTIVE DETAILS */}
+              {/* EXPANDED DETAILS */}
               {isSelected && (
                 <div className="border-t border-slate-700/50 bg-slate-800/30 p-4 space-y-5 animate-slide-down">
                   
-                  {/* DETAIL INFORMASI */}
                   <div className="text-xs bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 space-y-1.5">
                     <p className="flex justify-between"><span className="text-slate-400 font-medium">Waktu Main:</span> <span className="font-bold text-slate-200">{s.jam_main}</span></p>
                     {s.catatan && <p className="flex justify-between"><span className="text-slate-400 font-medium">Catatan:</span> <span className="font-bold text-slate-200">{s.catatan}</span></p>}
                   </div>
 
-                  {/* 1. MODULE: KEHADIRAN ANGGOTA */}
+                  {/* 1. ATTENDANCE CHECKS */}
                   <div className="space-y-2">
                     <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center justify-between">
                       <span>Kehadiran Peserta</span>
@@ -1060,7 +1169,6 @@ function SessionsAdmin({
                     </h4>
                     
                     {s.status_tagihan === 'draft' ? (
-                      /* Draft State: Admin can edit checklist */
                       <div className="bg-slate-850 border border-slate-750 rounded-2xl p-3 max-h-40 overflow-y-auto space-y-2 hide-scrollbar">
                         {members.filter((m: any) => m.role === 'member' && m.status === 'aktif').map((m: any) => {
                           const isChecked = sAttendees.some((a: any) => a.member_id === m.id);
@@ -1084,7 +1192,6 @@ function SessionsAdmin({
                         })}
                       </div>
                     ) : (
-                      /* Generated State: Read-only attendance list */
                       <div className="flex flex-wrap gap-1.5">
                         {sAttendees.map((a: any) => {
                           const mName = members.find((m: any) => m.id === a.member_id)?.name || 'Anggota';
@@ -1098,14 +1205,13 @@ function SessionsAdmin({
                     )}
                   </div>
 
-                  {/* 2. MODULE: PENGELUARAN SESI */}
+                  {/* 2. EXPENSES */}
                   <div className="space-y-3">
                     <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center justify-between">
                       <span>Rincian Biaya Sesi</span>
                       <span className="text-red-400 font-extrabold">{formatRp(totalExps)}</span>
                     </h4>
 
-                    {/* Expenses List */}
                     {sExpenses.length === 0 ? (
                       <p className="text-[10px] text-slate-500 font-bold italic text-center py-2 bg-slate-850/40 rounded-xl border border-slate-800">
                         Belum ada biaya pengeluaran sesi dicatat.
@@ -1134,7 +1240,6 @@ function SessionsAdmin({
                       </div>
                     )}
 
-                    {/* Add Expense Form Inline (Draft Only) */}
                     {s.status_tagihan === 'draft' && (
                       <form onSubmit={(e) => handleAddExpenseInline(e, s.id)} className="bg-slate-850 border border-slate-750/80 p-3 rounded-2xl space-y-2.5">
                         <div className="grid grid-cols-2 gap-2">
@@ -1174,10 +1279,9 @@ function SessionsAdmin({
                     )}
                   </div>
 
-                  {/* 3. ACTIONS MODULE / PAYMENTS STATUS MONITOR */}
+                  {/* 3. ACTIONS MODULE */}
                   <div className="pt-2 border-t border-slate-700/50">
                     {s.status_tagihan === 'draft' ? (
-                      /* Draft Actions: Publish Tagihan (Calculate split cost) */
                       <div className="space-y-3">
                         <div className="bg-emerald-500/10 border border-emerald-500/15 p-3 rounded-2xl text-xs flex justify-between items-center">
                           <div>
@@ -1198,16 +1302,14 @@ function SessionsAdmin({
                         </button>
                       </div>
                     ) : (
-                      /* Generated Actions: Check Payments & Verification Status */
                       <div className="space-y-3">
                         <div className="flex justify-between items-center mb-2">
                           <p className="font-bold text-xs uppercase tracking-wider text-slate-400">Status Bayar Peserta</p>
-                          <span className="text-[10px] font-black text-emerald-450 bg-emerald-500/10 px-2 py-0.5 rounded">
+                          <span className="text-[10px] font-black text-emerald-455 bg-emerald-500/10 px-2 py-0.5 rounded">
                             {lunasCount}/{sAttendees.length} Lunas
                           </span>
                         </div>
 
-                        {/* Progress Bar */}
                         <div className="w-full bg-slate-800 rounded-full h-1.5 border border-slate-750 overflow-hidden">
                           <div 
                             className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" 
@@ -1215,7 +1317,6 @@ function SessionsAdmin({
                           ></div>
                         </div>
 
-                        {/* Session Attendee Payments List */}
                         <div className="space-y-2 mt-3.5">
                           {sPayments.map((p: any) => {
                             const mName = members.find((m: any) => m.id === p.member_id)?.name || 'Anggota';
@@ -1231,7 +1332,7 @@ function SessionsAdmin({
                                     <span className={`text-[8px] font-black uppercase tracking-wider ${
                                       isVerified ? 'text-emerald-450' : 
                                       isUploaded ? 'text-blue-400 animate-pulse' : 
-                                      isRejected ? 'text-red-450' : 'text-slate-500'
+                                      isRejected ? 'text-red-455' : 'text-slate-500'
                                     }`}>
                                       {isVerified ? 'Lunas' : 
                                        isUploaded ? 'Uploaded (Verifikasi)' : 
@@ -1284,14 +1385,11 @@ function SessionsAdmin({
         })}
       </div>
 
-      {/* CREATE SESSION MODAL (Admin only) */}
+      {/* CREATE SESSION MODAL */}
       {showAddSessionModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center p-4">
           <div className="bg-slate-900 w-full max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] p-6 relative border border-slate-800 shadow-2xl animate-slide-up">
-            <button 
-              onClick={() => setShowAddSessionModal(false)} 
-              className="absolute top-5 right-5 p-2 bg-slate-800 text-slate-400 hover:text-slate-100 rounded-full transition-colors"
-            >
+            <button onClick={() => setShowAddSessionModal(false)} className="absolute top-5 right-5 p-2 bg-slate-800 text-slate-400 hover:text-slate-100 rounded-full transition-colors">
               <XCircle size={18} />
             </button>
             <h3 className="text-base font-black text-slate-100 uppercase tracking-wide mb-6">Tambah Sesi Baru</h3>
@@ -1319,10 +1417,7 @@ function SessionsAdmin({
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Catatan (Optional)</label>
                 <textarea name="catatan" placeholder="Catatan opsional..." rows={2} className="w-full px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold text-xs resize-none"></textarea>
               </div>
-              <button 
-                type="submit" 
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg shadow-emerald-950/20 active:scale-[0.98] text-xs"
-              >
+              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg shadow-emerald-950/20 active:scale-[0.98] text-xs">
                 Buat Sesi & Tandai Hadir
               </button>
             </form>
@@ -1346,7 +1441,6 @@ function MyBillsMember({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Sync state modal with payments state array
   const currentPayment = selectedPayment 
     ? payments.find((p: any) => p.id === selectedPayment.id) 
     : null;
@@ -1360,21 +1454,21 @@ function MyBillsMember({
     if (!file || !currentPayment) return;
 
     if (currentPayment.nominal_tagihan <= 0) {
-      setToastError('Nominal tagihan harus lebih dari Rp 0 untuk melakukan pembayaran.');
+      setToastError('Nominal tagihan harus lebih dari Rp 0.');
       setTimeout(() => setToastError(''), 4000);
       return;
     }
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
     if (!allowedTypes.includes(file.type)) {
-      setToastError('Format file tidak didukung. Harap gunakan JPG, PNG, atau WEBP.');
+      setToastError('Format file harus JPG, PNG, atau WEBP.');
       setTimeout(() => setToastError(''), 4000);
       return;
     }
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      setToastError('Ukuran file terlalu besar. Maksimal ukuran adalah 5 MB.');
+      setToastError('Ukuran file maksimal 5 MB.');
       setTimeout(() => setToastError(''), 4000);
       return;
     }
@@ -1400,12 +1494,12 @@ function MyBillsMember({
     setIsUploading(true);
     try {
       await submitPaymentWithProof(currentPayment.id, selectedFile);
-      setToastMessage('Bukti pembayaran berhasil diunggah!');
+      setToastMessage('Bukti pembayaran berhasil dikirim!');
       handleCancelFile();
       setTimeout(() => setToastMessage(''), 4000);
     } catch (err: any) {
       console.error(err);
-      setToastError(err.message || 'Gagal mengunggah bukti pembayaran.');
+      setToastError(err.message || 'Gagal mengirim bukti pembayaran.');
       setTimeout(() => setToastError(''), 5000);
     } finally {
       setIsUploading(false);
@@ -1426,12 +1520,10 @@ function MyBillsMember({
     handleCancelFile();
   };
 
-  // Filter payments for this member
-  const myPayments = payments.filter((p: any) => p.member_id === user.id);
+  const myPayments = user ? payments.filter((p: any) => p.member_id === user.id) : [];
 
   return (
     <div className="space-y-4">
-      {/* Toast Alerts */}
       {toastMessage && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3.5 rounded-full shadow-2xl z-50 text-xs font-bold flex items-center gap-2 border border-slate-700 animate-bounce">
           <CheckCircle size={15} className="text-emerald-400" /> {toastMessage}
@@ -1447,7 +1539,7 @@ function MyBillsMember({
 
       {myPayments.length === 0 ? (
         <div className="text-center p-8 bg-slate-800/30 border border-dashed border-slate-800 rounded-3xl text-slate-500 text-xs font-bold">
-          Anda tidak memiliki tagihan sesi.
+          Anda tidak memiliki tagihan sesi badminton.
         </div>
       ) : (
         <div className="space-y-4">
@@ -1470,9 +1562,7 @@ function MyBillsMember({
                       isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
                       'bg-slate-700 text-slate-400'
                     }`}>
-                      {isVerified ? 'Lunas' :
-                       isUploaded ? 'Verifikasi' :
-                       isRejected ? 'Ditolak' : 'Belum Bayar'}
+                      {isVerified ? 'Lunas' : isUploaded ? 'Verifikasi' : isRejected ? 'Ditolak' : 'Belum Bayar'}
                     </span>
                   </div>
 
@@ -1507,29 +1597,21 @@ function MyBillsMember({
         </div>
       )}
 
-      {/* MODAL QRIS & STATUS PEMBAYARAN */}
+      {/* MODAL QRIS & STATUS */}
       {currentPayment && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 w-full max-w-sm rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl flex flex-col animate-scale-up">
             
-            {/* Modal Header */}
             <div className="bg-emerald-700 p-5 text-center relative text-white">
-              <button 
-                onClick={handleCloseModal} 
-                className="absolute top-4.5 right-4.5 p-1.5 bg-white/10 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
-              >
+              <button onClick={handleCloseModal} className="absolute top-4.5 right-4.5 p-1.5 bg-white/10 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-all">
                 <XCircle size={18} />
               </button>
               <h3 className="font-black text-sm uppercase tracking-wider">Pembayaran QRIS</h3>
               <p className="text-emerald-100 text-[10px] font-bold mt-0.5 truncate px-6">{sessionDetail?.nama_sesi}</p>
             </div>
 
-            {/* Modal Body */}
             {currentPayment.status_pembayaran === 'uploaded' || currentPayment.status_pembayaran === 'verified' ? (
-              /* SCREEN 2: SUCCESS / CONFIRMATION STATE */
               <div className="p-6 flex flex-col items-center gap-6 text-center">
-                
-                {/* Success/Pending Icon */}
                 <div className={`w-18 h-18 rounded-full flex items-center justify-center shadow-lg ${
                   currentPayment.status_pembayaran === 'verified'
                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse'
@@ -1538,12 +1620,9 @@ function MyBillsMember({
                   <CheckCircle size={36} strokeWidth={2.5} />
                 </div>
 
-                {/* Title & Description */}
                 <div className="space-y-1.5">
                   <h4 className="text-base font-black text-slate-100 tracking-tight">
-                    {currentPayment.status_pembayaran === 'verified'
-                      ? 'Pembayaran Terverifikasi'
-                      : 'Bukti Pembayaran Dikirim'}
+                    {currentPayment.status_pembayaran === 'verified' ? 'Pembayaran Terverifikasi' : 'Bukti Pembayaran Dikirim'}
                   </h4>
                   <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-4">
                     {currentPayment.status_pembayaran === 'verified'
@@ -1552,7 +1631,6 @@ function MyBillsMember({
                   </p>
                 </div>
 
-                {/* Details Card */}
                 <div className="w-full bg-slate-850 border border-slate-800 rounded-2xl p-4 text-left space-y-3">
                   <div className="flex justify-between items-center text-[10px] font-bold">
                     <span className="text-slate-500 uppercase tracking-wider">Nominal</span>
@@ -1560,46 +1638,31 @@ function MyBillsMember({
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-bold">
                     <span className="text-slate-500 uppercase tracking-wider">Tanggal Upload</span>
-                    <span className="text-slate-200">
-                      {currentPayment.tanggal_bayar ? formatDate(currentPayment.tanggal_bayar) : '-'}
-                    </span>
+                    <span className="text-slate-200">{currentPayment.tanggal_bayar ? formatDate(currentPayment.tanggal_bayar) : '-'}</span>
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-bold">
                     <span className="text-slate-500 uppercase tracking-wider">Status</span>
                     <span>
                       {currentPayment.status_pembayaran === 'verified' ? (
-                        <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">
-                          Lunas
-                        </span>
+                        <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">Lunas</span>
                       ) : (
-                        <span className="bg-blue-500/15 text-blue-400 border border-blue-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">
-                          Menunggu Verifikasi
-                        </span>
+                        <span className="bg-blue-500/15 text-blue-400 border border-blue-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">Menunggu Verifikasi</span>
                       )}
                     </span>
                   </div>
                 </div>
 
-                {/* Close Button */}
-                <button
-                  onClick={handleCloseModal}
-                  className="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 font-extrabold py-3.5 rounded-2xl border border-slate-700/60 transition-all text-xs active:scale-[0.98]"
-                >
+                <button onClick={handleCloseModal} className="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 font-extrabold py-3.5 rounded-2xl border border-slate-700/60 transition-all text-xs active:scale-[0.98]">
                   Tutup Rincian
                 </button>
-
               </div>
             ) : (
-              /* SCREEN 1: SCAN & UPLOAD STATE */
               <div className="p-6 flex flex-col items-center gap-5">
-                
-                {/* Nominal Display */}
                 <div className="text-center">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Nominal Transfer</p>
                   <p className="text-2xl font-black text-emerald-450 tracking-tight">{formatRp(currentPayment.nominal_tagihan)}</p>
                 </div>
 
-                {/* Info Text Box */}
                 <div className="bg-amber-500/5 border border-amber-500/15 rounded-2xl p-3.5 w-full text-center space-y-1">
                   <span className="text-[8px] font-black tracking-wider uppercase bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded border border-amber-500/25 inline-block">QRIS STATIS</span>
                   <p className="text-[10px] font-bold text-amber-400 leading-snug">
@@ -1607,14 +1670,9 @@ function MyBillsMember({
                   </p>
                 </div>
 
-                {/* QR Code Container */}
                 <div className="bg-white p-3 rounded-[2rem] border-2 border-slate-800 shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
                   {settings?.qris_image_url ? (
-                    <img
-                      src={settings.qris_image_url}
-                      alt="QRIS Code"
-                      className="w-full h-full object-contain rounded-2xl"
-                    />
+                    <img src={settings.qris_image_url} alt="QRIS Code" className="w-full h-full object-contain rounded-2xl" />
                   ) : (
                     <div className="text-center p-4">
                       <QrCode size={36} className="text-slate-300 mx-auto mb-2" />
@@ -1623,21 +1681,11 @@ function MyBillsMember({
                   )}
                 </div>
 
-                {/* File Upload Selector */}
                 <div className="w-full space-y-3">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
+                  <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
                   
                   {!selectedFile ? (
-                    <button
-                      onClick={triggerFilePicker}
-                      className="w-full border-2 border-dashed border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-slate-850/40 hover:bg-slate-850 transition-colors"
-                    >
+                    <button onClick={triggerFilePicker} className="w-full border-2 border-dashed border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-slate-850/40 hover:bg-slate-850 transition-colors">
                       <Upload size={20} className="text-slate-500" />
                       <span className="text-[10px] font-bold text-slate-300">Pilih Bukti Transfer Pembayaran</span>
                       <span className="text-[8px] text-slate-500">Format: JPG, PNG, WEBP (Maks 5MB)</span>
@@ -1653,41 +1701,29 @@ function MyBillsMember({
                         <p className="text-[10px] font-extrabold text-slate-300 truncate">{selectedFile.name}</p>
                         <p className="text-[9px] text-slate-500 font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
                       </div>
-                      <button
-                        onClick={handleCancelFile}
-                        disabled={isUploading}
-                        className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50"
-                      >
+                      <button onClick={handleCancelFile} disabled={isUploading} className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50">
                         <XCircle size={15} />
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Submit Action Button */}
                 <div className="w-full">
                   {isUploading ? (
                     <button disabled className="w-full bg-slate-800 text-slate-500 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-slate-755 cursor-not-allowed text-xs">
                       <RefreshCw size={14} className="animate-spin" /> Mengirim Bukti...
                     </button>
                   ) : selectedFile ? (
-                    <button 
-                      onClick={handleUpload}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98]"
-                    >
+                    <button onClick={handleUpload} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98]">
                       <CheckCircle size={14} /> Kirim Bukti Transfer
                     </button>
                   ) : (
-                    <button 
-                      onClick={triggerFilePicker}
-                      className="w-full bg-slate-800 hover:bg-slate-750 text-slate-300 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] border border-slate-700/60"
-                    >
+                    <button onClick={triggerFilePicker} className="w-full bg-slate-800 hover:bg-slate-750 text-slate-300 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] border border-slate-700/60">
                       <Upload size={14} /> {currentPayment.status_pembayaran === 'rejected' ? 'Pilih Bukti Baru' : 'Saya Sudah Bayar'}
                     </button>
                   )}
                 </div>
 
-                {/* Account Receiver Information */}
                 {settings && (
                   <div className="w-full border-t border-slate-800 pt-3.5 text-center space-y-1">
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Atas Nama Rekening</p>
@@ -1695,7 +1731,6 @@ function MyBillsMember({
                     <p className="text-[10px] font-bold text-slate-400 bg-slate-850 py-1 px-3 rounded-lg inline-block border border-slate-800 mt-1">{settings.rekening_penerima}</p>
                   </div>
                 )}
-
               </div>
             )}
           </div>
@@ -1710,8 +1745,6 @@ function MyBillsMember({
 function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions }: any) {
   return (
     <div className="space-y-6 animate-fade-in">
-      
-      {/* TREASURY SUMMARY CARD */}
       <div className="bg-slate-800/80 rounded-[2rem] p-6 text-center border border-slate-700/50 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 p-4 opacity-5">
           <Activity size={100} />
@@ -1732,7 +1765,6 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
         </div>
       </div>
 
-      {/* KAS TRANSACTION HISTORY */}
       <div className="space-y-4">
         <h2 className="text-sm font-black text-slate-300 uppercase tracking-wider">Histori Biaya Sesi</h2>
         
@@ -1765,7 +1797,6 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
           </div>
         )}
       </div>
-
     </div>
   );
 }
@@ -1805,115 +1836,448 @@ function MembersList({ members }: any) {
   );
 }
 
-// --- LOGIN SCREEN COMPONENT ---
-function LoginScreen({ onLogin, members }: any) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+// --- PROFILE MEMBER COMPONENT ---
+function ProfileMember({ profile, updateProfile }: { profile: Profile; updateProfile: (nama: string, nomor_hp: string) => Promise<void> }) {
+  const [nama, setNama] = useState(profile.nama);
+  const [nomorHp, setNomorHp] = useState(profile.nomor_hp || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const member = members.find((m: any) => m.email === email.trim().toLowerCase());
-    if (member) {
-      onLogin(member);
-    } else {
-      setError('Email tidak terdaftar. Gunakan akun demo di bawah.');
+    setIsSubmitting(true);
+    await updateProfile(nama, nomorHp);
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center gap-4 bg-slate-800/60 p-5 rounded-3xl border border-slate-800 shadow-md">
+        <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center justify-center font-black text-xl shadow-inner">
+          {profile.nama.charAt(0)}
+        </div>
+        <div>
+          <h3 className="font-black text-base text-slate-100">{profile.nama}</h3>
+          <p className="text-xs text-slate-450 font-bold mt-0.5">{profile.email}</p>
+          <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded uppercase tracking-wider">
+            {profile.role}
+          </span>
+        </div>
+      </div>
+
+      <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-800 shadow-sm space-y-4">
+        <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">Edit Profil</h4>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Nama Lengkap</label>
+            <input 
+              type="text" 
+              required 
+              value={nama} 
+              onChange={e => setNama(e.target.value)} 
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-750 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 font-bold text-xs" 
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Nomor Handphone</label>
+            <input 
+              type="text" 
+              value={nomorHp} 
+              onChange={e => setNomorHp(e.target.value)} 
+              placeholder="08123456789" 
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-750 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 font-bold text-xs" 
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="w-full bg-emerald-600 hover:bg-emerald-505 text-white font-extrabold py-3 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+            Simpan Perubahan
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// --- SETTINGS ADMIN COMPONENT ---
+function SettingsAdmin({ settings, updateSettings }: any) {
+  const [namaKomunitas, setNamaKomunitas] = useState(settings?.nama_komunitas || '');
+  const [rekeningPenerima, setRekeningPenerima] = useState(settings?.rekening_penerima || '');
+  const [qrisFile, setQrisFile] = useState<File | null>(null);
+  const [qrisPreview, setQrisPreview] = useState<string | null>(settings?.qris_image_url || null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setQrisFile(file);
+      setQrisPreview(URL.createObjectURL(file));
     }
   };
 
-  const handleDemoLogin = (role: 'admin' | 'member') => {
-    const demoUser = members.find((m: any) => m.role === role);
-    if (demoUser) {
-      onLogin(demoUser);
-    } else {
-      setError(`Akun demo ${role} tidak ditemukan di database.`);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    await updateSettings(namaKomunitas, rekeningPenerima, qrisFile || undefined);
+    setIsSubmitting(false);
+  };
+
+  return (
+    <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-800 shadow-sm space-y-4 animate-fade-in">
+      <h2 className="text-sm font-black text-slate-300 uppercase tracking-wider mb-2">Pengaturan Komunitas</h2>
+      
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Nama Komunitas</label>
+          <input 
+            type="text" 
+            required 
+            value={namaKomunitas} 
+            onChange={e => setNamaKomunitas(e.target.value)} 
+            className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-750 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 font-bold text-xs" 
+          />
+        </div>
+        <div>
+          <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Informasi Rekening Penerima</label>
+          <input 
+            type="text" 
+            required 
+            value={rekeningPenerima} 
+            onChange={e => setRekeningPenerima(e.target.value)} 
+            placeholder="Mandiri 1234567890 a.n Bendahara"
+            className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-750 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 font-bold text-xs" 
+          />
+        </div>
+        <div>
+          <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">QRIS Statis (Gambar)</label>
+          
+          <div className="flex flex-col items-center gap-4 p-4 border border-slate-750 rounded-2xl bg-slate-850/40">
+            {qrisPreview ? (
+              <img src={qrisPreview} alt="QRIS Preview" className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-slate-700" />
+            ) : (
+              <div className="w-40 h-40 border-2 border-dashed border-slate-700 rounded-xl flex items-center justify-center text-slate-500 text-xs">
+                Belum ada QRIS
+              </div>
+            )}
+            
+            <label className="px-4 py-2 bg-slate-750 hover:bg-slate-700 rounded-xl text-[10px] font-black text-slate-200 cursor-pointer border border-slate-700 flex items-center gap-1.5 transition-colors">
+              <Upload size={12} /> Pilih Gambar QRIS Baru
+              <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+            </label>
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={isSubmitting}
+          className="w-full bg-emerald-600 hover:bg-emerald-505 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
+        >
+          {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+          Simpan Pengaturan
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// --- SUPABASE AUTH SCREEN COMPONENT ---
+function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Promise<void>; members: any }) {
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
+  
+  // Input fields
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  
+  // Status states
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    setIsSubmitting(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password
+      });
+
+      if (error) throw error;
+      if (data.session) {
+        await onLoginSuccess(data.session.user.id);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Gagal login. Periksa kembali email dan password.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (password !== confirmPassword) {
+      setErrorMsg('Konfirmasi password tidak cocok.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: {
+            nama: fullName,
+            nomor_hp: phone
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      setSuccessMsg('Pendaftaran sukses! Silakan periksa email untuk verifikasi (jika diaktifkan) atau langsung masuk.');
+      
+      if (data.session) {
+        await onLoginSuccess(data.session.user.id);
+      } else {
+        // Fallback if email confirmation is required by Supabase Auth configuration
+        alert('Registrasi berhasil! Silakan periksa email masuk Anda untuk memverifikasi akun.');
+        setAuthMode('login');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Gagal melakukan registrasi.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: window.location.origin
+      });
+
+      if (error) throw error;
+      setSuccessMsg('Tautan instruksi reset password telah dikirim ke email Anda.');
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Gagal mengirim email reset password.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 w-full">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 w-full text-slate-100 font-sans">
       <div className="bg-slate-900 w-full max-w-sm rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-slate-800">
         
-        {/* Upper Brand Section */}
-        <div className="p-10 pb-6 text-center">
-          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg border border-white/5">
-            <img src="/logo.svg" alt="Logo SI-PATRA" className="w-10 h-10 object-contain animate-pulse-gentle" />
+        {/* Brand Header */}
+        <div className="p-8 pb-5 text-center">
+          <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/5 shadow-inner animate-pulse-gentle">
+            <img src="/logo.svg" alt="Logo SI-PATRA" className="w-10 h-10 object-contain" />
           </div>
           <h1 className="text-2xl font-black text-slate-100 tracking-tight mb-1">SI-PATRA</h1>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Sesi Badminton & Kas</p>
+          <p className="text-slate-500 text-[9px] font-black uppercase tracking-wider">Sesi Badminton & Kas</p>
         </div>
 
-        {/* Form Container */}
-        <div className="px-8 pb-8 space-y-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 bg-red-500/10 text-red-400 text-xs rounded-2xl flex items-center gap-2 font-bold border border-red-500/20">
-                <AlertCircle size={15} className="flex-shrink-0" /> 
-                <span>{error}</span>
-              </div>
-            )}
-            <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Alamat Email</label>
-              <input 
-                type="email" 
-                required 
-                value={email} 
-                onChange={e => setEmail(e.target.value)} 
-                placeholder="admin@sipatra.com" 
-                className="w-full px-4.5 py-3 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
-              />
+        {/* Content Form */}
+        <div className="px-8 pb-8 space-y-4">
+          
+          {errorMsg && (
+            <div className="p-3 bg-red-500/10 text-red-400 text-xs rounded-2xl flex items-center gap-2 font-bold border border-red-500/20">
+              <AlertCircle size={15} className="flex-shrink-0" /> 
+              <span>{errorMsg}</span>
             </div>
-            <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Kata Sandi</label>
-              <input 
-                type="password" 
-                required 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
-                placeholder="••••••••" 
-                className="w-full px-4.5 py-3 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
-              />
+          )}
+
+          {successMsg && (
+            <div className="p-3 bg-emerald-500/10 text-emerald-400 text-xs rounded-2xl flex items-center gap-2 font-bold border border-emerald-500/20">
+              <CheckCircle size={15} className="flex-shrink-0" /> 
+              <span>{successMsg}</span>
             </div>
-            
-            <button 
-              type="submit" 
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg shadow-emerald-955/20 active:scale-[0.98] text-xs"
-            >
-              Masuk
-            </button>
-          </form>
+          )}
 
-          {/* Demo Login Shortcuts */}
-          <div className="relative pt-2">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800"></div></div>
-            <div className="relative flex justify-center text-[9px]"><span className="bg-slate-900 px-3 text-slate-500 font-black uppercase tracking-wider">Akses Cepat Demo</span></div>
-          </div>
+          {authMode === 'login' && (
+            /* --- LOGIN FORM --- */
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Alamat Email</label>
+                <input 
+                  type="email" 
+                  required 
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+                  placeholder="name@email.com" 
+                  className="w-full px-4.5 py-3 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
+                />
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">Kata Sandi</label>
+                  <button type="button" onClick={() => setAuthMode('forgot')} className="text-[9px] font-extrabold text-emerald-400 hover:text-emerald-300">
+                    Lupa Sandi?
+                  </button>
+                </div>
+                <input 
+                  type="password" 
+                  required 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  placeholder="••••••••" 
+                  className="w-full px-4.5 py-3 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
+                />
+              </div>
+              
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg shadow-emerald-955/20 active:scale-[0.98] text-xs flex items-center justify-center gap-1.5"
+              >
+                {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                Masuk
+              </button>
 
-          <div className="grid grid-cols-2 gap-3.5">
-            <button 
-              onClick={() => handleDemoLogin('admin')} 
-              type="button" 
-              className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-800/40 border border-slate-800 rounded-2xl hover:bg-slate-800 hover:border-slate-700 transition-all group"
-            >
-              <div className="p-1.5 bg-slate-800 rounded-full text-slate-455 group-hover:text-amber-400 transition-colors">
-                <UserIcon size={14} />
+              <div className="text-center pt-2">
+                <p className="text-[10px] text-slate-450 font-bold">
+                  Belum punya akun?{' '}
+                  <button type="button" onClick={() => setAuthMode('register')} className="text-emerald-400 hover:text-emerald-300 font-black">
+                    Daftar Sekarang
+                  </button>
+                </p>
               </div>
-              <span className="text-[9px] font-black text-slate-400 group-hover:text-slate-200">Bendahara</span>
-            </button>
-            <button 
-              onClick={() => handleDemoLogin('member')} 
-              type="button" 
-              className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-800/40 border border-slate-800 rounded-2xl hover:bg-slate-800 hover:border-slate-700 transition-all group"
-            >
-              <div className="p-1.5 bg-slate-800 rounded-full text-slate-455 group-hover:text-emerald-455 transition-colors">
-                <UserIcon size={14} />
+            </form>
+          )}
+
+          {authMode === 'register' && (
+            /* --- REGISTER FORM --- */
+            <form onSubmit={handleRegister} className="space-y-3.5">
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Nama Lengkap</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={fullName} 
+                  onChange={e => setFullName(e.target.value)} 
+                  placeholder="Budi Santoso" 
+                  className="w-full px-4.5 py-2.5 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
+                />
               </div>
-              <span className="text-[9px] font-black text-slate-400 group-hover:text-slate-200">Anggota</span>
-            </button>
-          </div>
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Alamat Email</label>
+                <input 
+                  type="email" 
+                  required 
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+                  placeholder="budi@email.com" 
+                  className="w-full px-4.5 py-2.5 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Nomor Handphone</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={phone} 
+                  onChange={e => setPhone(e.target.value)} 
+                  placeholder="08123456789" 
+                  className="w-full px-4.5 py-2.5 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Password</label>
+                  <input 
+                    type="password" 
+                    required 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    placeholder="••••••••" 
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Konfirmasi</label>
+                  <input 
+                    type="password" 
+                    required 
+                    value={confirmPassword} 
+                    onChange={e => setConfirmPassword(e.target.value)} 
+                    placeholder="••••••••" 
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
+                  />
+                </div>
+              </div>
+              
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs flex items-center justify-center gap-1.5"
+              >
+                {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <PlusCircle size={14} />}
+                Daftar Akun
+              </button>
+
+              <div className="text-center pt-2">
+                <p className="text-[10px] text-slate-450 font-bold">
+                  Sudah punya akun?{' '}
+                  <button type="button" onClick={() => setAuthMode('login')} className="text-emerald-400 hover:text-emerald-300 font-black">
+                    Masuk Disini
+                  </button>
+                </p>
+              </div>
+            </form>
+          )}
+
+          {authMode === 'forgot' && (
+            /* --- FORGOT PASSWORD --- */
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Masukkan Email Terdaftar</label>
+                <input 
+                  type="email" 
+                  required 
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+                  placeholder="budi@email.com" 
+                  className="w-full px-4.5 py-3 rounded-2xl bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500 font-bold text-xs" 
+                />
+              </div>
+              
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] border border-slate-700 flex items-center justify-center gap-1.5"
+              >
+                {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <Key size={14} />}
+                Kirim Tautan Reset
+              </button>
+
+              <button type="button" onClick={() => setAuthMode('login')} className="w-full py-2.5 text-center text-slate-400 hover:text-slate-300 text-[10px] font-black uppercase tracking-wider mt-1">
+                Kembali ke Login
+              </button>
+            </form>
+          )}
 
         </div>
-
       </div>
     </div>
   );
