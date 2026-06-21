@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-slate-50: 248 250 252;
+  --color-slate-100: 241 245 249;
+  --color-slate-200: 226 232 240;
+  --color-slate-300: 203 213 225;
+  --color-slate-400: 148 163 184;
+  --color-slate-450: 125 141 164;
+  --color-slate-500: 100 116 139;
+  --color-slate-600: 71 85 105;
+  --color-slate-650: 59 74 96;
+  --color-slate-700: 51 65 85;
+  --color-slate-750: 39 53 73;
+  --color-slate-800: 30 41 59;
+  --color-slate-850: 21 31 50;
+  --color-slate-900: 15 23 42;
+  --color-slate-950: 2 6 23;
+  --color-slate-955: 6 10 19;
+}
+
+html.light {
+  --color-slate-50: 2 6 23;
+  --color-slate-100: 15 23 42;
+  --color-slate-200: 15 23 42;
+  --color-slate-300: 30 41 59;
+  --color-slate-400: 71 85 105;
+  --color-slate-450: 71 85 105;
+  --color-slate-500: 100 116 139;
+  --color-slate-600: 148 163 184;
+  --color-slate-650: 203 213 225;
+  --color-slate-700: 226 232 240;
+  --color-slate-750: 226 232 240;
+  --color-slate-800: 248 250 252;
+  --color-slate-850: 241 245 249;
+  --color-slate-900: 255 255 255;
+  --color-slate-950: 248 250 252;
+  --color-slate-955: 241 245 249;
+}
+
 @layer utilities {
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
@@ -15,10 +53,35 @@
   }
 }
 
+/* Global transitions for smooth theme switching */
+html,
+body,
+div,
+header,
+main,
+nav,
+button,
+span,
+p,
+h1,
+h2,
+h3,
+h4,
+input,
+select,
+textarea,
+label {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 250ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  background-color: #f8fafc; /* slate-50 */
+  background-color: rgb(var(--color-slate-955));
+  color: rgb(var(--color-slate-100));
 }
+
 
 /* Custom Splash Screen Animations */
 @keyframes loadingBar {

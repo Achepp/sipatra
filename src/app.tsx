@@ -5,7 +5,8 @@ import {
   LogOut, QrCode, Upload, Bell, ChevronRight, 
   User as UserIcon, Activity, Calendar, MapPin, 
   TrendingUp, PlusCircle, DollarSign, AlertCircle, 
-  ChevronDown, Check, RefreshCw, Key, Shield, UserCheck
+  ChevronDown, Check, RefreshCw, Key, Shield, UserCheck,
+  Sun, Moon
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -93,6 +94,32 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function App() {
+  // Theme state
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const savedTheme = localStorage.getItem('sipatra_theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme;
+    }
+    const systemPrefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+    return systemPrefersLight ? 'light' : 'dark';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    } else {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    }
+    localStorage.setItem('sipatra_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
   // Auth states
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -650,7 +677,7 @@ export default function App() {
       <div className="w-full max-w-md bg-slate-900 min-h-screen shadow-2xl relative pb-20 flex flex-col border-x border-slate-800">
         
         {/* HEADER */}
-        <header className="bg-slate-800/80 backdrop-blur-md text-white p-4 sticky top-0 z-10 rounded-b-[2rem] border-b border-slate-700/50 shadow-lg">
+        <header className="bg-slate-800/80 backdrop-blur-md text-slate-100 p-4 sticky top-0 z-10 rounded-b-[2rem] border-b border-slate-700/50 shadow-lg">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-slate-700/50 rounded-xl border border-slate-650 flex items-center justify-center p-1.5">
@@ -665,7 +692,15 @@ export default function App() {
               <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${isAdmin ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
                 {isAdmin ? 'Bendahara' : 'Anggota'}
               </span>
-              <button onClick={handleLogout} className="p-2 bg-slate-700/60 hover:bg-slate-700 hover:text-red-400 rounded-full transition-colors duration-200">
+              <button 
+                onClick={toggleTheme} 
+                className="p-2 bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 rounded-full transition-colors duration-200 flex items-center justify-center"
+                title={theme === 'dark' ? 'Aktifkan Mode Terang' : 'Aktifkan Mode Gelap'}
+                aria-label="Toggle Theme"
+              >
+                {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
+              </button>
+              <button onClick={handleLogout} className="p-2 bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-red-400 rounded-full transition-colors duration-200 flex items-center justify-center">
                 <LogOut size={16} />
               </button>
             </div>
