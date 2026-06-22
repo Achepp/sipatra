@@ -65,7 +65,7 @@ interface Payment {
   session_id: number;
   member_id: number;
   nominal_tagihan: number;
-  status_pembayaran: 'pending' | 'uploaded' | 'verified' | 'rejected';
+  status_pembayaran: 'pending' | 'uploaded' | 'verified' | 'rejected' | 'Menunggu Verifikasi Cash';
   tanggal_bayar: string | null;
   bukti_transfer: string | null;
   created_at: string;
@@ -606,6 +606,55 @@ export default function App() {
     }
   };
 
+  const submitCashPayment = async (paymentId: number) => {
+    const dateStr = new Date().toISOString();
+    const { error } = await supabase
+      .from('payments')
+      .update({
+        status_pembayaran: 'Menunggu Verifikasi Cash',
+        bukti_transfer: 'CASH',
+        tanggal_bayar: dateStr
+      })
+      .eq('id', paymentId);
+
+    if (error) throw error;
+
+    setPayments(prev => prev.map(t => t.id === paymentId ? {
+      ...t,
+      status_pembayaran: 'Menunggu Verifikasi Cash',
+      bukti_transfer: 'CASH',
+      tanggal_bayar: dateStr
+    } : t));
+  };
+
+  const markAsPaidCashDirectly = async (paymentId: number) => {
+    try {
+      const dateStr = new Date().toISOString();
+      const { error } = await supabase
+        .from('payments')
+        .update({
+          status_pembayaran: 'verified',
+          bukti_transfer: 'CASH',
+          tanggal_bayar: dateStr
+        })
+        .eq('id', paymentId);
+
+      if (error) throw error;
+
+      setPayments(prev => prev.map(t => t.id === paymentId ? {
+        ...t,
+        status_pembayaran: 'verified',
+        bukti_transfer: 'CASH',
+        tanggal_bayar: dateStr
+      } : t));
+      
+      showToast('Pembayaran cash berhasil dicatat Lunas!', 'success');
+    } catch (err) {
+      console.error('Error marking as paid cash directly:', err);
+      showToast('Gagal mencatat pembayaran cash.', 'error');
+    }
+  };
+
   const updateProfile = async (nama: string, nomor_hp: string) => {
     try {
       const { error: profileError } = await supabase
@@ -1076,6 +1125,7 @@ export default function App() {
                 generateBillsForSession={generateBillsForSession}
                 verifyPayment={verifyPayment}
                 setViewProofUrl={setViewProofUrl}
+                markAsPaidCashDirectly={markAsPaidCashDirectly}
               />
             ) : (
               <MyBillsMember 
@@ -1086,6 +1136,7 @@ export default function App() {
                 selectedPayment={selectedPayment}
                 setSelectedPayment={setSelectedPayment}
                 submitPaymentWithProof={submitPaymentWithProof}
+                submitCashPayment={submitCashPayment}
               />
             )
           )}
@@ -1251,9 +1302,12 @@ function Dashboard({
   // Pending payments (uploaded state)
   const pendingPayments = payments.filter((p: any) => p.status_pembayaran === 'uploaded');
   
+  // Pending cash payments
+  const pendingCashPayments = payments.filter((p: any) => p.status_pembayaran === 'Menunggu Verifikasi Cash');
+  
   // Member specific active bills
   const myPayments = memberRecord ? payments.filter((p: any) => p.member_id === memberRecord.id) : [];
-  const myActiveBills = myPayments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected');
+  const myActiveBills = myPayments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected' || p.status_pembayaran === 'Menunggu Verifikasi Cash');
   const myPaidCount = myPayments.filter((p: any) => p.status_pembayaran === 'verified').length;
   const myTotalPaidAmount = myPayments.filter((p: any) => p.status_pembayaran === 'verified').reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
 
@@ -1440,6 +1494,21 @@ function Dashboard({
               </p>
             </div>
           </div>
+
+          <div className="bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden col-span-2 sm:col-span-1">
+            <div className="flex justify-between items-start">
+              <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl">
+                <Clock size={16} />
+              </div>
+              <span className="text-[8px] font-black text-orange-550 dark:text-orange-450 uppercase tracking-wider">CASH PENDING</span>
+            </div>
+            <div>
+              <p className="text-lg font-black text-primary leading-none">{pendingCashPayments.length} Sesi</p>
+              <p className="text-[9px] text-secondary font-bold mt-1.5 truncate">
+                Pembayaran Cash Menunggu Verifikasi
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* ADMIN SECTION: PENDING PAYMENTS VERIFICATION */}
@@ -1493,6 +1562,67 @@ function Dashboard({
                   Lihat semua &gt;
                 </button>
               )}
+            </div>
+          )}
+        </div>
+ 
+        {/* ADMIN SECTION: CASH PAYMENTS VERIFICATION */}
+        <div className="bg-card rounded-[24px] p-4.5 shadow-theme border border-border space-y-4 transition-all duration-200">
+          <div className="flex justify-between items-center">
+            <h3 className="font-black text-xs uppercase tracking-wider text-primary">Verifikasi Pembayaran Cash</h3>
+            <span className="bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] px-2.5 py-0.5 rounded-full font-black border border-orange-500/20">
+              {pendingCashPayments.length}
+            </span>
+          </div>
+
+          {pendingCashPayments.length === 0 ? (
+            <div className="text-center py-6 bg-background border border-dashed border-border rounded-2xl text-secondary text-xs font-bold">
+              Tidak ada pembayaran cash pending.
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {pendingCashPayments.map((p: any) => {
+                const member = members.find((m: any) => m.id === p.member_id);
+                const session = sessions.find((s: any) => s.id === p.session_id);
+                return (
+                  <div key={p.id} className="flex justify-between items-center gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black text-xs flex-shrink-0">
+                        {getInitials(member?.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-xs text-primary truncate">{member?.name || 'Anggota'}</p>
+                        <p className="text-[9px] text-secondary font-bold truncate mt-0.5">
+                          {session?.nama_sesi || 'Sesi Game'} • {p.tanggal_bayar ? formatDate(p.tanggal_bayar) : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-xs font-black text-orange-600 dark:text-orange-400">{formatRp(p.nominal_tagihan)}</span>
+                      <div className="flex gap-1.5">
+                        <button 
+                          onClick={async () => {
+                            await verifyPayment(p.id, 'rejected');
+                            showToast('Pembayaran cash ditolak.', 'info');
+                          }}
+                          className="px-2.5 py-1.5 border border-red-500/30 bg-red-500/10 text-red-500 dark:text-red-400 hover:bg-red-500/20 rounded-xl text-[10px] font-black transition-colors"
+                        >
+                          Tolak
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            await verifyPayment(p.id, 'verified');
+                            showToast('Pembayaran cash berhasil diverifikasi!', 'success');
+                          }}
+                          className="px-2.5 py-1.5 bg-accent hover:opacity-90 text-white rounded-xl text-[10px] font-black transition-colors shadow-md shadow-emerald-500/10"
+                        >
+                          Verifikasi
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1722,26 +1852,40 @@ function Dashboard({
             {myActiveBills.map((p: any) => {
               const session = sessions.find((s: any) => s.id === p.session_id);
               const isRejected = p.status_pembayaran === 'rejected';
+              const isCashPending = p.status_pembayaran === 'Menunggu Verifikasi Cash';
               return (
-                <div key={p.id} className={`bg-card p-4 rounded-[20px] border shadow-theme transition-all duration-200 flex justify-between items-center gap-3 ${isRejected ? 'border-red-500/30 bg-red-500/5' : 'border-border'}`}>
+                <div key={p.id} className={`bg-card p-4 rounded-[20px] border shadow-theme transition-all duration-200 flex justify-between items-center gap-3 ${isRejected ? 'border-red-500/30 bg-red-500/5' : isCashPending ? 'border-orange-500/30 bg-orange-500/5' : 'border-border'}`}>
                   <div className="flex-1 min-w-0">
                     <p className="font-extrabold text-sm text-primary truncate">{session?.nama_sesi || 'Sesi Badminton'}</p>
                     <div className="flex items-center gap-1.5 text-secondary mt-1">
                       <Calendar size={11} />
                       <span className="text-[10px] font-bold">{formatDate(session?.tanggal_main || '')}</span>
                     </div>
-                    <p className="text-sm font-black text-red-500 dark:text-red-400 mt-1">{formatRp(p.nominal_tagihan)}</p>
+                    <p className="text-sm font-black text-red-505 dark:text-red-404 mt-1">{formatRp(p.nominal_tagihan)}</p>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1.5">
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isRejected ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-amber-500/15 text-amber-600 dark:text-amber-450 border border-amber-500/20'}`}>
-                      {isRejected ? 'Ditolak' : 'Belum Bayar'}
-                    </span>
-                    <button 
-                      onClick={() => setSelectedPayment(p)}
-                      className="px-4 py-1.5 bg-accent hover:opacity-90 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
-                    >
-                      Bayar
-                    </button>
+                    {isCashPending ? (
+                      <span className="bg-orange-500/15 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                        🟡 Menunggu Verifikasi Cash
+                      </span>
+                    ) : isRejected ? (
+                      <span className="bg-red-500/15 text-red-500 border border-red-500/35 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                        🔴 Ditolak
+                      </span>
+                    ) : (
+                      <span className="bg-blue-500/15 text-blue-500 border border-blue-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                        🔵 Menunggu Pembayaran QRIS
+                      </span>
+                    )}
+                    
+                    {!isCashPending && (
+                      <button 
+                        onClick={() => setSelectedPayment(p)}
+                        className="px-4 py-1.5 bg-accent hover:opacity-90 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
+                      >
+                        Bayar
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1758,20 +1902,40 @@ function Dashboard({
             const session = sessions.find((s: any) => s.id === p.session_id);
             const isVerified = p.status_pembayaran === 'verified';
             const isUploaded = p.status_pembayaran === 'uploaded';
+            const isCashPending = p.status_pembayaran === 'Menunggu Verifikasi Cash';
+            
             return (
               <div key={p.id} className="bg-background/50 p-3 rounded-2xl border border-border/30 flex items-center gap-3.5">
-                <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-accent border-emerald-500/20' : isUploaded ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-accent border-emerald-500/20' : isCashPending ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' : isUploaded ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
                   {isVerified ? <CheckCircle size={16} /> : <Clock size={16} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-xs text-primary truncate">{session?.nama_sesi}</p>
                   <p className="text-[9px] text-secondary font-bold mt-0.5">{p.tanggal_bayar ? formatDate(p.tanggal_bayar) : '-'}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end">
                   <p className="text-xs font-black text-primary">{formatRp(p.nominal_tagihan)}</p>
-                  <p className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${isVerified ? 'text-accent' : isUploaded ? 'text-blue-500 animate-pulse' : 'text-red-500'}`}>
-                    {p.status_pembayaran === 'verified' ? 'Lunas' : p.status_pembayaran === 'uploaded' ? 'Verifikasi' : 'Ditolak'}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {p.bukti_transfer === 'CASH' ? (
+                      <span className="bg-orange-500/10 text-orange-500 border border-orange-500/20 text-[7px] font-black px-1.5 py-0.2 rounded uppercase tracking-wider">
+                        CASH
+                      </span>
+                    ) : p.bukti_transfer || isUploaded ? (
+                      <span className="bg-emerald-500/10 text-accent border border-emerald-500/20 text-[7px] font-black px-1.5 py-0.2 rounded uppercase tracking-wider">
+                        QRIS
+                      </span>
+                    ) : null}
+                    
+                    {isVerified ? (
+                      <span className="text-[8px] font-black uppercase text-accent">🟢 Lunas</span>
+                    ) : isCashPending ? (
+                      <span className="text-[8px] font-black uppercase text-orange-500 animate-pulse">🟡 Verifikasi</span>
+                    ) : isUploaded ? (
+                      <span className="text-[8px] font-black uppercase text-blue-500 animate-pulse">🔵 Verifikasi</span>
+                    ) : (
+                      <span className="text-[8px] font-black uppercase text-red-500">🔴 Ditolak</span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -1844,7 +2008,8 @@ function Dashboard({
   // --- ADMIN SESSION & ATTENDANCE COMPONENT ---
 function SessionsAdmin({ 
   sessions, members, attendees, sessionExpenses, payments, selectedSessionId, setSelectedSessionId, 
-  showAddSessionModal, setShowAddSessionModal, addSession, saveAttendance, addSessionExpense, deleteSessionExpense, generateBillsForSession, verifyPayment, setViewProofUrl 
+  showAddSessionModal, setShowAddSessionModal, addSession, saveAttendance, addSessionExpense, deleteSessionExpense, generateBillsForSession, verifyPayment, setViewProofUrl,
+  markAsPaidCashDirectly
 }: any) {
   
   const handleCreateSession = (e: React.FormEvent<HTMLFormElement>) => {
@@ -2099,47 +2264,70 @@ function SessionsAdmin({
                             const isVerified = p.status_pembayaran === 'verified';
                             const isUploaded = p.status_pembayaran === 'uploaded';
                             const isRejected = p.status_pembayaran === 'rejected';
+                            const isCashPending = p.status_pembayaran === 'Menunggu Verifikasi Cash';
                             
                             return (
-                              <div key={p.id} className="bg-background p-2.5 rounded-xl border border-border/60 flex justify-between items-center text-xs">
+                              <div key={p.id} className="bg-background p-2.5 rounded-xl border border-border/60 flex justify-between items-center gap-2 text-xs">
                                 <div className="min-w-0 flex-1">
                                   <p className="font-extrabold text-primary truncate">{mName}</p>
-                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                    {p.bukti_transfer === 'CASH' ? (
+                                      <span className="bg-orange-500/10 text-orange-500 border border-orange-500/20 text-[7px] font-black px-1 py-0.2 rounded uppercase tracking-wider">
+                                        CASH
+                                      </span>
+                                    ) : p.bukti_transfer || isUploaded ? (
+                                      <span className="bg-emerald-500/10 text-accent border border-emerald-500/20 text-[7px] font-black px-1 py-0.2 rounded uppercase tracking-wider">
+                                        QRIS
+                                      </span>
+                                    ) : null}
+                                    
                                     <span className={`text-[8px] font-black uppercase tracking-wider ${
                                       isVerified ? 'text-accent' : 
+                                      isCashPending ? 'text-orange-500 animate-pulse' :
                                       isUploaded ? 'text-blue-500 animate-pulse' : 
                                       isRejected ? 'text-red-500' : 'text-secondary'
                                     }`}>
                                       {isVerified ? 'Lunas' : 
+                                       isCashPending ? 'Menunggu Verifikasi Cash' :
                                        isUploaded ? 'Uploaded (Verifikasi)' : 
                                        isRejected ? 'Ditolak' : 'Belum Bayar'}
                                     </span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  {isUploaded && p.bukti_transfer && (
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {isUploaded && p.bukti_transfer && p.bukti_transfer !== 'CASH' && (
                                     <button 
                                       onClick={() => setViewProofUrl(p.bukti_transfer)}
-                                      className="px-2.5 py-1 bg-card border border-border/40 hover:bg-background text-primary text-[9px] font-extrabold rounded-md transition-colors"
+                                      className="px-2 py-1 bg-card border border-border/40 hover:bg-background text-primary text-[9px] font-extrabold rounded-md transition-colors"
                                     >
                                       Bukti
                                     </button>
                                   )}
-                                  {isUploaded && (
+                                  {(isUploaded || isCashPending) && (
                                     <div className="flex gap-1">
                                       <button 
                                         onClick={() => verifyPayment(p.id, 'rejected')}
                                         className="p-1 text-red-500 hover:bg-red-500/10 rounded border border-red-500/20"
+                                        title="Tolak Pembayaran"
                                       >
                                         <XCircle size={13} />
                                       </button>
                                       <button 
                                         onClick={() => verifyPayment(p.id, 'verified')}
                                         className="p-1 text-accent hover:bg-emerald-500/10 rounded border border-emerald-500/20"
+                                        title="Verifikasi Pembayaran"
                                       >
                                         <CheckCircle size={13} />
                                       </button>
                                     </div>
+                                  )}
+                                  {!isVerified && (
+                                    <button 
+                                      onClick={() => markAsPaidCashDirectly(p.id)}
+                                      className="px-2 py-1 bg-orange-500/10 text-orange-550 border border-orange-500/20 hover:bg-orange-500/20 rounded text-[9px] font-black transition-colors"
+                                    >
+                                      ✓ Bayar Cash
+                                    </button>
                                   )}
                                   {isVerified && (
                                     <CheckCircle size={15} className="text-accent border border-emerald-500/10 p-0.5 rounded-full" />
@@ -2207,7 +2395,7 @@ function SessionsAdmin({
 
 // --- MEMBER MY BILLS & QRIS MODAL COMPONENT ---
 function MyBillsMember({ 
-  user, sessions, payments, settings, selectedPayment, setSelectedPayment, submitPaymentWithProof 
+  user, sessions, payments, settings, selectedPayment, setSelectedPayment, submitPaymentWithProof, submitCashPayment 
 }: any) {
   
   const [toastMessage, setToastMessage] = useState('');
@@ -2216,6 +2404,9 @@ function MyBillsMember({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [paymentMethod, setPaymentMethod] = useState<'QRIS' | 'CASH'>('QRIS');
+  const [showConfirmCash, setShowConfirmCash] = useState(false);
 
   const currentPayment = selectedPayment 
     ? payments.find((p: any) => p.id === selectedPayment.id) 
@@ -2282,6 +2473,25 @@ function MyBillsMember({
     }
   };
 
+  const handleConfirmCash = async () => {
+    if (!currentPayment) return;
+    setIsUploading(true);
+    try {
+      await submitCashPayment(currentPayment.id);
+      setToastMessage('Pembayaran Cash ditandai! Menunggu verifikasi Bendahara.');
+      setShowConfirmCash(false);
+      setSelectedPayment(null);
+      setPaymentMethod('QRIS');
+      setTimeout(() => setToastMessage(''), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setToastError(err.message || 'Gagal menandai pembayaran cash.');
+      setTimeout(() => setToastError(''), 5000);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const triggerFilePicker = () => {
     if (currentPayment?.status_pembayaran === 'verified') {
       setToastError('Pembayaran sudah lunas.');
@@ -2294,6 +2504,8 @@ function MyBillsMember({
   const handleCloseModal = () => {
     setSelectedPayment(null);
     handleCancelFile();
+    setPaymentMethod('QRIS');
+    setShowConfirmCash(false);
   };
 
   const myPayments = user ? payments.filter((p: any) => p.member_id === user.id) : [];
@@ -2324,21 +2536,38 @@ function MyBillsMember({
             const isVerified = p.status_pembayaran === 'verified';
             const isUploaded = p.status_pembayaran === 'uploaded';
             const isRejected = p.status_pembayaran === 'rejected';
+            const isCashPending = p.status_pembayaran === 'Menunggu Verifikasi Cash';
             
             return (
               <div key={p.id} className="bg-card rounded-3xl border border-border shadow-theme overflow-hidden">
                 <div className="p-5">
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-[9px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-355 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                      Sesi Kehadiran
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-355 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                        Sesi Kehadiran
+                      </span>
+                      {p.bukti_transfer === 'CASH' ? (
+                        <span className="bg-orange-500/10 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                          CASH
+                        </span>
+                      ) : p.bukti_transfer || isUploaded ? (
+                        <span className="bg-emerald-500/10 text-accent border border-emerald-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                          QRIS
+                        </span>
+                      ) : null}
+                    </div>
                     <span className={`text-[8px] font-black px-2.5 py-0.5 rounded uppercase tracking-wider ${
-                      isVerified ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                      isUploaded ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                      isVerified ? 'bg-emerald-500/20 text-emerald-355 border border-emerald-500/30' :
+                      isCashPending ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30 animate-pulse' :
+                      isUploaded ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30 animate-pulse' :
                       isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
                       'bg-background text-secondary border border-border'
                     }`}>
-                      {isVerified ? 'Lunas' : isUploaded ? 'Verifikasi' : isRejected ? 'Ditolak' : 'Belum Bayar'}
+                      {isVerified ? '🟢 Lunas' : 
+                       isCashPending ? '🟡 Menunggu Verifikasi Cash' : 
+                       isUploaded ? '🔵 Menunggu Verifikasi QRIS' : 
+                       isRejected ? '🔵 Menunggu Pembayaran QRIS' : 
+                       '🔵 Menunggu Pembayaran QRIS'}
                     </span>
                   </div>
 
@@ -2354,17 +2583,22 @@ function MyBillsMember({
 
                 <div className="bg-background/30 px-5 py-4 border-t border-border flex justify-between items-center">
                   <button 
+                    disabled={isVerified || isCashPending}
                     onClick={() => setSelectedPayment(p)} 
                     className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] ${
                       isVerified 
                         ? 'bg-background text-secondary cursor-not-allowed border border-border' 
+                        : isCashPending
+                        ? 'bg-orange-600/15 text-orange-400 border border-orange-500/20 cursor-not-allowed'
                         : isUploaded 
                         ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20' 
                         : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/20'
                     }`}
                   >
-                    <QrCode size={15} /> 
-                    {isVerified ? 'Pembayaran Selesai' : isUploaded ? 'Detail Pembayaran' : 'Bayar Sekarang'}
+                    {isCashPending ? <Wallet size={15} /> : <QrCode size={15} />} 
+                    {isVerified ? 'Pembayaran Selesai' : 
+                     isCashPending ? 'Menunggu Verifikasi Cash' : 
+                     isUploaded ? 'Detail Pembayaran' : 'Bayar Sekarang'}
                   </button>
                 </div>
               </div>
@@ -2439,76 +2673,189 @@ function MyBillsMember({
                   <p className="text-2xl font-black text-emerald-450 tracking-tight">{formatRp(currentPayment.nominal_tagihan)}</p>
                 </div>
 
-                <div className="bg-amber-500/5 border border-amber-500/15 rounded-2xl p-3.5 w-full text-center space-y-1">
-                  <span className="text-[8px] font-black tracking-wider uppercase bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded border border-amber-500/25 inline-block">QRIS STATIS</span>
-                  <p className="text-[10px] font-bold text-amber-400 leading-snug">
-                    Masukkan nominal <span className="font-black text-emerald-450">{formatRp(currentPayment.nominal_tagihan)}</span> saat melakukan scan pembayaran.
-                  </p>
+                {/* Payment Method Selector */}
+                <div className="w-full space-y-2 border-b border-border/50 pb-4 mb-1">
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider text-left">
+                    Metode Pembayaran
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className={`flex items-center justify-center gap-2 p-3 rounded-2xl border cursor-pointer transition-all ${
+                      paymentMethod === 'QRIS'
+                        ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-450 font-bold'
+                        : 'border-border bg-background text-secondary hover:bg-background/80'
+                    }`}>
+                      <input 
+                        type="radio" 
+                        name="payment_method" 
+                        value="QRIS" 
+                        checked={paymentMethod === 'QRIS'} 
+                        onChange={() => setPaymentMethod('QRIS')} 
+                        className="sr-only" 
+                      />
+                      <QrCode size={14} />
+                      <span className="text-xs">QRIS</span>
+                    </label>
+
+                    <label className={`flex items-center justify-center gap-2 p-3 rounded-2xl border cursor-pointer transition-all ${
+                      paymentMethod === 'CASH'
+                        ? 'border-orange-500 bg-orange-500/5 text-orange-600 dark:text-orange-450 font-bold'
+                        : 'border-border bg-background text-secondary hover:bg-background/80'
+                    }`}>
+                      <input 
+                        type="radio" 
+                        name="payment_method" 
+                        value="CASH" 
+                        checked={paymentMethod === 'CASH'} 
+                        onChange={() => setPaymentMethod('CASH')} 
+                        className="sr-only" 
+                      />
+                      <Wallet size={14} />
+                      <span className="text-xs">CASH</span>
+                    </label>
+                  </div>
                 </div>
 
-                <div className="bg-white p-3 rounded-[2rem] border border-border shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
-                  {settings?.qris_image_url ? (
-                    <img src={settings.qris_image_url} alt="QRIS Code" className="w-full h-full object-contain rounded-2xl" />
-                  ) : (
-                    <div className="text-center p-4">
-                      <QrCode size={36} className="text-secondary mx-auto mb-2" />
-                      <p className="text-[9px] font-bold text-secondary">QRIS Admin Belum Diunggah</p>
+                {paymentMethod === 'QRIS' ? (
+                  <>
+                    <div className="bg-amber-500/5 border border-amber-500/15 rounded-2xl p-3.5 w-full text-center space-y-1">
+                      <span className="text-[8px] font-black tracking-wider uppercase bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded border border-amber-500/25 inline-block">QRIS STATIS</span>
+                      <p className="text-[10px] font-bold text-amber-400 leading-snug">
+                        Masukkan nominal <span className="font-black text-emerald-450">{formatRp(currentPayment.nominal_tagihan)}</span> saat melakukan scan pembayaran.
+                      </p>
                     </div>
-                  )}
-                </div>
 
-                <div className="w-full space-y-3">
-                  <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
-                  
-                  {!selectedFile ? (
-                    <button onClick={triggerFilePicker} className="w-full border border-dashed border-border hover:border-accent/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-background/40 hover:bg-background transition-colors">
-                      <Upload size={20} className="text-secondary" />
-                      <span className="text-[10px] font-bold text-primary">Pilih Bukti Transfer Pembayaran</span>
-                      <span className="text-[8px] text-secondary">Format: JPG, PNG, WEBP (Maks 5MB)</span>
-                    </button>
-                  ) : (
-                    <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
-                      {previewUrl && (
-                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-background flex-shrink-0">
-                          <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <div className="bg-white p-3 rounded-[2rem] border border-border shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
+                      {settings?.qris_image_url ? (
+                        <img src={settings.qris_image_url} alt="QRIS Code" className="w-full h-full object-contain rounded-2xl" />
+                      ) : (
+                        <div className="text-center p-4">
+                          <QrCode size={36} className="text-secondary mx-auto mb-2" />
+                          <p className="text-[9px] font-bold text-secondary">QRIS Admin Belum Diunggah</p>
                         </div>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-extrabold text-primary truncate">{selectedFile.name}</p>
-                        <p className="text-[9px] text-secondary font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                      </div>
-                      <button onClick={handleCancelFile} disabled={isUploading} className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50">
-                        <XCircle size={15} />
-                      </button>
                     </div>
-                  )}
-                </div>
 
-                <div className="w-full">
-                  {isUploading ? (
-                    <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
-                      <RefreshCw size={14} className="animate-spin" /> Mengirim Bukti...
-                    </button>
-                  ) : selectedFile ? (
-                    <button onClick={handleUpload} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98]">
-                      <CheckCircle size={14} /> Kirim Bukti Transfer
-                    </button>
-                  ) : (
-                    <button onClick={triggerFilePicker} className="w-full bg-background hover:bg-border/60 text-primary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] border border-border">
-                      <Upload size={14} /> {currentPayment.status_pembayaran === 'rejected' ? 'Pilih Bukti Baru' : 'Saya Sudah Bayar'}
-                    </button>
-                  )}
-                </div>
+                    <div className="w-full space-y-3">
+                      <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
+                      
+                      {!selectedFile ? (
+                        <button onClick={triggerFilePicker} className="w-full border border-dashed border-border hover:border-accent/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-background/40 hover:bg-background transition-colors">
+                          <Upload size={20} className="text-secondary" />
+                          <span className="text-[10px] font-bold text-primary">Pilih Bukti Transfer Pembayaran</span>
+                          <span className="text-[8px] text-secondary">Format: JPG, PNG, WEBP (Maks 5MB)</span>
+                        </button>
+                      ) : (
+                        <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
+                          {previewUrl && (
+                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-background flex-shrink-0">
+                              <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-extrabold text-primary truncate">{selectedFile.name}</p>
+                            <p className="text-[9px] text-secondary font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                          </div>
+                          <button onClick={handleCancelFile} disabled={isUploading} className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50">
+                            <XCircle size={15} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
-                {settings && (
-                  <div className="w-full border-t border-border pt-3.5 text-center space-y-1">
-                    <p className="text-[8px] font-black text-secondary uppercase tracking-widest">Atas Nama Rekening</p>
-                    <p className="text-xs font-black text-primary">{settings.nama_komunitas}</p>
-                    <p className="text-[10px] font-bold text-secondary bg-background py-1 px-3 rounded-lg inline-block border border-border mt-1">{settings.rekening_penerima}</p>
-                  </div>
+                    <div className="w-full">
+                      {isUploading ? (
+                        <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
+                          <RefreshCw size={14} className="animate-spin" /> Mengirim Bukti...
+                        </button>
+                      ) : selectedFile ? (
+                        <button onClick={handleUpload} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98]">
+                          <CheckCircle size={14} /> Kirim Bukti Transfer
+                        </button>
+                      ) : (
+                        <button onClick={triggerFilePicker} className="w-full bg-background hover:bg-border/60 text-primary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] border border-border">
+                          <Upload size={14} /> {currentPayment.status_pembayaran === 'rejected' ? 'Pilih Bukti Baru' : 'Saya Sudah Bayar'}
+                        </button>
+                      )}
+                    </div>
+
+                    {settings && (
+                      <div className="w-full border-t border-border pt-3.5 text-center space-y-1">
+                        <p className="text-[8px] font-black text-secondary uppercase tracking-widest">Atas Nama Rekening</p>
+                        <p className="text-xs font-black text-primary">{settings.nama_komunitas}</p>
+                        <p className="text-[10px] font-bold text-secondary bg-background py-1 px-3 rounded-lg inline-block border border-border mt-1">{settings.rekening_penerima}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="w-full text-center py-5 space-y-2 bg-orange-500/5 border border-orange-500/15 rounded-2xl">
+                      <h4 className="text-xs font-black text-orange-600 dark:text-orange-400 uppercase tracking-wider">Pembayaran Tunai</h4>
+                      <p className="text-[10px] font-bold text-secondary px-4 leading-relaxed">
+                        Bayar langsung kepada Bendahara.
+                      </p>
+                    </div>
+
+                    <div className="w-full">
+                      {isUploading ? (
+                        <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
+                          <RefreshCw size={14} className="animate-spin" /> Memproses...
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => setShowConfirmCash(true)}
+                          className="w-full bg-orange-600 hover:bg-orange-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-orange-950/20"
+                        >
+                          Tandai Sudah Bayar Cash
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal overlay for CASH */}
+      {showConfirmCash && currentPayment && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-sm rounded-[2rem] border border-border p-6 shadow-theme flex flex-col gap-4 animate-scaleUp">
+            <h3 className="font-extrabold text-sm text-primary uppercase tracking-wider text-center">
+              Konfirmasi Pembayaran Cash
+            </h3>
+            
+            <div className="bg-background/50 p-4 rounded-2xl border border-border space-y-2.5 text-xs text-primary">
+              <div className="flex justify-between">
+                <span className="text-secondary font-medium">Nama:</span> 
+                <span className="font-bold text-primary">{user?.name || 'Anggota'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-secondary font-medium">Nominal:</span> 
+                <span className="font-bold text-accent">{formatRp(currentPayment.nominal_tagihan)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-secondary font-medium">Metode:</span> 
+                <span className="font-bold text-orange-500 dark:text-orange-400">Cash</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <button 
+                onClick={() => setShowConfirmCash(false)}
+                className="w-full border border-border bg-background text-primary font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98]"
+              >
+                Batalkan
+              </button>
+              <button 
+                onClick={async () => {
+                  await handleConfirmCash();
+                }}
+                className="w-full bg-orange-600 hover:bg-orange-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-orange-950/20"
+              >
+                Konfirmasi
+              </button>
+            </div>
           </div>
         </div>
       )}
