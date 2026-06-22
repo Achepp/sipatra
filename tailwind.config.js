@@ -8,6 +8,12 @@ export default {
   theme: {
     extend: {
       colors: {
+        background: 'var(--background)',
+        card: 'var(--card)',
+        border: 'var(--border)',
+        primary: 'var(--text-primary)',
+        secondary: 'var(--text-secondary)',
+        accent: 'var(--accent)',
         slate: {
           50: 'rgb(var(--color-slate-50) / <alpha-value>)',
           100: 'rgb(var(--color-slate-100) / <alpha-value>)',
@@ -26,6 +32,9 @@ export default {
           950: 'rgb(var(--color-slate-950) / <alpha-value>)',
           955: 'rgb(var(--color-slate-955) / <alpha-value>)',
         }
+      },
+      boxShadow: {
+        theme: 'var(--shadow)',
       }
     },
   },

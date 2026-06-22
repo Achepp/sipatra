@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 :root {
+  --background: #0F172A;
+  --card: #111827;
+  --border: #1F2937;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --accent: #10B981;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --login-bg: linear-gradient(to bottom, #0F172A, #111827, #0D1117);
+  --shimmer-base: #1E293B;
+  --shimmer-highlight: #334155;
+
   --color-slate-50: 248 250 252;
   --color-slate-100: 241 245 249;
   --color-slate-200: 226 232 240;
@@ -22,6 +33,17 @@
 }
 
 html.light {
+  --background: #F8FAFC;
+  --card: #FFFFFF;
+  --border: #E5E7EB;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --accent: #10B981;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --login-bg: linear-gradient(to bottom, #F0FAF6, #FFFFFF, #EDF9F4);
+  --shimmer-base: #E2E8F0;
+  --shimmer-highlight: #F1F5F9;
+
   --color-slate-50: 2 6 23;
   --color-slate-100: 15 23 42;
   --color-slate-200: 15 23 42;
@@ -78,8 +100,8 @@ label {
 
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  background-color: rgb(var(--color-slate-955));
-  color: rgb(var(--color-slate-100));
+  background-color: var(--background);
+  color: var(--text-primary);
 }
 
 
@@ -122,7 +144,7 @@ body {
 }
 
 .shimmer-card {
-  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background: linear-gradient(90deg, var(--shimmer-base) 25%, var(--shimmer-highlight) 50%, var(--shimmer-base) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.6s infinite linear;
 }

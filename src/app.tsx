@@ -702,39 +702,38 @@ export default function App() {
     let skeletonContent = null;
 
     if (activeTab === 'kas') {
-      loadingMessage = "Menhitung saldo kas..."; // Wait, requested: "Menghitung saldo kas..." let's write exactly "Menghitung saldo kas..."
       loadingMessage = "Menghitung saldo kas...";
       skeletonContent = (
         <div className="space-y-6">
           {/* Treasury Card Skeleton */}
-          <div className="bg-slate-800/80 rounded-[2rem] p-6 text-center border border-slate-700/50 shadow-lg relative overflow-hidden h-40 flex flex-col justify-center items-center gap-2">
-            <div className="w-28 h-3.5 bg-slate-700 shimmer-card rounded mb-1" />
-            <div className="w-48 h-8 bg-slate-750 shimmer-card rounded mb-4" />
-            <div className="grid grid-cols-2 gap-4 w-full border-t border-slate-700/50 pt-4">
+          <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden h-40 flex flex-col justify-center items-center gap-2">
+            <div className="w-28 h-3.5 shimmer-card rounded mb-1" />
+            <div className="w-48 h-8 shimmer-card rounded mb-4" />
+            <div className="grid grid-cols-2 gap-4 w-full border-t border-border pt-4">
               <div className="flex flex-col items-center">
-                <div className="w-24 h-2.5 bg-slate-700 shimmer-card rounded mb-1.5" />
-                <div className="w-16 h-3.5 bg-slate-750 shimmer-card rounded" />
+                <div className="w-24 h-2.5 shimmer-card rounded mb-1.5" />
+                <div className="w-16 h-3.5 shimmer-card rounded" />
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-24 h-2.5 bg-slate-700 shimmer-card rounded mb-1.5" />
-                <div className="w-16 h-3.5 bg-slate-750 shimmer-card rounded" />
+                <div className="w-24 h-2.5 shimmer-card rounded mb-1.5" />
+                <div className="w-16 h-3.5 shimmer-card rounded" />
               </div>
             </div>
           </div>
 
           {/* Histori Section Skeleton */}
           <div className="space-y-4">
-            <div className="w-40 h-4 rounded bg-slate-800 shimmer-card animate-pulse" />
+            <div className="w-40 h-4 rounded shimmer-card animate-pulse" />
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80 flex items-center gap-3.5 shadow-sm justify-between">
+              <div key={i} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme justify-between">
                 <div className="flex items-center gap-3 w-full">
-                  <div className="w-10 h-10 rounded-xl bg-slate-800 shimmer-card flex-shrink-0" />
+                  <div className="w-10 h-10 rounded-xl shimmer-card flex-shrink-0" />
                   <div className="flex-1 space-y-2.5">
-                    <div className="w-32 h-3.5 rounded bg-slate-800 shimmer-card" />
-                    <div className="w-24 h-2.5 rounded bg-slate-855 shimmer-card" />
+                    <div className="w-32 h-3.5 rounded shimmer-card" />
+                    <div className="w-24 h-2.5 rounded shimmer-card" />
                   </div>
                 </div>
-                <div className="w-20 h-4 rounded bg-slate-800 shimmer-card" />
+                <div className="w-20 h-4 rounded shimmer-card" />
               </div>
             ))}
           </div>
@@ -747,19 +746,19 @@ export default function App() {
         skeletonContent = (
           <div className="space-y-5">
             <div className="flex justify-between items-center mb-4">
-              <div className="w-36 h-5 rounded bg-slate-800 shimmer-card" />
-              <div className="w-24 h-8 rounded-xl bg-slate-800 shimmer-card" />
+              <div className="w-36 h-5 rounded shimmer-card" />
+              <div className="w-24 h-8 rounded-xl shimmer-card" />
             </div>
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-slate-800/60 rounded-3xl border border-slate-800/90 shadow-md p-4 flex justify-between items-center">
+              <div key={i} className="bg-card rounded-3xl border border-border shadow-theme p-4 flex justify-between items-center">
                 <div className="space-y-2.5 flex-1 pr-4">
-                  <div className="w-16 h-3.5 rounded bg-slate-800 shimmer-card" />
-                  <div className="w-48 h-4 rounded bg-slate-800 shimmer-card" />
-                  <div className="w-32 h-3 rounded bg-slate-855 shimmer-card" />
+                  <div className="w-16 h-3.5 rounded shimmer-card" />
+                  <div className="w-48 h-4 rounded shimmer-card" />
+                  <div className="w-32 h-3 rounded shimmer-card" />
                 </div>
                 <div className="text-right space-y-1.5 flex-shrink-0">
-                  <div className="w-12 h-2.5 rounded bg-slate-855 shimmer-card" />
-                  <div className="w-20 h-4.5 rounded bg-slate-800 shimmer-card" />
+                  <div className="w-12 h-2.5 rounded shimmer-card" />
+                  <div className="w-20 h-4.5 rounded shimmer-card" />
                 </div>
               </div>
             ))}
@@ -768,22 +767,22 @@ export default function App() {
       } else {
         skeletonContent = (
           <div className="space-y-4">
-            <div className="w-44 h-5 bg-slate-800 shimmer-card rounded mb-4" />
+            <div className="w-44 h-5 shimmer-card rounded mb-4" />
             {[1, 2].map(i => (
-              <div key={i} className="bg-slate-800/60 rounded-3xl border border-slate-800 shadow-md overflow-hidden">
+              <div key={i} className="bg-card rounded-3xl border border-border shadow-theme overflow-hidden">
                 <div className="p-5 space-y-4">
                   <div className="flex justify-between items-center">
-                    <div className="w-24 h-4.5 bg-slate-800 shimmer-card rounded-full" />
-                    <div className="w-20 h-4.5 bg-slate-800 shimmer-card rounded-full" />
+                    <div className="w-24 h-4.5 shimmer-card rounded-full" />
+                    <div className="w-20 h-4.5 shimmer-card rounded-full" />
                   </div>
-                  <div className="w-48 h-4 bg-slate-800 shimmer-card rounded" />
+                  <div className="w-48 h-4 shimmer-card rounded" />
                   <div className="flex justify-between items-center mt-4">
-                    <div className="w-28 h-3.5 bg-slate-800 shimmer-card rounded" />
-                    <div className="w-20 h-4.5 bg-slate-800 shimmer-card rounded" />
+                    <div className="w-28 h-3.5 shimmer-card rounded" />
+                    <div className="w-20 h-4.5 shimmer-card rounded" />
                   </div>
                 </div>
-                <div className="bg-slate-800/30 px-5 py-4 border-t border-slate-800">
-                  <div className="w-full h-11 bg-slate-800 shimmer-card rounded-2xl" />
+                <div className="bg-background/30 px-5 py-4 border-t border-border">
+                  <div className="w-full h-11 shimmer-card rounded-2xl" />
                 </div>
               </div>
             ))}
@@ -795,19 +794,19 @@ export default function App() {
       skeletonContent = (
         <div className="space-y-4">
           <div className="flex justify-between items-center mb-4">
-            <div className="w-28 h-5 rounded bg-slate-800 shimmer-card" />
-            <div className="w-12 h-4 rounded bg-slate-800 shimmer-card" />
+            <div className="w-28 h-5 rounded shimmer-card" />
+            <div className="w-12 h-4 rounded shimmer-card" />
           </div>
           {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80 flex items-center gap-3.5 shadow-sm justify-between">
+            <div key={i} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-800 shimmer-card flex-shrink-0" />
+                <div className="w-10 h-10 rounded-full shimmer-card flex-shrink-0" />
                 <div>
-                  <div className="w-28 h-3.5 bg-slate-800 shimmer-card rounded mb-2" />
-                  <div className="w-36 h-2.5 bg-slate-855 shimmer-card rounded" />
+                  <div className="w-28 h-3.5 shimmer-card rounded mb-2" />
+                  <div className="w-36 h-2.5 shimmer-card rounded" />
                 </div>
               </div>
-              <div className="w-12 h-4 bg-slate-800 shimmer-card rounded" />
+              <div className="w-12 h-4 shimmer-card rounded" />
             </div>
           ))}
         </div>
@@ -816,26 +815,26 @@ export default function App() {
       loadingMessage = "Memuat data profil...";
       skeletonContent = (
         <div className="space-y-6">
-          <div className="flex items-center gap-4 bg-slate-800/60 p-5 rounded-3xl border border-slate-800 shadow-md">
-            <div className="w-14 h-14 bg-slate-800 shimmer-card rounded-full" />
+          <div className="flex items-center gap-4 bg-card p-5 rounded-3xl border border-border shadow-theme">
+            <div className="w-14 h-14 shimmer-card rounded-full" />
             <div className="space-y-2">
               <div className="w-32 h-4 bg-slate-800 shimmer-card rounded" />
-              <div className="w-40 h-3 bg-slate-855 shimmer-card rounded" />
-              <div className="w-12 h-4 bg-slate-800 shimmer-card rounded mt-2" />
+              <div className="w-40 h-3 shimmer-card rounded" />
+              <div className="w-12 h-4 shimmer-card rounded mt-2" />
             </div>
           </div>
-          <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-800 shadow-sm space-y-4">
-            <div className="w-40 h-4 bg-slate-800 shimmer-card rounded" />
+          <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-4">
+            <div className="w-40 h-4 shimmer-card rounded" />
             <div className="space-y-4">
               <div>
-                <div className="w-24 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
-                <div className="w-full h-10 bg-slate-855 shimmer-card rounded-xl" />
+                <div className="w-24 h-2.5 shimmer-card rounded mb-1.5" />
+                <div className="w-full h-10 shimmer-card rounded-xl" />
               </div>
               <div>
-                <div className="w-36 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
-                <div className="w-full h-10 bg-slate-855 shimmer-card rounded-xl" />
+                <div className="w-36 h-2.5 shimmer-card rounded mb-1.5" />
+                <div className="w-full h-10 shimmer-card rounded-xl" />
               </div>
-              <div className="w-full h-11 bg-slate-800 shimmer-card rounded-2xl" />
+              <div className="w-full h-11 shimmer-card rounded-2xl" />
             </div>
           </div>
         </div>
@@ -844,25 +843,25 @@ export default function App() {
       loadingMessage = "Memuat pengaturan...";
       skeletonContent = (
         <div className="space-y-6">
-          <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-800 shadow-sm space-y-4">
-            <div className="w-40 h-4 bg-slate-800 shimmer-card rounded" />
+          <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-4">
+            <div className="w-40 h-4 shimmer-card rounded" />
             <div className="space-y-4">
               <div>
-                <div className="w-24 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
-                <div className="w-full h-10 bg-slate-855 shimmer-card rounded-xl" />
+                <div className="w-24 h-2.5 shimmer-card rounded mb-1.5" />
+                <div className="w-full h-10 shimmer-card rounded-xl" />
               </div>
               <div>
-                <div className="w-36 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
-                <div className="w-full h-10 bg-slate-855 shimmer-card rounded-xl" />
+                <div className="w-36 h-2.5 shimmer-card rounded mb-1.5" />
+                <div className="w-full h-10 shimmer-card rounded-xl" />
               </div>
               <div>
-                <div className="w-28 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
-                <div className="flex flex-col items-center gap-4 p-4 border border-slate-750 rounded-2xl bg-slate-850/40">
-                  <div className="w-40 h-40 bg-slate-855 shimmer-card rounded-xl" />
-                  <div className="w-36 h-8 bg-slate-800 shimmer-card rounded-xl" />
+                <div className="w-28 h-2.5 shimmer-card rounded mb-1.5" />
+                <div className="flex flex-col items-center gap-4 p-4 border border-border rounded-2xl bg-background/40">
+                  <div className="w-40 h-40 shimmer-card rounded-xl" />
+                  <div className="w-36 h-8 shimmer-card rounded-xl" />
                 </div>
               </div>
-              <div className="w-full h-11 bg-slate-800 shimmer-card rounded-2xl" />
+              <div className="w-full h-11 shimmer-card rounded-2xl" />
             </div>
           </div>
         </div>
@@ -891,37 +890,37 @@ export default function App() {
 
           {/* Quick Actions Skeleton */}
           <div className="grid grid-cols-2 gap-3.5">
-            <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-800 shimmer-card animate-pulse" />
+            <div className="bg-card p-4 rounded-2xl border border-border shadow-theme flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl shimmer-card animate-pulse" />
               <div className="space-y-2">
-                <div className="w-16 h-2 bg-slate-855 rounded shimmer-card" />
-                <div className="w-12 h-3.5 bg-slate-800 rounded shimmer-card" />
+                <div className="w-16 h-2 shimmer-card rounded" />
+                <div className="w-12 h-3.5 shimmer-card rounded" />
               </div>
             </div>
-            <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-800 shimmer-card animate-pulse" />
+            <div className="bg-card p-4 rounded-2xl border border-border shadow-theme flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl shimmer-card animate-pulse" />
               <div className="space-y-2">
-                <div className="w-16 h-2 bg-slate-855 rounded shimmer-card" />
-                <div className="w-12 h-3.5 bg-slate-800 rounded shimmer-card" />
+                <div className="w-16 h-2 shimmer-card rounded" />
+                <div className="w-12 h-3.5 shimmer-card rounded" />
               </div>
             </div>
           </div>
 
           {/* Section Title Skeleton */}
-          <div className="w-32 h-5 rounded bg-slate-800 shimmer-card" />
+          <div className="w-32 h-5 rounded shimmer-card" />
 
           {/* Sessions List Skeletons */}
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="p-4 bg-slate-800/40 rounded-3xl border border-slate-800 flex items-center justify-between">
+              <div key={i} className="p-4 bg-card rounded-3xl border border-border shadow-theme flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-800 shimmer-card flex-shrink-0" />
+                  <div className="w-12 h-12 rounded-2xl shimmer-card flex-shrink-0" />
                   <div>
-                    <div className="w-40 h-4 rounded bg-slate-800 shimmer-card mb-2" />
-                    <div className="w-28 h-3 rounded bg-slate-855 shimmer-card" />
+                    <div className="w-40 h-4 rounded shimmer-card mb-2" />
+                    <div className="w-28 h-3 rounded shimmer-card" />
                   </div>
                 </div>
-                <div className="w-16 h-4 rounded bg-slate-800 shimmer-card" />
+                <div className="w-16 h-4 rounded shimmer-card" />
               </div>
             ))}
           </div>
@@ -930,24 +929,24 @@ export default function App() {
     }
 
     return (
-      <div className="min-h-screen bg-slate-955 flex justify-center text-slate-100 font-sans">
-        <div className="w-full max-w-md bg-slate-900 min-h-screen shadow-2xl relative pb-20 flex flex-col border-x border-slate-800 animate-fadeIn">
+      <div className="min-h-screen bg-background flex justify-center text-primary font-sans">
+        <div className="w-full max-w-md bg-card min-h-screen shadow-theme relative pb-20 flex flex-col border-x border-border animate-fadeIn">
           
           {/* SKELETON HEADER */}
-          <header className="bg-slate-800/80 backdrop-blur-md p-4 rounded-b-[2rem] border-b border-slate-700/50 shadow-lg">
+          <header className="bg-card/80 backdrop-blur-md p-4 rounded-b-[2rem] border-b border-border shadow-theme">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
                 {/* Avatar Skeleton */}
                 <div className="w-12 h-12 rounded-full shimmer-card flex-shrink-0" />
                 <div>
                   {/* Greeting Skeleton */}
-                  <div className="w-20 h-3 rounded bg-slate-700 shimmer-card mb-2" />
+                  <div className="w-20 h-3 rounded shimmer-card mb-2" />
                   {/* Name Skeleton */}
-                  <div className="w-32 h-4.5 rounded bg-slate-700 shimmer-card" />
+                  <div className="w-32 h-4.5 rounded shimmer-card" />
                 </div>
               </div>
               {/* Role Badge Skeleton */}
-              <div className="w-20 h-6 rounded-full bg-slate-700 shimmer-card" />
+              <div className="w-20 h-6 rounded-full shimmer-card" />
             </div>
           </header>
 
@@ -958,7 +957,7 @@ export default function App() {
 
           {/* User-friendly loading message at the bottom */}
           <div className="absolute bottom-24 left-0 right-0 flex flex-col items-center justify-center gap-2 pointer-events-none z-10">
-            <div className="px-4 py-2 bg-slate-800/90 backdrop-blur-md rounded-full shadow-lg border border-slate-700/50 flex items-center gap-2">
+            <div className="px-4 py-2 bg-card/90 backdrop-blur-md rounded-full shadow-theme border border-border flex items-center gap-2">
               <div className="w-3.5 h-3.5 border-2 border-[#10B981] border-t-transparent rounded-full animate-spin"></div>
               <span className="text-[11px] font-[700] text-emerald-400 tracking-wider uppercase">
                 {loadingMessage}
@@ -967,11 +966,11 @@ export default function App() {
           </div>
 
           {/* SKELETON NAVIGATION BAR */}
-          <nav className="absolute bottom-0 left-0 right-0 bg-slate-850/90 backdrop-blur-lg border-t border-slate-800 p-3 flex justify-around rounded-t-[1.5rem] z-10">
+          <nav className="absolute bottom-0 left-0 right-0 bg-card/90 backdrop-blur-lg border-t border-border p-3 flex justify-around rounded-t-[1.5rem] z-10">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="flex flex-col items-center gap-1.5 w-12">
-                <div className="w-6 h-6 rounded-md bg-slate-800 shimmer-card" />
-                <div className="w-8 h-2 bg-slate-855 rounded shimmer-card" />
+                <div className="w-6 h-6 rounded-md shimmer-card" />
+                <div className="w-8 h-2 rounded shimmer-card" />
               </div>
             ))}
           </nav>
@@ -989,32 +988,32 @@ export default function App() {
   const isAdmin = profile.role === 'admin';
 
   return (
-    <div className="min-h-screen bg-slate-955 flex justify-center text-slate-100 font-sans">
-      <div className="w-full max-w-md bg-slate-900 min-h-screen shadow-2xl relative pb-28 flex flex-col border-x border-slate-800">
+    <div className="min-h-screen bg-background flex justify-center text-primary font-sans transition-all duration-200">
+      <div className="w-full max-w-md bg-card min-h-screen shadow-theme relative pb-28 flex flex-col border-x border-border transition-all duration-200">
         
         {/* HEADER */}
-        <header className="bg-slate-900/90 backdrop-blur-md p-4 sticky top-0 z-20 border-b border-slate-200/40 dark:border-slate-800/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
+        <header className="bg-card/90 backdrop-blur-md p-4 sticky top-0 z-20 border-b border-border shadow-theme transition-all duration-200">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_4px_12px_rgba(16,185,129,0.25)] flex items-center justify-center flex-shrink-0 text-white font-[700] text-lg select-none">
                 {getInitials(profile?.nama || profile?.full_name || session?.user?.user_metadata?.name || session?.user?.user_metadata?.nama)}
               </div>
               <div>
-                <p className="text-[9px] text-slate-400 dark:text-slate-550 font-black uppercase tracking-wider leading-none">SELAMAT DATANG,</p>
-                <p className="font-extrabold text-slate-850 dark:text-slate-150 text-sm leading-tight mt-1.5 truncate w-36">{profile.nama}</p>
+                <p className="text-[9px] text-secondary font-black uppercase tracking-wider leading-none">SELAMAT DATANG,</p>
+                <p className="font-extrabold text-primary text-sm leading-tight mt-1.5 truncate w-36">{profile.nama}</p>
               </div>
             </div>
             <div className="flex gap-2.5 items-center">
               <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                 isAdmin 
-                  ? 'bg-amber-500/10 text-amber-500 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-500/20' 
-                  : 'bg-emerald-500/10 text-[#10B981] dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/20'
+                  ? 'bg-amber-550/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' 
+                  : 'bg-emerald-500/10 text-accent border border-emerald-500/20'
               }`}>
                 {isAdmin ? 'Bendahara' : 'Anggota'}
               </span>
               <button 
                 onClick={toggleTheme} 
-                className="p-2.5 bg-slate-900 border border-slate-150 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-[#10B981] dark:hover:text-[#10B981] rounded-2xl shadow-sm transition-all duration-200 flex items-center justify-center"
+                className="p-2.5 bg-card border border-border text-secondary hover:text-accent rounded-2xl shadow-theme transition-all duration-200 flex items-center justify-center"
                 title={theme === 'dark' ? 'Aktifkan Mode Terang' : 'Aktifkan Mode Gelap'}
                 aria-label="Toggle Theme"
               >
@@ -1022,7 +1021,7 @@ export default function App() {
               </button>
               <button 
                 onClick={handleLogout} 
-                className="p-2.5 bg-slate-900 border border-slate-150 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-2xl shadow-sm transition-all duration-200 flex items-center justify-center"
+                className="p-2.5 bg-card border border-border text-secondary hover:text-red-500 dark:hover:text-red-400 rounded-2xl shadow-theme transition-all duration-200 flex items-center justify-center"
                 title="Keluar Akun"
                 aria-label="Keluar Akun"
               >
@@ -1121,7 +1120,7 @@ export default function App() {
         </main>
 
         {/* BOTTOM FLOATING NAVIGATION */}
-        <nav className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.15)] flex justify-around p-2.5 z-30">
+        <nav className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-card border border-border rounded-[24px] shadow-theme flex justify-around p-2.5 z-30 transition-all duration-200">
           <NavItem icon={<Home size={20} />} label="Beranda" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           <NavItem icon={<Calendar size={20} />} label={isAdmin ? 'Sesi' : 'Tagihan Saya'} active={activeTab === 'tagihan'} onClick={() => setActiveTab('tagihan')} />
           <NavItem icon={<Wallet size={20} />} label={isAdmin ? 'Laporan' : 'Kas'} active={activeTab === 'kas'} onClick={() => setActiveTab('kas')} />
@@ -1150,12 +1149,12 @@ export default function App() {
         {/* IMAGE PROOF VIEWER MODAL */}
         {viewProofUrl && (
           <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setViewProofUrl(null)}>
-            <div className="bg-slate-900 p-3 rounded-3xl border border-slate-800 max-w-sm w-full relative overflow-hidden" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewProofUrl(null)} className="absolute top-4 right-4 p-2 bg-slate-800 text-slate-300 rounded-full hover:bg-slate-700 transition-colors">
+            <div className="bg-card p-3 rounded-3xl border border-border max-w-sm w-full relative overflow-hidden shadow-theme" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewProofUrl(null)} className="absolute top-4 right-4 p-2 bg-background text-secondary hover:text-primary rounded-full hover:bg-border transition-colors">
                 <XCircle size={20} />
               </button>
-              <h3 className="font-extrabold text-sm mb-4 text-slate-100 pr-10">Bukti Transfer Pembayaran</h3>
-              <div className="bg-slate-950 rounded-2xl overflow-hidden aspect-square border border-slate-850 flex items-center justify-center">
+              <h3 className="font-extrabold text-sm mb-4 text-primary pr-10">Bukti Transfer Pembayaran</h3>
+              <div className="bg-background rounded-2xl overflow-hidden aspect-square border border-border flex items-center justify-center">
                 <img src={viewProofUrl} alt="Bukti Transfer" className="w-full h-full object-contain" />
               </div>
             </div>
@@ -1165,14 +1164,14 @@ export default function App() {
         {/* CUSTOM SUCCESS MODAL */}
         {successModal.isOpen && (
           <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setSuccessModal(prev => ({ ...prev, isOpen: false }))}>
-            <div className="bg-white rounded-[20px] p-6 max-w-xs w-full text-center shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 flex flex-col items-center animate-scaleUp" onClick={e => e.stopPropagation()}>
-              <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#10B981] flex items-center justify-center mb-4 border border-emerald-100/50">
-                <CheckCircle size={36} className="text-[#10B981]" strokeWidth={2.5} />
+            <div className="bg-card rounded-[20px] p-6 max-w-xs w-full text-center shadow-theme border border-border flex flex-col items-center animate-scaleUp" onClick={e => e.stopPropagation()}>
+              <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center mb-4 border border-accent/20">
+                <CheckCircle size={36} className="text-accent" strokeWidth={2.5} />
               </div>
-              <h3 className="text-slate-900 font-extrabold text-sm mb-2 tracking-tight">
+              <h3 className="text-primary font-extrabold text-sm mb-2 tracking-tight">
                 {successModal.title}
               </h3>
-              <p className="text-slate-500 font-bold text-xs leading-relaxed px-1 mb-6">
+              <p className="text-secondary font-bold text-xs leading-relaxed px-1 mb-6">
                 {successModal.description}
               </p>
               <div className="flex flex-col gap-2 w-full">
@@ -1189,7 +1188,7 @@ export default function App() {
                 )}
                 <button 
                   onClick={() => setSuccessModal(prev => ({ ...prev, isOpen: false }))}
-                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-[800] py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98]"
+                  className="w-full bg-background hover:bg-border/60 text-primary border border-border font-[800] py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98]"
                 >
                   Tutup
                 </button>
@@ -1203,16 +1202,16 @@ export default function App() {
           {toasts.map(t => (
             <div 
               key={t.id} 
-              className="px-4 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-md text-slate-200 shadow-2xl border border-slate-800 flex items-center gap-2.5 pointer-events-auto animate-slideDown"
+              className="px-4 py-3 rounded-2xl bg-card/95 backdrop-blur-md text-primary shadow-theme border border-border flex items-center gap-2.5 pointer-events-auto animate-slideDown"
             >
               {t.type === 'success' ? (
-                <CheckCircle size={15} className="text-[#10B981] flex-shrink-0" />
+                <CheckCircle size={15} className="text-accent flex-shrink-0" />
               ) : t.type === 'error' ? (
                 <XCircle size={15} className="text-red-500 flex-shrink-0" />
               ) : (
                 <AlertCircle size={15} className="text-blue-500 flex-shrink-0" />
               )}
-              <span className="text-[11px] font-[700] text-slate-200 leading-snug">{t.message}</span>
+              <span className="text-[11px] font-[700] text-primary leading-snug">{t.message}</span>
             </div>
           ))}
         </div>
@@ -1229,14 +1228,14 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
       onClick={onClick} 
       className={`flex flex-col items-center justify-center pt-2 pb-1 relative transition-all duration-200 flex-1 ${
         active 
-          ? 'text-[#10B981] font-extrabold scale-105' 
-          : 'text-slate-500 hover:text-slate-400 dark:text-slate-400 dark:hover:text-slate-300'
+          ? 'text-accent font-extrabold scale-105' 
+          : 'text-secondary hover:text-primary'
       }`}
     >
       <div className="mb-0.5">{icon}</div>
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && (
-        <div className="absolute bottom-0 left-1/4 right-1/4 h-[3px] bg-[#10B981] rounded-full animate-fadeIn" />
+        <div className="absolute bottom-0 left-1/4 right-1/4 h-[3px] bg-accent rounded-full animate-fadeIn" />
       )}
     </button>
   );
@@ -1272,19 +1271,19 @@ function Dashboard({
         
         {/* PWA INSTALLATION BANNER */}
         {isInstallable && (
-          <div className="bg-slate-800 border border-slate-750 p-4 rounded-3xl flex justify-between items-center shadow-md animate-bounce">
+          <div className="bg-card border border-border p-4 rounded-3xl flex justify-between items-center shadow-theme animate-bounce transition-all duration-200">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-600/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20">
+              <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center border border-accent/20">
                 <span className="text-lg">📱</span>
               </div>
               <div>
-                <p className="font-extrabold text-xs text-slate-100">Instal Aplikasi SI-PATRA</p>
-                <p className="text-[9px] text-slate-450 font-semibold mt-0.5">Akses instan dari Home Screen Anda</p>
+                <p className="font-extrabold text-xs text-primary">Instal Aplikasi SI-PATRA</p>
+                <p className="text-[9px] text-secondary font-semibold mt-0.5">Akses instan dari Home Screen Anda</p>
               </div>
             </div>
             <button 
               onClick={handleInstallPWA}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-[0.97]"
+              className="bg-accent hover:opacity-90 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-[0.97]"
             >
               Install
             </button>
@@ -1353,36 +1352,36 @@ function Dashboard({
         </div>
 
         {/* QUICK ACTION SECTION */}
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] p-3.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 grid grid-cols-5 divide-x divide-slate-150 dark:divide-slate-800">
+        <div className="bg-card rounded-[24px] p-3.5 shadow-theme border border-border grid grid-cols-5 divide-x divide-border transition-all duration-200">
           <div onClick={() => setShowAddSessionModal(true)} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity">
             <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <PlusCircle size={20} strokeWidth={2.2} />
             </div>
-            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">Tambah Sesi</span>
+            <span className="text-[9px] font-black text-secondary text-center leading-tight">Tambah Sesi</span>
           </div>
           <div onClick={() => { setActiveTab('tagihan'); showToast('Pilih sesi terlebih dahulu untuk mencatat biaya.', 'info'); }} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
             <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <Wallet size={20} strokeWidth={2.2} />
             </div>
-            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">Tambah Kas</span>
+            <span className="text-[9px] font-black text-secondary text-center leading-tight">Tambah Kas</span>
           </div>
           <div onClick={() => setActiveTab('pengaturan')} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
             <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
               <QrCode size={20} strokeWidth={2.2} />
             </div>
-            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">QRIS Saya</span>
+            <span className="text-[9px] font-black text-secondary text-center leading-tight">QRIS Saya</span>
           </div>
           <div onClick={() => setActiveTab('kas')} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
             <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
               <Receipt size={20} strokeWidth={2.2} />
             </div>
-            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">Laporan</span>
+            <span className="text-[9px] font-black text-secondary text-center leading-tight">Laporan</span>
           </div>
           <div onClick={() => setActiveTab('anggota')} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
             <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
               <Users size={20} strokeWidth={2.2} />
             </div>
-            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">Anggota</span>
+            <span className="text-[9px] font-black text-secondary text-center leading-tight">Anggota</span>
           </div>
         </div>
 
@@ -1393,10 +1392,10 @@ function Dashboard({
               <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl">
                 <Users size={16} />
               </div>
-              <span className="text-[8px] font-black text-emerald-450 dark:text-emerald-400 uppercase tracking-wider">TOTAL ANGGOTA</span>
+              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">TOTAL ANGGOTA</span>
             </div>
             <div>
-              <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-none">{members.filter((m: any) => m.role === 'member').length} Orang</p>
+              <p className="text-lg font-black text-primary leading-none">{members.filter((m: any) => m.role === 'member').length} Orang</p>
               <p className="text-[9px] text-[#10B981] font-bold mt-1.5 flex items-center gap-1">● Aktif</p>
             </div>
           </div>
@@ -1406,23 +1405,23 @@ function Dashboard({
               <div className="p-2 bg-purple-500/10 text-purple-600 rounded-xl">
                 <Activity size={16} />
               </div>
-              <span className="text-[8px] font-black text-purple-450 dark:text-purple-400 uppercase tracking-wider">TOTAL SESI</span>
+              <span className="text-[8px] font-black text-purple-500 uppercase tracking-wider">TOTAL SESI</span>
             </div>
             <div>
-              <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-none">{sessions.length} Sesi</p>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1.5">Bulan ini</p>
+              <p className="text-lg font-black text-primary leading-none">{sessions.length} Sesi</p>
+              <p className="text-[9px] text-secondary font-bold mt-1.5">Bulan ini</p>
             </div>
           </div>
 
           <div className="bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
             <div className="flex justify-between items-start">
-              <div className="p-2 bg-blue-500/10 text-blue-650 rounded-xl">
+              <div className="p-2 bg-blue-500/10 text-blue-600 rounded-xl">
                 <DollarSign size={16} />
               </div>
-              <span className="text-[8px] font-black text-blue-455 dark:text-blue-400 uppercase tracking-wider">KAS BULAN INI</span>
+              <span className="text-[8px] font-black text-blue-500 uppercase tracking-wider">KAS BULAN INI</span>
             </div>
             <div>
-              <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-none truncate">{formatRp(saldoKas)}</p>
+              <p className="text-lg font-black text-primary leading-none truncate">{formatRp(saldoKas)}</p>
               <p className="text-[9px] text-red-500 font-bold mt-1.5 flex items-center gap-0.5">↓ 15% dari bulan lalu</p>
             </div>
           </div>
@@ -1432,11 +1431,11 @@ function Dashboard({
               <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
                 <Clock size={16} />
               </div>
-              <span className="text-[8px] font-black text-amber-455 dark:text-amber-400 uppercase tracking-wider">UNPAID BILLS</span>
+              <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider">UNPAID BILLS</span>
             </div>
             <div>
-              <p className="text-lg font-black text-red-500 dark:text-red-400 leading-none truncate">{formatRp(totalUnpaidAmount)}</p>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1.5 flex items-center gap-1">
+              <p className="text-lg font-black text-red-505 dark:text-red-405 leading-none truncate">{formatRp(totalUnpaidAmount)}</p>
+              <p className="text-[9px] text-secondary font-bold mt-1.5 flex items-center gap-1">
                 <Users size={10} /> {uniqueUnpaidMembersCount} Anggota
               </p>
             </div>
@@ -1444,16 +1443,16 @@ function Dashboard({
         </div>
 
         {/* ADMIN SECTION: PENDING PAYMENTS VERIFICATION */}
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 space-y-4">
+        <div className="bg-card rounded-[24px] p-4.5 shadow-theme border border-border space-y-4 transition-all duration-200">
           <div className="flex justify-between items-center">
-            <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Menunggu Verifikasi</h3>
-            <span className="bg-amber-550/10 text-amber-600 dark:text-amber-300 text-[10px] px-2.5 py-0.5 rounded-full font-black border border-amber-500/20">
+            <h3 className="font-black text-xs uppercase tracking-wider text-primary">Menunggu Verifikasi</h3>
+            <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] px-2.5 py-0.5 rounded-full font-black border border-amber-500/20">
               {pendingPayments.length}
             </span>
           </div>
 
           {pendingPayments.length === 0 ? (
-            <div className="text-center py-6 bg-slate-50/50 dark:bg-slate-850/30 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-slate-500 text-xs font-bold">
+            <div className="text-center py-6 bg-background border border-dashed border-border rounded-2xl text-secondary text-xs font-bold">
               Tidak ada pembayaran pending.
             </div>
           ) : (
@@ -1462,23 +1461,23 @@ function Dashboard({
                 const member = members.find((m: any) => m.id === p.member_id);
                 const session = sessions.find((s: any) => s.id === p.session_id);
                 return (
-                  <div key={p.id} className="flex justify-between items-center gap-3 border-b border-slate-100 dark:border-slate-850/50 pb-3 last:border-0 last:pb-0">
+                  <div key={p.id} className="flex justify-between items-center gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-xs flex-shrink-0">
                         {getInitials(member?.name)}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-extrabold text-xs text-slate-800 dark:text-slate-200 truncate">{member?.name || 'Anggota'}</p>
-                        <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold truncate mt-0.5">
+                        <p className="font-extrabold text-xs text-primary truncate">{member?.name || 'Anggota'}</p>
+                        <p className="text-[9px] text-secondary font-bold truncate mt-0.5">
                           {session?.nama_sesi || 'Sesi Game'} • {session?.tanggal_main ? formatDate(session.tanggal_main) : ''}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-xs font-black text-amber-500">{formatRp(p.nominal_tagihan)}</span>
+                      <span className="text-xs font-black text-amber-600 dark:text-amber-400">{formatRp(p.nominal_tagihan)}</span>
                       <button 
                         onClick={() => setReviewPayment(p)}
-                        className="px-3 py-1.5 border border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl text-[10px] font-black transition-colors"
+                        className="px-3 py-1.5 border border-accent text-accent hover:bg-accent hover:text-white rounded-xl text-[10px] font-black transition-colors"
                       >
                         Verifikasi
                       </button>
@@ -1489,7 +1488,7 @@ function Dashboard({
               {pendingPayments.length > 3 && (
                 <button 
                   onClick={() => { setActiveTab('tagihan'); showToast('Tinjau semua pembayaran tertunda di halaman Sesi.', 'info'); }}
-                  className="w-full text-center text-[10px] font-black text-[#10B981] hover:text-[#059669] pt-1 block"
+                  className="w-full text-center text-[10px] font-black text-accent hover:opacity-80 pt-1 block"
                 >
                   Lihat semua &gt;
                 </button>
@@ -1499,10 +1498,10 @@ function Dashboard({
         </div>
 
         {/* RECENT SESSIONS VIEW */}
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 space-y-4">
+        <div className="bg-card rounded-[24px] p-4.5 shadow-theme border border-border space-y-4 transition-all duration-200">
           <div className="flex justify-between items-center">
-            <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Daftar Sesi Terkini</h3>
-            <button onClick={() => setActiveTab('tagihan')} className="text-[10px] font-black text-[#10B981] hover:text-[#059669]">
+            <h3 className="font-black text-xs uppercase tracking-wider text-primary">Daftar Sesi Terkini</h3>
+            <button onClick={() => setActiveTab('tagihan')} className="text-[10px] font-black text-accent hover:opacity-80">
               Lihat semua &gt;
             </button>
           </div>
@@ -1514,9 +1513,9 @@ function Dashboard({
               
               // Dynamic colors for index icons
               const colors = [
-                'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450',
-                'bg-blue-500/10 text-blue-600 dark:text-blue-450',
-                'bg-purple-500/10 text-purple-600 dark:text-purple-450'
+                'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+                'bg-purple-500/10 text-purple-600 dark:text-purple-400'
               ];
               const iconColor = colors[idx % colors.length];
 
@@ -1527,15 +1526,15 @@ function Dashboard({
                     setActiveTab('tagihan');
                     setSelectedSessionId(s.id);
                   }}
-                  className="flex justify-between items-center gap-3 p-2 bg-slate-50/40 dark:bg-slate-850/20 hover:bg-slate-100 dark:hover:bg-slate-850/50 rounded-2xl cursor-pointer transition-all"
+                  className="flex justify-between items-center gap-3 p-2 bg-background/50 hover:bg-background border border-border/30 hover:border-border/80 rounded-2xl cursor-pointer transition-all duration-200"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-9 h-9 rounded-xl ${iconColor} flex items-center justify-center flex-shrink-0`}>
                       <Calendar size={16} strokeWidth={2.2} />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-extrabold text-xs text-slate-850 dark:text-slate-200 truncate">{s.nama_sesi}</p>
-                      <p className="text-[9px] text-slate-455 dark:text-slate-500 font-bold truncate mt-1 flex items-center gap-1.5">
+                      <p className="font-extrabold text-xs text-primary truncate">{s.nama_sesi}</p>
+                      <p className="text-[9px] text-secondary font-bold truncate mt-1 flex items-center gap-1.5">
                         <span>{formatDate(s.tanggal_main)}</span>
                         <span>•</span>
                         <span>{s.lokasi}</span>
@@ -1548,16 +1547,16 @@ function Dashboard({
                     <div className="space-y-1">
                       <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider inline-block ${
                         isGenerated 
-                          ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' 
-                          : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-550'
+                          ? 'bg-emerald-500/15 text-accent border border-emerald-500/20' 
+                          : 'bg-background border border-border/30 text-secondary'
                       }`}>
                         {isGenerated ? 'Generated' : 'Draft'}
                       </span>
-                      <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                      <p className="text-xs font-black text-primary">
                         {isGenerated ? formatRp(s.biaya_per_orang) : '-'}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-slate-400" />
+                    <ChevronRight size={14} className="text-secondary" />
                   </div>
                 </div>
               );
@@ -1568,24 +1567,24 @@ function Dashboard({
         {/* REVIEW PAYMENT MODAL */}
         {reviewPayment && (
           <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setReviewPayment(null)}>
-            <div className="bg-slate-900 rounded-[24px] border border-slate-800 p-5 max-w-sm w-full relative overflow-hidden shadow-2xl flex flex-col gap-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setReviewPayment(null)} className="absolute top-4 right-4 p-2 bg-slate-800 text-slate-400 hover:text-slate-100 rounded-full transition-colors">
+            <div className="bg-card rounded-[24px] border border-border p-5 max-w-sm w-full relative overflow-hidden shadow-theme flex flex-col gap-4 animate-scaleUp transition-colors duration-200" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setReviewPayment(null)} className="absolute top-4 right-4 p-2 bg-background border border-border/30 text-secondary hover:text-primary rounded-full transition-colors">
                 <XCircle size={18} />
               </button>
-              <h3 className="font-extrabold text-sm text-slate-100 uppercase tracking-wider mb-1 pr-10">Tinjau Pembayaran</h3>
+              <h3 className="font-extrabold text-sm text-primary uppercase tracking-wider mb-1 pr-10">Tinjau Pembayaran</h3>
               
-              <div className="bg-slate-855/50 p-4 rounded-2xl border border-slate-800 space-y-2.5 text-xs text-slate-350 dark:text-slate-300">
-                <div className="flex justify-between"><span className="text-slate-550 dark:text-slate-500 font-medium">Nama Anggota:</span> <span className="font-bold text-slate-100">{members.find((m: any) => m.id === reviewPayment.member_id)?.name || 'Anggota'}</span></div>
-                <div className="flex justify-between"><span className="text-slate-550 dark:text-slate-500 font-medium">Sesi:</span> <span className="font-bold text-slate-100 truncate w-32 text-right">{sessions.find((s: any) => s.id === reviewPayment.session_id)?.nama_sesi || 'Sesi Game'}</span></div>
-                <div className="flex justify-between"><span className="text-slate-550 dark:text-slate-500 font-medium">Nominal:</span> <span className="font-bold text-[#10B981]">{formatRp(reviewPayment.nominal_tagihan)}</span></div>
-                <div className="flex justify-between"><span className="text-slate-550 dark:text-slate-500 font-medium">Tanggal Bayar:</span> <span className="font-bold text-slate-100">{reviewPayment.tanggal_bayar ? formatDate(reviewPayment.tanggal_bayar) : '-'}</span></div>
+              <div className="bg-background/50 p-4 rounded-2xl border border-border space-y-2.5 text-xs text-primary transition-colors duration-200">
+                <div className="flex justify-between"><span className="text-secondary font-medium">Nama Anggota:</span> <span className="font-bold text-primary">{members.find((m: any) => m.id === reviewPayment.member_id)?.name || 'Anggota'}</span></div>
+                <div className="flex justify-between"><span className="text-secondary font-medium">Sesi:</span> <span className="font-bold text-primary truncate w-32 text-right">{sessions.find((s: any) => s.id === reviewPayment.session_id)?.nama_sesi || 'Sesi Game'}</span></div>
+                <div className="flex justify-between"><span className="text-secondary font-medium">Nominal:</span> <span className="font-bold text-accent">{formatRp(reviewPayment.nominal_tagihan)}</span></div>
+                <div className="flex justify-between"><span className="text-secondary font-medium">Tanggal Bayar:</span> <span className="font-bold text-primary">{reviewPayment.tanggal_bayar ? formatDate(reviewPayment.tanggal_bayar) : '-'}</span></div>
               </div>
 
-              <div className="bg-slate-950 rounded-2xl overflow-hidden aspect-[4/3] border border-slate-850 flex items-center justify-center relative bg-black/40">
+              <div className="bg-background rounded-2xl overflow-hidden aspect-[4/3] border border-border flex items-center justify-center relative bg-black/40">
                 {reviewPayment.bukti_transfer ? (
                   <img src={reviewPayment.bukti_transfer} alt="Bukti Transfer" className="w-full h-full object-contain cursor-pointer" onClick={() => setViewProofUrl(reviewPayment.bukti_transfer)} />
                 ) : (
-                  <span className="text-slate-500 text-xs font-bold italic">Tidak ada lampiran bukti transfer</span>
+                  <span className="text-secondary text-xs font-bold italic">Tidak ada lampiran bukti transfer</span>
                 )}
               </div>
 
@@ -1596,7 +1595,7 @@ function Dashboard({
                     setReviewPayment(null);
                     showToast('Pembayaran ditolak.', 'info');
                   }}
-                  className="w-full border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98]"
+                  className="w-full border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-505 dark:text-red-400 font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98]"
                 >
                   Tolak
                 </button>
@@ -1606,7 +1605,7 @@ function Dashboard({
                     setReviewPayment(null);
                     showToast('Pembayaran berhasil disetujui!', 'success');
                   }}
-                  className="w-full bg-[#10B981] hover:bg-[#059669] text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-500/10"
+                  className="w-full bg-accent hover:opacity-90 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-500/10"
                 >
                   Setujui
                 </button>
@@ -1624,19 +1623,19 @@ function Dashboard({
       
       {/* PWA INSTALLATION BANNER */}
       {isInstallable && (
-        <div className="bg-slate-800 border border-slate-750 p-4 rounded-3xl flex justify-between items-center shadow-md animate-bounce">
+        <div className="bg-card border border-border p-4 rounded-3xl flex justify-between items-center shadow-theme animate-bounce transition-all duration-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20">
+            <div className="w-10 h-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center border border-accent/20">
               <span className="text-lg">📱</span>
             </div>
             <div>
-              <p className="font-extrabold text-xs text-slate-100">Instal Aplikasi SI-PATRA</p>
-              <p className="text-[9px] text-slate-450 font-semibold mt-0.5">Akses instan dari Home Screen Anda</p>
+              <p className="font-extrabold text-xs text-primary">Instal Aplikasi SI-PATRA</p>
+              <p className="text-[9px] text-secondary font-semibold mt-0.5">Akses instan dari Home Screen Anda</p>
             </div>
           </div>
           <button 
             onClick={handleInstallPWA}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-[0.97]"
+            className="bg-accent hover:opacity-90 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-[0.97]"
           >
             Install
           </button>
@@ -1691,7 +1690,7 @@ function Dashboard({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#10B981] shadow-sm flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-accent shadow-sm flex-shrink-0">
               <CheckCircle size={16} strokeWidth={2.5} />
             </div>
             <div>
@@ -1706,16 +1705,16 @@ function Dashboard({
 
       {/* MEMBER SECTION: MY BILLS SUMMARY & HISTORY */}
       <div className="space-y-4">
-        <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Tagihan Belum Dibayar</h3>
+        <h3 className="font-black text-xs uppercase tracking-wider text-primary">Tagihan Belum Dibayar</h3>
         
         {myActiveBills.length === 0 ? (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] p-5 text-center text-emerald-350 dark:text-emerald-305 flex flex-col items-center gap-3">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] p-5 text-center flex flex-col items-center gap-3">
             <div className="p-2.5 bg-emerald-500/20 rounded-full border border-emerald-500/30">
-              <CheckCircle size={28} className="text-emerald-450 dark:text-emerald-400 animate-pulse" />
+              <CheckCircle size={28} className="text-accent animate-pulse" />
             </div>
             <div>
-              <p className="font-black text-sm text-slate-100">Hebat! Iuran Anda Lunas</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Semua tagihan kehadiran sesi Anda telah diselesaikan.</p>
+              <p className="font-black text-sm text-primary">Hebat! Iuran Anda Lunas</p>
+              <p className="text-[10px] text-secondary mt-0.5">Semua tagihan kehadiran sesi Anda telah diselesaikan.</p>
             </div>
           </div>
         ) : (
@@ -1724,22 +1723,22 @@ function Dashboard({
               const session = sessions.find((s: any) => s.id === p.session_id);
               const isRejected = p.status_pembayaran === 'rejected';
               return (
-                <div key={p.id} className={`bg-white dark:bg-slate-900 p-4 rounded-[20px] border ${isRejected ? 'border-red-500/30 bg-red-500/5' : 'border-slate-200/40 dark:border-slate-800/80'} flex justify-between items-center gap-3 shadow-sm`}>
+                <div key={p.id} className={`bg-card p-4 rounded-[20px] border shadow-theme transition-all duration-200 flex justify-between items-center gap-3 ${isRejected ? 'border-red-500/30 bg-red-500/5' : 'border-border'}`}>
                   <div className="flex-1 min-w-0">
-                    <p className="font-extrabold text-sm text-slate-800 dark:text-slate-100 truncate">{session?.nama_sesi || 'Sesi Badminton'}</p>
-                    <div className="flex items-center gap-1.5 text-slate-400 mt-1">
+                    <p className="font-extrabold text-sm text-primary truncate">{session?.nama_sesi || 'Sesi Badminton'}</p>
+                    <div className="flex items-center gap-1.5 text-secondary mt-1">
                       <Calendar size={11} />
                       <span className="text-[10px] font-bold">{formatDate(session?.tanggal_main || '')}</span>
                     </div>
-                    <p className="text-sm font-black text-red-500 dark:text-red-405 mt-1">{formatRp(p.nominal_tagihan)}</p>
+                    <p className="text-sm font-black text-red-500 dark:text-red-400 mt-1">{formatRp(p.nominal_tagihan)}</p>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1.5">
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-amber-500/20 text-amber-300 border border-amber-500/35'}`}>
+                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isRejected ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-amber-500/15 text-amber-600 dark:text-amber-450 border border-amber-500/20'}`}>
                       {isRejected ? 'Ditolak' : 'Belum Bayar'}
                     </span>
                     <button 
                       onClick={() => setSelectedPayment(p)}
-                      className="px-4 py-1.5 bg-[#10B981] hover:bg-[#059669] text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
+                      className="px-4 py-1.5 bg-accent hover:opacity-90 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
                     >
                       Bayar
                     </button>
@@ -1751,8 +1750,8 @@ function Dashboard({
         )}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 space-y-4">
-        <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Status Pembayaran Terakhir</h3>
+      <div className="bg-card rounded-[24px] p-4.5 shadow-theme border border-border space-y-4 transition-all duration-200">
+        <h3 className="font-black text-xs uppercase tracking-wider text-primary">Status Pembayaran Terakhir</h3>
         
         <div className="space-y-3">
           {myPayments.filter((p: any) => p.status_pembayaran !== 'pending').slice(0, 3).map((p: any) => {
@@ -1760,17 +1759,17 @@ function Dashboard({
             const isVerified = p.status_pembayaran === 'verified';
             const isUploaded = p.status_pembayaran === 'uploaded';
             return (
-              <div key={p.id} className="bg-slate-50/40 dark:bg-slate-850/20 p-3 rounded-2xl border border-slate-100 dark:border-slate-850/40 flex items-center gap-3.5">
-                <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-[#10B981] border-emerald-500/20' : isUploaded ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+              <div key={p.id} className="bg-background/50 p-3 rounded-2xl border border-border/30 flex items-center gap-3.5">
+                <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-accent border-emerald-500/20' : isUploaded ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
                   {isVerified ? <CheckCircle size={16} /> : <Clock size={16} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">{session?.nama_sesi}</p>
-                  <p className="text-[9px] text-slate-400 font-bold mt-0.5">{p.tanggal_bayar ? formatDate(p.tanggal_bayar) : '-'}</p>
+                  <p className="font-bold text-xs text-primary truncate">{session?.nama_sesi}</p>
+                  <p className="text-[9px] text-secondary font-bold mt-0.5">{p.tanggal_bayar ? formatDate(p.tanggal_bayar) : '-'}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-black text-slate-850 dark:text-slate-100">{formatRp(p.nominal_tagihan)}</p>
-                  <p className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${isVerified ? 'text-emerald-550 dark:text-emerald-400' : isUploaded ? 'text-blue-400 animate-pulse' : 'text-red-500'}`}>
+                  <p className="text-xs font-black text-primary">{formatRp(p.nominal_tagihan)}</p>
+                  <p className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${isVerified ? 'text-accent' : isUploaded ? 'text-blue-500 animate-pulse' : 'text-red-500'}`}>
                     {p.status_pembayaran === 'verified' ? 'Lunas' : p.status_pembayaran === 'uploaded' ? 'Verifikasi' : 'Ditolak'}
                   </p>
                 </div>
@@ -1781,10 +1780,10 @@ function Dashboard({
       </div>
 
       {/* RECENT SESSIONS VIEW */}
-      <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 space-y-4">
+      <div className="bg-card rounded-[24px] p-4.5 shadow-theme border border-border space-y-4 transition-all duration-200">
         <div className="flex justify-between items-center">
-          <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Daftar Sesi Terkini</h3>
-          <button onClick={() => setActiveTab('tagihan')} className="text-[10px] font-black text-[#10B981] hover:text-[#059669]">
+          <h3 className="font-black text-xs uppercase tracking-wider text-primary">Daftar Sesi Terkini</h3>
+          <button onClick={() => setActiveTab('tagihan')} className="text-[10px] font-black text-accent hover:opacity-80">
             Lihat semua &gt;
           </button>
         </div>
@@ -1795,24 +1794,24 @@ function Dashboard({
             const isGenerated = s.status_tagihan === 'generated';
             
             const colors = [
-              'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450',
-              'bg-blue-500/10 text-blue-600 dark:text-blue-450',
-              'bg-purple-500/10 text-purple-600 dark:text-purple-450'
+              'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+              'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+              'bg-purple-500/10 text-purple-600 dark:text-purple-400'
             ];
             const iconColor = colors[idx % colors.length];
 
             return (
               <div 
                 key={s.id} 
-                className="flex justify-between items-center gap-3 p-2 bg-slate-50/40 dark:bg-slate-850/20 rounded-2xl"
+                className="flex justify-between items-center gap-3 p-2 bg-background/50 border border-border/30 rounded-2xl"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-9 h-9 rounded-xl ${iconColor} flex items-center justify-center flex-shrink-0`}>
                     <Calendar size={16} strokeWidth={2.2} />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-extrabold text-xs text-slate-850 dark:text-slate-200 truncate">{s.nama_sesi}</p>
-                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold truncate mt-1 flex items-center gap-1.5">
+                    <p className="font-extrabold text-xs text-primary truncate">{s.nama_sesi}</p>
+                    <p className="text-[9px] text-secondary font-bold truncate mt-1 flex items-center gap-1.5">
                       <span>{formatDate(s.tanggal_main)}</span>
                       <span>•</span>
                       <span className="flex items-center gap-0.5"><Users size={9} /> {attendeeCount} Hadir</span>
@@ -1823,12 +1822,12 @@ function Dashboard({
                   <div className="space-y-1">
                     <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider inline-block ${
                       isGenerated 
-                        ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' 
-                        : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-550'
+                        ? 'bg-emerald-500/15 text-accent border border-emerald-500/20' 
+                        : 'bg-background border border-border/30 text-secondary'
                     }`}>
                       {isGenerated ? 'Generated' : 'Draft'}
                     </span>
-                    <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                    <p className="text-xs font-black text-primary">
                       {isGenerated ? formatRp(s.biaya_per_orang) : '-'}
                     </p>
                   </div>
@@ -1839,10 +1838,10 @@ function Dashboard({
         </div>
       </div>
     </div>
-  );;
+  );
 }
 
-// --- ADMIN SESSION & ATTENDANCE COMPONENT ---
+  // --- ADMIN SESSION & ATTENDANCE COMPONENT ---
 function SessionsAdmin({ 
   sessions, members, attendees, sessionExpenses, payments, selectedSessionId, setSelectedSessionId, 
   showAddSessionModal, setShowAddSessionModal, addSession, saveAttendance, addSessionExpense, deleteSessionExpense, generateBillsForSession, verifyPayment, setViewProofUrl 
@@ -1879,10 +1878,10 @@ function SessionsAdmin({
       
       {/* HEADER SECTION */}
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-black tracking-wide text-slate-100 uppercase">Manajemen Sesi</h2>
+        <h2 className="text-lg font-black tracking-wide text-primary uppercase">Manajemen Sesi</h2>
         <button 
           onClick={() => setShowAddSessionModal(true)} 
-          className="flex items-center gap-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl font-bold transition-all shadow-md shadow-emerald-950/20 active:scale-[0.98]"
+          className="flex items-center gap-1 text-xs bg-accent hover:opacity-90 text-white px-3.5 py-2 rounded-xl font-bold transition-all shadow-md active:scale-[0.98]"
         >
           <Plus size={14} /> Sesi Baru
         </button>
@@ -1899,54 +1898,58 @@ function SessionsAdmin({
           const lunasCount = sPayments.filter((p: any) => p.status_pembayaran === 'verified').length;
           
           return (
-            <div key={s.id} className="bg-slate-800/60 rounded-3xl border border-slate-800/90 shadow-md overflow-hidden">
+            <div key={s.id} className="bg-card rounded-3xl border border-border shadow-theme overflow-hidden transition-all duration-200">
               
               {/* SESSION BRIEF CARD */}
               <div 
                 onClick={() => setSelectedSessionId(isSelected ? null : s.id)}
-                className="p-4 flex justify-between items-center cursor-pointer select-none hover:bg-slate-800/80 transition-colors"
+                className="p-4 flex justify-between items-center cursor-pointer select-none hover:bg-background/40 transition-colors"
               >
                 <div className="min-w-0 flex-1">
-                  <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider inline-block mb-1.5 ${s.status_tagihan === 'generated' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-700 text-slate-400'}`}>
+                  <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider inline-block mb-1.5 ${
+                    s.status_tagihan === 'generated' 
+                      ? 'bg-emerald-500/15 text-accent border border-emerald-500/20' 
+                      : 'bg-background text-secondary border border-border/30'
+                  }`}>
                     {s.status_tagihan === 'generated' ? 'Tagihan Terbit' : 'Draft Sesi'}
                   </span>
-                  <h3 className="font-extrabold text-sm text-slate-100 truncate">{s.nama_sesi}</h3>
-                  <div className="flex flex-wrap items-center gap-3.5 mt-2 text-[10px] text-slate-400 font-semibold">
+                  <h3 className="font-extrabold text-sm text-primary truncate">{s.nama_sesi}</h3>
+                  <div className="flex flex-wrap items-center gap-3.5 mt-2 text-[10px] text-secondary font-semibold">
                     <span className="flex items-center gap-1"><Calendar size={11} /> {formatDate(s.tanggal_main)}</span>
                     <span className="flex items-center gap-1"><MapPin size={11} /> {s.lokasi}</span>
                   </div>
                 </div>
                 <div className="text-right flex items-center gap-2">
                   <div>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Split Cost</p>
-                    <p className="text-sm font-black text-emerald-400 mt-0.5">{s.status_tagihan === 'generated' ? formatRp(s.biaya_per_orang) : '-'}</p>
+                    <p className="text-[10px] text-secondary font-bold uppercase tracking-wider">Split Cost</p>
+                    <p className="text-sm font-black text-accent mt-0.5">{s.status_tagihan === 'generated' ? formatRp(s.biaya_per_orang) : '-'}</p>
                   </div>
-                  <ChevronDown size={18} className={`text-slate-500 transition-transform duration-250 ${isSelected ? 'transform rotate-180 text-emerald-400' : ''}`} />
+                  <ChevronDown size={18} className={`text-secondary transition-transform duration-250 ${isSelected ? 'transform rotate-180 text-accent' : ''}`} />
                 </div>
               </div>
 
               {/* EXPANDED DETAILS */}
               {isSelected && (
-                <div className="border-t border-slate-700/50 bg-slate-800/30 p-4 space-y-5 animate-slide-down">
+                <div className="border-t border-border bg-background/20 p-4 space-y-5 transition-all duration-200">
                   
-                  <div className="text-xs bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 space-y-1.5">
-                    <p className="flex justify-between"><span className="text-slate-400 font-medium">Waktu Main:</span> <span className="font-bold text-slate-200">{s.jam_main}</span></p>
-                    {s.catatan && <p className="flex justify-between"><span className="text-slate-400 font-medium">Catatan:</span> <span className="font-bold text-slate-200">{s.catatan}</span></p>}
+                  <div className="text-xs bg-card rounded-2xl p-3 border border-border space-y-1.5 transition-colors duration-200">
+                    <p className="flex justify-between"><span className="text-secondary font-medium">Waktu Main:</span> <span className="font-bold text-primary">{s.jam_main}</span></p>
+                    {s.catatan && <p className="flex justify-between"><span className="text-secondary font-medium">Catatan:</span> <span className="font-bold text-primary">{s.catatan}</span></p>}
                   </div>
 
                   {/* 1. ATTENDANCE CHECKS */}
                   <div className="space-y-2">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-secondary flex items-center justify-between">
                       <span>Kehadiran Peserta</span>
-                      <span className="bg-slate-755 text-slate-300 text-[10px] px-2 py-0.5 rounded-md">{sAttendees.length} Hadir</span>
+                      <span className="bg-card text-secondary text-[10px] px-2 py-0.5 rounded-md border border-border/40">{sAttendees.length} Hadir</span>
                     </h4>
                     
                     {s.status_tagihan === 'draft' ? (
-                      <div className="bg-slate-850 border border-slate-750 rounded-2xl p-3 max-h-40 overflow-y-auto space-y-2 hide-scrollbar">
+                      <div className="bg-background border border-border rounded-2xl p-3 max-h-40 overflow-y-auto space-y-2 hide-scrollbar transition-colors duration-200">
                         {members.filter((m: any) => m.role === 'member' && m.status === 'aktif').map((m: any) => {
                           const isChecked = sAttendees.some((a: any) => a.member_id === m.id);
                           return (
-                            <label key={m.id} className="flex items-center gap-2.5 p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors text-xs font-semibold">
+                            <label key={m.id} className="flex items-center gap-2.5 p-1.5 hover:bg-card rounded-lg cursor-pointer transition-colors text-xs font-semibold">
                               <input 
                                 type="checkbox" 
                                 checked={isChecked}
@@ -1957,9 +1960,9 @@ function SessionsAdmin({
                                     : [...currentIds, m.id];
                                   await saveAttendance(s.id, newIds);
                                 }}
-                                className="w-4.5 h-4.5 rounded text-emerald-600 focus:ring-emerald-500/20 bg-slate-800 border-slate-700" 
+                                className="w-4.5 h-4.5 rounded text-accent focus:ring-accent/10 bg-card border-border accent-accent" 
                               />
-                              <span className={isChecked ? 'text-emerald-450 font-bold' : 'text-slate-400'}>{m.name}</span>
+                              <span className={isChecked ? 'text-accent font-bold' : 'text-secondary'}>{m.name}</span>
                             </label>
                           );
                         })}
@@ -1969,7 +1972,7 @@ function SessionsAdmin({
                         {sAttendees.map((a: any) => {
                           const mName = members.find((m: any) => m.id === a.member_id)?.name || 'Anggota';
                           return (
-                            <span key={a.id} className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/15 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                            <span key={a.id} className="bg-emerald-500/10 text-accent border border-emerald-500/15 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                               <Check size={10} strokeWidth={3} /> {mName}
                             </span>
                           );
@@ -1980,29 +1983,29 @@ function SessionsAdmin({
 
                   {/* 2. EXPENSES */}
                   <div className="space-y-3">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-secondary flex items-center justify-between">
                       <span>Rincian Biaya Sesi</span>
-                      <span className="text-red-400 font-extrabold">{formatRp(totalExps)}</span>
+                      <span className="text-red-500 font-extrabold">{formatRp(totalExps)}</span>
                     </h4>
 
                     {sExpenses.length === 0 ? (
-                      <p className="text-[10px] text-slate-500 font-bold italic text-center py-2 bg-slate-850/40 rounded-xl border border-slate-800">
+                      <p className="text-[10px] text-secondary font-bold italic text-center py-2 bg-background/40 rounded-xl border border-border">
                         Belum ada biaya pengeluaran sesi dicatat.
                       </p>
                     ) : (
                       <div className="space-y-2">
                         {sExpenses.map((exp: any) => (
-                          <div key={exp.id} className="bg-slate-850 p-2.5 rounded-xl border border-slate-750/70 flex justify-between items-center text-xs">
+                          <div key={exp.id} className="bg-background p-2.5 rounded-xl border border-border/60 flex justify-between items-center text-xs">
                             <div className="min-w-0 flex-1 pr-2">
-                              <p className="font-extrabold text-slate-200 truncate">{exp.keterangan}</p>
-                              <span className="text-[8px] bg-slate-800 text-slate-450 font-bold px-1.5 py-0.5 rounded mt-1 inline-block">{exp.kategori}</span>
+                              <p className="font-extrabold text-primary truncate">{exp.keterangan}</p>
+                              <span className="text-[8px] bg-card border border-border/30 text-secondary font-bold px-1.5 py-0.5 rounded mt-1 inline-block">{exp.kategori}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-slate-100">{formatRp(exp.nominal)}</span>
+                              <span className="font-extrabold text-primary">{formatRp(exp.nominal)}</span>
                               {s.status_tagihan === 'draft' && (
                                 <button 
                                   onClick={() => deleteSessionExpense(exp.id)} 
-                                  className="text-red-450 hover:text-red-400 p-1 hover:bg-slate-800 rounded-lg transition-colors"
+                                  className="text-red-500 hover:text-red-400 p-1 hover:bg-background rounded-lg transition-colors"
                                 >
                                   <XCircle size={14} />
                                 </button>
@@ -2014,27 +2017,27 @@ function SessionsAdmin({
                     )}
 
                     {s.status_tagihan === 'draft' && (
-                      <form onSubmit={(e) => handleAddExpenseInline(e, s.id)} className="bg-slate-850 border border-slate-750/80 p-3 rounded-2xl space-y-2.5">
+                      <form onSubmit={(e) => handleAddExpenseInline(e, s.id)} className="bg-background border border-border/80 p-3 rounded-2xl space-y-2.5">
                         <div className="grid grid-cols-2 gap-2">
                           <input 
                             name="keterangan" 
                             type="text" 
                             required 
                             placeholder="Contoh: Lapangan (2 Jam)" 
-                            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 border border-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500" 
+                            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-card border border-border focus:border-accent focus:ring-1 focus:ring-accent/15 outline-none text-primary placeholder:text-secondary" 
                           />
                           <input 
                             name="nominal" 
                             type="number" 
                             required 
                             placeholder="Nominal (Rp)" 
-                            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-slate-800 border border-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none text-slate-100 placeholder:text-slate-500" 
+                            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-card border border-border focus:border-accent focus:ring-1 focus:ring-accent/15 outline-none text-primary placeholder:text-secondary" 
                           />
                         </div>
                         <div className="flex justify-between items-center gap-2">
                           <select 
                             name="kategori" 
-                            className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg bg-slate-800 border border-slate-700 focus:ring-1 focus:ring-emerald-500 outline-none text-slate-350 appearance-none flex-1"
+                            className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg bg-card border border-border focus:border-accent focus:ring-1 focus:ring-accent/15 outline-none text-primary appearance-none flex-1"
                           >
                             <option value="Sewa Lapangan">Sewa Lapangan</option>
                             <option value="Peralatan">Peralatan (Kok, dll)</option>
@@ -2043,7 +2046,7 @@ function SessionsAdmin({
                           </select>
                           <button 
                             type="submit" 
-                            className="px-4 py-1.5 bg-slate-755 hover:bg-slate-700 text-slate-200 font-extrabold rounded-lg text-[10px] flex items-center gap-1 transition-all"
+                            className="px-4 py-1.5 bg-card hover:bg-background border border-border/40 text-primary font-extrabold rounded-lg text-[10px] flex items-center gap-1 transition-all"
                           >
                             <Plus size={11} /> Catat
                           </button>
@@ -2053,23 +2056,23 @@ function SessionsAdmin({
                   </div>
 
                   {/* 3. ACTIONS MODULE */}
-                  <div className="pt-2 border-t border-slate-700/50">
+                  <div className="pt-2 border-t border-border">
                     {s.status_tagihan === 'draft' ? (
                       <div className="space-y-3">
-                        <div className="bg-emerald-500/10 border border-emerald-500/15 p-3 rounded-2xl text-xs flex justify-between items-center">
+                        <div className="bg-emerald-500/5 border border-emerald-500/15 p-3 rounded-2xl text-xs flex justify-between items-center">
                           <div>
-                            <p className="text-slate-400 font-semibold">Simulasi Biaya:</p>
-                            <p className="text-[10px] text-slate-500 mt-0.5">
+                            <p className="text-secondary font-semibold">Simulasi Biaya:</p>
+                            <p className="text-[10px] text-secondary mt-0.5">
                               {formatRp(totalExps)} / {sAttendees.length} orang
                             </p>
                           </div>
-                          <span className="text-sm font-black text-emerald-400">
+                          <span className="text-sm font-black text-accent">
                             {sAttendees.length > 0 ? formatRp(Math.round(totalExps / sAttendees.length)) : 'Rp 0'}
                           </span>
                         </div>
                         <button 
                           onClick={() => generateBillsForSession(s.id)}
-                          className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-[0.98]"
+                          className="w-full py-3.5 bg-accent hover:opacity-90 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-[0.98]"
                         >
                           <TrendingUp size={14} /> Terbitkan Tagihan Sesi
                         </button>
@@ -2077,15 +2080,15 @@ function SessionsAdmin({
                     ) : (
                       <div className="space-y-3">
                         <div className="flex justify-between items-center mb-2">
-                          <p className="font-bold text-xs uppercase tracking-wider text-slate-400">Status Bayar Peserta</p>
-                          <span className="text-[10px] font-black text-emerald-455 bg-emerald-500/10 px-2 py-0.5 rounded">
+                          <p className="font-bold text-xs uppercase tracking-wider text-secondary">Status Bayar Peserta</p>
+                          <span className="text-[10px] font-black text-accent bg-emerald-500/10 px-2 py-0.5 rounded">
                             {lunasCount}/{sAttendees.length} Lunas
                           </span>
                         </div>
 
-                        <div className="w-full bg-slate-800 rounded-full h-1.5 border border-slate-750 overflow-hidden">
+                        <div className="w-full bg-background rounded-full h-1.5 border border-border/45 overflow-hidden">
                           <div 
-                            className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" 
+                            className="bg-accent h-1.5 rounded-full transition-all duration-500" 
                             style={{ width: `${sAttendees.length > 0 ? (lunasCount / sAttendees.length) * 100 : 0}%` }}
                           ></div>
                         </div>
@@ -2098,14 +2101,14 @@ function SessionsAdmin({
                             const isRejected = p.status_pembayaran === 'rejected';
                             
                             return (
-                              <div key={p.id} className="bg-slate-850 p-2.5 rounded-xl border border-slate-750/70 flex justify-between items-center text-xs">
+                              <div key={p.id} className="bg-background p-2.5 rounded-xl border border-border/60 flex justify-between items-center text-xs">
                                 <div className="min-w-0 flex-1">
-                                  <p className="font-extrabold text-slate-200 truncate">{mName}</p>
+                                  <p className="font-extrabold text-primary truncate">{mName}</p>
                                   <div className="flex items-center gap-1.5 mt-0.5">
                                     <span className={`text-[8px] font-black uppercase tracking-wider ${
-                                      isVerified ? 'text-emerald-450' : 
-                                      isUploaded ? 'text-blue-400 animate-pulse' : 
-                                      isRejected ? 'text-red-455' : 'text-slate-500'
+                                      isVerified ? 'text-accent' : 
+                                      isUploaded ? 'text-blue-500 animate-pulse' : 
+                                      isRejected ? 'text-red-500' : 'text-secondary'
                                     }`}>
                                       {isVerified ? 'Lunas' : 
                                        isUploaded ? 'Uploaded (Verifikasi)' : 
@@ -2117,7 +2120,7 @@ function SessionsAdmin({
                                   {isUploaded && p.bukti_transfer && (
                                     <button 
                                       onClick={() => setViewProofUrl(p.bukti_transfer)}
-                                      className="px-2 py-1 bg-slate-750 hover:bg-slate-700 text-slate-355 text-[9px] font-extrabold rounded-md transition-colors"
+                                      className="px-2.5 py-1 bg-card border border-border/40 hover:bg-background text-primary text-[9px] font-extrabold rounded-md transition-colors"
                                     >
                                       Bukti
                                     </button>
@@ -2126,20 +2129,20 @@ function SessionsAdmin({
                                     <div className="flex gap-1">
                                       <button 
                                         onClick={() => verifyPayment(p.id, 'rejected')}
-                                        className="p-1 text-red-400 hover:bg-red-500/10 rounded border border-red-500/20"
+                                        className="p-1 text-red-500 hover:bg-red-500/10 rounded border border-red-500/20"
                                       >
                                         <XCircle size={13} />
                                       </button>
                                       <button 
                                         onClick={() => verifyPayment(p.id, 'verified')}
-                                        className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded border border-emerald-500/20"
+                                        className="p-1 text-accent hover:bg-emerald-500/10 rounded border border-emerald-500/20"
                                       >
                                         <CheckCircle size={13} />
                                       </button>
                                     </div>
                                   )}
                                   {isVerified && (
-                                    <CheckCircle size={15} className="text-emerald-400 border border-emerald-500/10 p-0.5 rounded-full" />
+                                    <CheckCircle size={15} className="text-accent border border-emerald-500/10 p-0.5 rounded-full" />
                                   )}
                                 </div>
                               </div>
@@ -2161,36 +2164,36 @@ function SessionsAdmin({
       {/* CREATE SESSION MODAL */}
       {showAddSessionModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center p-4">
-          <div className="bg-slate-900 w-full max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] p-6 relative border border-slate-800 shadow-2xl animate-slide-up">
-            <button onClick={() => setShowAddSessionModal(false)} className="absolute top-5 right-5 p-2 bg-slate-800 text-slate-400 hover:text-slate-100 rounded-full transition-colors">
+          <div className="bg-card w-full max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] p-6 relative border border-border shadow-theme animate-slide-up transition-colors duration-200">
+            <button onClick={() => setShowAddSessionModal(false)} className="absolute top-5 right-5 p-2 bg-background border border-border/45 text-secondary hover:text-primary rounded-full transition-colors">
               <XCircle size={18} />
             </button>
-            <h3 className="text-base font-black text-slate-100 uppercase tracking-wide mb-6">Tambah Sesi Baru</h3>
+            <h3 className="text-base font-black text-primary uppercase tracking-wide mb-6">Tambah Sesi Baru</h3>
             
             <form onSubmit={handleCreateSession} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Nama Sesi</label>
-                <input required name="nama_sesi" type="text" placeholder="Contoh: Badminton Minggu Pagi" className="w-full px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold text-xs" />
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Sesi</label>
+                <input required name="nama_sesi" type="text" placeholder="Contoh: Badminton Minggu Pagi" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
               </div>
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Tanggal Main</label>
-                  <input required name="tanggal_main" type="date" className="w-full px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold text-xs" />
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Tanggal Main</label>
+                  <input required name="tanggal_main" type="date" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Jam Main</label>
-                  <input required name="jam_main" type="text" placeholder="08:00 - 10:00" className="w-full px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold text-xs" />
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Jam Main</label>
+                  <input required name="jam_main" type="text" placeholder="08:00 - 10:00" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Lokasi</label>
-                <input required name="lokasi" type="text" placeholder="GOR Badminton Utama" className="w-full px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold text-xs" />
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Lokasi</label>
+                <input required name="lokasi" type="text" placeholder="GOR Badminton Utama" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Catatan (Optional)</label>
-                <textarea name="catatan" placeholder="Catatan opsional..." rows={2} className="w-full px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-bold text-xs resize-none"></textarea>
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Catatan (Optional)</label>
+                <textarea name="catatan" placeholder="Catatan opsional..." rows={2} className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs resize-none"></textarea>
               </div>
-              <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg shadow-emerald-950/20 active:scale-[0.98] text-xs">
+              <button type="submit" className="w-full bg-accent hover:opacity-90 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs">
                 Buat Sesi & Tandai Hadir
               </button>
             </form>
@@ -2298,7 +2301,7 @@ function MyBillsMember({
   return (
     <div className="space-y-4">
       {toastMessage && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3.5 rounded-full shadow-2xl z-50 text-xs font-bold flex items-center gap-2 border border-slate-700 animate-bounce">
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-card text-primary px-5 py-3.5 rounded-full shadow-theme z-50 text-xs font-bold flex items-center gap-2 border border-border animate-bounce">
           <CheckCircle size={15} className="text-emerald-400" /> {toastMessage}
         </div>
       )}
@@ -2308,10 +2311,10 @@ function MyBillsMember({
         </div>
       )}
 
-      <h2 className="text-lg font-black tracking-wide text-slate-100 uppercase mb-2">Tagihan Sesi Saya</h2>
+      <h2 className="text-lg font-black tracking-wide text-primary uppercase mb-2">Tagihan Sesi Saya</h2>
 
       {myPayments.length === 0 ? (
-        <div className="text-center p-8 bg-slate-800/30 border border-dashed border-slate-800 rounded-3xl text-slate-500 text-xs font-bold">
+        <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
           Anda tidak memiliki tagihan sesi badminton.
         </div>
       ) : (
@@ -2323,7 +2326,7 @@ function MyBillsMember({
             const isRejected = p.status_pembayaran === 'rejected';
             
             return (
-              <div key={p.id} className="bg-slate-800/60 rounded-3xl border border-slate-800 shadow-md overflow-hidden">
+              <div key={p.id} className="bg-card rounded-3xl border border-border shadow-theme overflow-hidden">
                 <div className="p-5">
                   <div className="flex justify-between items-start mb-3">
                     <span className="text-[9px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-355 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
@@ -2333,28 +2336,28 @@ function MyBillsMember({
                       isVerified ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
                       isUploaded ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
                       isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                      'bg-slate-700 text-slate-400'
+                      'bg-background text-secondary border border-border'
                     }`}>
                       {isVerified ? 'Lunas' : isUploaded ? 'Verifikasi' : isRejected ? 'Ditolak' : 'Belum Bayar'}
                     </span>
                   </div>
 
-                  <h3 className="font-extrabold text-sm text-slate-100 leading-snug">{session?.nama_sesi}</h3>
+                  <h3 className="font-extrabold text-sm text-primary leading-snug">{session?.nama_sesi}</h3>
                   <div className="flex items-center justify-between mt-4 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-450 font-bold">
+                    <div className="flex items-center gap-1.5 text-secondary font-bold">
                       <Calendar size={13} />
                       <span>{formatDate(session?.tanggal_main || '')}</span>
                     </div>
-                    <div className="font-black text-slate-100 text-base">{formatRp(p.nominal_tagihan)}</div>
+                    <div className="font-black text-primary text-base">{formatRp(p.nominal_tagihan)}</div>
                   </div>
                 </div>
 
-                <div className="bg-slate-800/30 px-5 py-4 border-t border-slate-800 flex justify-between items-center">
+                <div className="bg-background/30 px-5 py-4 border-t border-border flex justify-between items-center">
                   <button 
                     onClick={() => setSelectedPayment(p)} 
                     className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] ${
                       isVerified 
-                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-750' 
+                        ? 'bg-background text-secondary cursor-not-allowed border border-border' 
                         : isUploaded 
                         ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20' 
                         : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/20'
@@ -2373,7 +2376,7 @@ function MyBillsMember({
       {/* MODAL QRIS & STATUS */}
       {currentPayment && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 w-full max-w-sm rounded-[2.5rem] overflow-hidden border border-slate-800 shadow-2xl flex flex-col animate-scale-up">
+          <div className="bg-card w-full max-w-sm rounded-[2.5rem] overflow-hidden border border-border shadow-theme flex flex-col animate-scale-up">
             
             <div className="bg-emerald-700 p-5 text-center relative text-white">
               <button onClick={handleCloseModal} className="absolute top-4.5 right-4.5 p-1.5 bg-white/10 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-all">
@@ -2394,27 +2397,27 @@ function MyBillsMember({
                 </div>
 
                 <div className="space-y-1.5">
-                  <h4 className="text-base font-black text-slate-100 tracking-tight">
+                  <h4 className="text-base font-black text-primary tracking-tight">
                     {currentPayment.status_pembayaran === 'verified' ? 'Pembayaran Terverifikasi' : 'Bukti Pembayaran Dikirim'}
                   </h4>
-                  <p className="text-[10px] font-bold text-slate-400 leading-relaxed px-4">
+                  <p className="text-[10px] font-bold text-secondary leading-relaxed px-4">
                     {currentPayment.status_pembayaran === 'verified'
                       ? 'Terima kasih! Pembayaran Anda telah terverifikasi oleh Bendahara PB.'
                       : 'Bukti transfer berhasil diunggah. Sedang menunggu konfirmasi/verifikasi dari admin.'}
                   </p>
                 </div>
 
-                <div className="w-full bg-slate-850 border border-slate-800 rounded-2xl p-4 text-left space-y-3">
+                <div className="w-full bg-background border border-border rounded-2xl p-4 text-left space-y-3">
                   <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className="text-slate-500 uppercase tracking-wider">Nominal</span>
-                    <span className="text-slate-200">{formatRp(currentPayment.nominal_tagihan)}</span>
+                    <span className="text-secondary uppercase tracking-wider">Nominal</span>
+                    <span className="text-primary">{formatRp(currentPayment.nominal_tagihan)}</span>
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className="text-slate-500 uppercase tracking-wider">Tanggal Upload</span>
-                    <span className="text-slate-200">{currentPayment.tanggal_bayar ? formatDate(currentPayment.tanggal_bayar) : '-'}</span>
+                    <span className="text-secondary uppercase tracking-wider">Tanggal Upload</span>
+                    <span className="text-primary">{currentPayment.tanggal_bayar ? formatDate(currentPayment.tanggal_bayar) : '-'}</span>
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className="text-slate-500 uppercase tracking-wider">Status</span>
+                    <span className="text-secondary uppercase tracking-wider">Status</span>
                     <span>
                       {currentPayment.status_pembayaran === 'verified' ? (
                         <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">Lunas</span>
@@ -2425,14 +2428,14 @@ function MyBillsMember({
                   </div>
                 </div>
 
-                <button onClick={handleCloseModal} className="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 font-extrabold py-3.5 rounded-2xl border border-slate-700/60 transition-all text-xs active:scale-[0.98]">
+                <button onClick={handleCloseModal} className="w-full bg-background hover:bg-border/60 text-primary font-extrabold py-3.5 rounded-2xl border border-border transition-all text-xs active:scale-[0.98]">
                   Tutup Rincian
                 </button>
               </div>
             ) : (
               <div className="p-6 flex flex-col items-center gap-5">
                 <div className="text-center">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Nominal Transfer</p>
+                  <p className="text-[8px] font-black text-secondary uppercase tracking-widest mb-1">Nominal Transfer</p>
                   <p className="text-2xl font-black text-emerald-450 tracking-tight">{formatRp(currentPayment.nominal_tagihan)}</p>
                 </div>
 
@@ -2443,13 +2446,13 @@ function MyBillsMember({
                   </p>
                 </div>
 
-                <div className="bg-white p-3 rounded-[2rem] border-2 border-slate-800 shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
+                <div className="bg-white p-3 rounded-[2rem] border border-border shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
                   {settings?.qris_image_url ? (
                     <img src={settings.qris_image_url} alt="QRIS Code" className="w-full h-full object-contain rounded-2xl" />
                   ) : (
                     <div className="text-center p-4">
-                      <QrCode size={36} className="text-slate-300 mx-auto mb-2" />
-                      <p className="text-[9px] font-bold text-slate-400">QRIS Admin Belum Diunggah</p>
+                      <QrCode size={36} className="text-secondary mx-auto mb-2" />
+                      <p className="text-[9px] font-bold text-secondary">QRIS Admin Belum Diunggah</p>
                     </div>
                   )}
                 </div>
@@ -2458,21 +2461,21 @@ function MyBillsMember({
                   <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
                   
                   {!selectedFile ? (
-                    <button onClick={triggerFilePicker} className="w-full border-2 border-dashed border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-slate-850/40 hover:bg-slate-850 transition-colors">
-                      <Upload size={20} className="text-slate-500" />
-                      <span className="text-[10px] font-bold text-slate-300">Pilih Bukti Transfer Pembayaran</span>
-                      <span className="text-[8px] text-slate-500">Format: JPG, PNG, WEBP (Maks 5MB)</span>
+                    <button onClick={triggerFilePicker} className="w-full border border-dashed border-border hover:border-accent/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-background/40 hover:bg-background transition-colors">
+                      <Upload size={20} className="text-secondary" />
+                      <span className="text-[10px] font-bold text-primary">Pilih Bukti Transfer Pembayaran</span>
+                      <span className="text-[8px] text-secondary">Format: JPG, PNG, WEBP (Maks 5MB)</span>
                     </button>
                   ) : (
-                    <div className="border border-slate-800 rounded-2xl p-3 bg-slate-850/50 flex items-center gap-3 w-full">
+                    <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
                       {previewUrl && (
-                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex-shrink-0">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-background flex-shrink-0">
                           <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-extrabold text-slate-300 truncate">{selectedFile.name}</p>
-                        <p className="text-[9px] text-slate-500 font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        <p className="text-[10px] font-extrabold text-primary truncate">{selectedFile.name}</p>
+                        <p className="text-[9px] text-secondary font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
                       </div>
                       <button onClick={handleCancelFile} disabled={isUploading} className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50">
                         <XCircle size={15} />
@@ -2483,7 +2486,7 @@ function MyBillsMember({
 
                 <div className="w-full">
                   {isUploading ? (
-                    <button disabled className="w-full bg-slate-800 text-slate-500 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-slate-755 cursor-not-allowed text-xs">
+                    <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
                       <RefreshCw size={14} className="animate-spin" /> Mengirim Bukti...
                     </button>
                   ) : selectedFile ? (
@@ -2491,17 +2494,17 @@ function MyBillsMember({
                       <CheckCircle size={14} /> Kirim Bukti Transfer
                     </button>
                   ) : (
-                    <button onClick={triggerFilePicker} className="w-full bg-slate-800 hover:bg-slate-750 text-slate-300 font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] border border-slate-700/60">
+                    <button onClick={triggerFilePicker} className="w-full bg-background hover:bg-border/60 text-primary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] border border-border">
                       <Upload size={14} /> {currentPayment.status_pembayaran === 'rejected' ? 'Pilih Bukti Baru' : 'Saya Sudah Bayar'}
                     </button>
                   )}
                 </div>
 
                 {settings && (
-                  <div className="w-full border-t border-slate-800 pt-3.5 text-center space-y-1">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Atas Nama Rekening</p>
-                    <p className="text-xs font-black text-slate-200">{settings.nama_komunitas}</p>
-                    <p className="text-[10px] font-bold text-slate-400 bg-slate-850 py-1 px-3 rounded-lg inline-block border border-slate-800 mt-1">{settings.rekening_penerima}</p>
+                  <div className="w-full border-t border-border pt-3.5 text-center space-y-1">
+                    <p className="text-[8px] font-black text-secondary uppercase tracking-widest">Atas Nama Rekening</p>
+                    <p className="text-xs font-black text-primary">{settings.nama_komunitas}</p>
+                    <p className="text-[10px] font-bold text-secondary bg-background py-1 px-3 rounded-lg inline-block border border-border mt-1">{settings.rekening_penerima}</p>
                   </div>
                 )}
               </div>
@@ -2518,31 +2521,31 @@ function MyBillsMember({
 function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions }: any) {
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="bg-slate-800/80 rounded-[2rem] p-6 text-center border border-slate-700/50 shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5">
+      <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
           <Activity size={100} />
         </div>
-        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Saldo Kas</p>
-        <h2 className="text-3xl font-black text-emerald-400 tracking-tight">{formatRp(saldoKas)}</h2>
+        <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Total Saldo Kas</p>
+        <h2 className="text-3xl font-black text-emerald-450 tracking-tight">{formatRp(saldoKas)}</h2>
         
-        <div className="flex gap-4 border-t border-slate-700/50 pt-4 mt-5 text-left">
+        <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
           <div className="flex-1">
-            <p className="text-slate-500 text-[9px] font-bold uppercase">Total Tagihan Lunas</p>
-            <p className="font-extrabold text-xs text-slate-300">{formatRp(totalIncome)}</p>
+            <p className="text-secondary text-[9px] font-bold uppercase">Total Tagihan Lunas</p>
+            <p className="font-extrabold text-xs text-primary">{formatRp(totalIncome)}</p>
           </div>
-          <div className="w-px bg-slate-700/50"></div>
+          <div className="w-px bg-border"></div>
           <div className="flex-1">
-            <p className="text-slate-500 text-[9px] font-bold uppercase">Total Biaya Sesi</p>
-            <p className="font-extrabold text-xs text-slate-300">{formatRp(totalExpense)}</p>
+            <p className="text-secondary text-[9px] font-bold uppercase">Total Biaya Sesi</p>
+            <p className="font-extrabold text-xs text-primary">{formatRp(totalExpense)}</p>
           </div>
         </div>
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-sm font-black text-slate-300 uppercase tracking-wider">Histori Biaya Sesi</h2>
+        <h2 className="text-sm font-black text-primary uppercase tracking-wider">Histori Biaya Sesi</h2>
         
         {sessionExpenses.length === 0 ? (
-          <div className="text-center p-8 bg-slate-800/30 border border-dashed border-slate-800 rounded-3xl text-slate-500 text-xs font-bold">
+          <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
             Belum ada pengeluaran kas dicatat.
           </div>
         ) : (
@@ -2550,14 +2553,14 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
             {[...sessionExpenses].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((exp: any) => {
               const session = sessions.find((s: any) => s.id === exp.session_id);
               return (
-                <div key={exp.id} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80 flex items-center gap-3.5 shadow-sm">
+                <div key={exp.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme">
                   <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center flex-shrink-0">
                     <Wallet size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-extrabold text-xs text-slate-100 truncate">{exp.keterangan}</p>
-                    <div className="flex items-center gap-2 mt-1 text-[9px] text-slate-500 font-bold">
-                      <span className="bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">{exp.kategori}</span>
+                    <p className="font-extrabold text-xs text-primary truncate">{exp.keterangan}</p>
+                    <div className="flex items-center gap-2 mt-1 text-[9px] text-secondary font-bold">
+                      <span className="bg-background text-secondary px-1.5 py-0.5 rounded">{exp.kategori}</span>
                       <span>{session?.nama_sesi || 'Sesi Game'}</span>
                     </div>
                   </div>
@@ -2579,25 +2582,25 @@ function MembersList({ members }: any) {
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex justify-between items-center">
-        <h2 className="text-sm font-black text-slate-300 uppercase tracking-wider">Daftar Anggota</h2>
-        <span className="text-xs font-bold text-slate-500">{members.length} Orang</span>
+        <h2 className="text-sm font-black text-primary uppercase tracking-wider">Daftar Anggota</h2>
+        <span className="text-xs font-bold text-secondary">{members.length} Orang</span>
       </div>
 
       <div className="space-y-3">
         {members.map((m: any) => (
-          <div key={m.id} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80 flex items-center gap-3.5 shadow-sm">
+          <div key={m.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm ${m.role === 'admin' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
               {m.name.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-extrabold text-xs text-slate-100 truncate">{m.name}</p>
-              <p className="text-[10px] text-slate-500 truncate mt-0.5">{m.email}</p>
+              <p className="font-extrabold text-xs text-primary truncate">{m.name}</p>
+              <p className="text-[10px] text-secondary truncate mt-0.5">{m.email}</p>
             </div>
             <div>
               <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
                 m.role === 'admin' 
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
-                  : 'bg-slate-700 text-slate-400'
+                  : 'bg-background text-secondary border border-border'
               }`}>
                 {m.role}
               </span>
@@ -2624,40 +2627,40 @@ function ProfileMember({ profile, updateProfile }: { profile: Profile; updatePro
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4 bg-slate-800/60 p-5 rounded-3xl border border-slate-800 shadow-md">
+      <div className="flex items-center gap-4 bg-card p-5 rounded-3xl border border-border shadow-theme">
         <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center justify-center font-black text-xl shadow-inner">
           {profile.nama.charAt(0)}
         </div>
         <div>
-          <h3 className="font-black text-base text-slate-100">{profile.nama}</h3>
-          <p className="text-xs text-slate-450 font-bold mt-0.5">{profile.email}</p>
+          <h3 className="font-black text-base text-primary">{profile.nama}</h3>
+          <p className="text-xs text-secondary font-bold mt-0.5">{profile.email}</p>
           <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded uppercase tracking-wider">
             {profile.role}
           </span>
         </div>
       </div>
 
-      <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-800 shadow-sm space-y-4">
-        <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">Edit Profil</h4>
+      <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-4">
+        <h4 className="font-black text-xs uppercase tracking-wider text-secondary">Edit Profil</h4>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Nama Lengkap</label>
+            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Lengkap</label>
             <input 
               type="text" 
               required 
               value={nama} 
               onChange={e => setNama(e.target.value)} 
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-750 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 font-bold text-xs" 
+              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
             />
           </div>
           <div>
-            <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Nomor Handphone</label>
+            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nomor Handphone</label>
             <input 
               type="text" 
               value={nomorHp} 
               onChange={e => setNomorHp(e.target.value)} 
               placeholder="08123456789" 
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-750 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 font-bold text-xs" 
+              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
             />
           </div>
           <button 
@@ -2707,44 +2710,44 @@ function SettingsAdmin({ settings, updateSettings }: any) {
   };
 
   return (
-    <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-800 shadow-sm space-y-4 animate-fade-in">
-      <h2 className="text-sm font-black text-slate-300 uppercase tracking-wider mb-2">Pengaturan Komunitas</h2>
+    <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-4 animate-fade-in">
+      <h2 className="text-sm font-black text-primary uppercase tracking-wider mb-2">Pengaturan Komunitas</h2>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Nama Komunitas</label>
+          <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Komunitas</label>
           <input 
             type="text" 
             required 
             value={namaKomunitas} 
             onChange={e => setNamaKomunitas(e.target.value)} 
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-750 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 font-bold text-xs" 
+            className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
           />
         </div>
         <div>
-          <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Informasi Rekening Penerima</label>
+          <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Informasi Rekening Penerima</label>
           <input 
             type="text" 
             required 
             value={rekeningPenerima} 
             onChange={e => setRekeningPenerima(e.target.value)} 
             placeholder="Mandiri 1234567890 a.n Bendahara"
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-750 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-100 font-bold text-xs" 
+            className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
           />
         </div>
         <div>
-          <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">QRIS Statis (Gambar)</label>
+          <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">QRIS Statis (Gambar)</label>
           
-          <div className="flex flex-col items-center gap-4 p-4 border border-slate-750 rounded-2xl bg-slate-850/40">
+          <div className="flex flex-col items-center gap-4 p-4 border border-border rounded-2xl bg-background/40">
             {qrisPreview ? (
-              <img src={qrisPreview} alt="QRIS Preview" className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-slate-700" />
+              <img src={qrisPreview} alt="QRIS Preview" className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-border" />
             ) : (
-              <div className="w-40 h-40 border-2 border-dashed border-slate-700 rounded-xl flex items-center justify-center text-slate-500 text-xs">
+              <div className="w-40 h-40 border border-dashed border-border rounded-xl flex items-center justify-center text-secondary text-xs">
                 Belum ada QRIS
               </div>
             )}
             
-            <label className="px-4 py-2 bg-slate-750 hover:bg-slate-700 rounded-xl text-[10px] font-black text-slate-200 cursor-pointer border border-slate-700 flex items-center gap-1.5 transition-colors">
+            <label className="px-4 py-2 bg-background hover:bg-border text-[10px] font-black text-primary cursor-pointer border border-border flex items-center gap-1.5 transition-colors">
               <Upload size={12} /> Pilih Gambar QRIS Baru
               <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
             </label>
@@ -2926,12 +2929,12 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         />
 
         {/* Title */}
-        <h1 className={`${compact ? 'text-[32px] mt-[10px]' : 'text-[44px] mt-[16px]'} font-[800] text-[#0F172A] leading-none tracking-tight font-sans bg-gradient-to-r from-[#0F172A] to-[#10B981] bg-clip-text text-transparent`}>
+        <h1 className={`${compact ? 'text-[32px] mt-[10px]' : 'text-[44px] mt-[16px]'} font-[800] text-primary leading-none tracking-tight font-sans bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent`}>
           SI-PATRA
         </h1>
 
         {/* Subtitle */}
-        <p className="text-[#059669] text-[10px] font-[700] uppercase tracking-[4px] mt-[10px]">
+        <p className="text-accent text-[10px] font-[700] uppercase tracking-[4px] mt-[10px]">
           SI BADMINTON & KAS
         </p>
       </div>
@@ -2939,9 +2942,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
   };
 
   return (
-    <div className="min-h-screen w-full md:bg-gradient-to-tr md:from-slate-950 md:via-slate-900 md:to-emerald-950/30 flex items-center justify-center p-0 md:p-8 font-sans overflow-hidden">
+    <div className="min-h-screen w-full md:bg-gradient-to-tr md:from-background md:via-card md:to-emerald-950/30 flex items-center justify-center p-0 md:p-8 font-sans overflow-hidden transition-colors duration-200">
       {/* Simulated Mobile Mockup Container */}
-      <div className="w-full h-screen md:h-[844px] md:w-[390px] bg-gradient-to-b from-[#F0FAF6] via-white to-[#EDF9F4] md:rounded-[40px] md:shadow-[0_24px_70px_rgba(0,0,0,0.4)] md:border-[8px] md:border-slate-800 overflow-hidden flex flex-col relative transition-all justify-center items-center">
+      <div className="w-full h-screen md:h-[844px] md:w-[390px] md:rounded-[40px] md:shadow-theme md:border-[8px] md:border-border overflow-hidden flex flex-col relative transition-all justify-center items-center" style={{ background: 'var(--login-bg)' }}>
         
         {/* Court background lines with 3% opacity */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0">
@@ -2956,7 +2959,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         </div>
 
         {/* Subtle green glow at bottom left */}
-        <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-[#10B981] opacity-[0.08] blur-3xl pointer-events-none z-0" />
+        <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-accent opacity-[0.08] blur-3xl pointer-events-none z-0" />
 
         {/* Bottom Left wave decoration */}
         <div className="absolute -left-10 -bottom-10 w-44 h-44 bg-gradient-to-tr from-[#059669] to-[#1ED760] opacity-30 rounded-tr-[100px] pointer-events-none z-0" />
@@ -2977,7 +2980,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         </div>
 
         {/* Floating racket outline: Top Right, Opacity 8% */}
-        <div className="absolute -right-6 top-[2%] text-[#10B981]/[0.08] pointer-events-none transform rotate-[25deg] w-[180px] h-[180px] z-0">
+        <div className="absolute -right-6 top-[2%] text-accent/[0.08] pointer-events-none transform rotate-[25deg] w-[180px] h-[180px] z-0">
           <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[1.2]">
             <ellipse cx="40" cy="40" rx="20" ry="25" />
             <path d="M30 20 L30 60 M35 17 L35 63 M40 15 L40 65 M45 17 L45 63 M50 20 L50 60" className="stroke-[0.4] opacity-50" />
@@ -3020,25 +3023,25 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                 style={{ imageRendering: 'crisp-edges', WebkitImageRendering: 'crisp-edges' } as any}
               />
 
-              <h1 className="text-[44px] font-[800] text-[#0F172A] leading-none tracking-tight font-sans mt-[16px] text-center bg-gradient-to-r from-[#0F172A] to-[#10B981] bg-clip-text text-transparent">
+              <h1 className="text-[44px] font-[800] text-primary leading-none tracking-tight font-sans mt-[16px] text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 SI-PATRA
               </h1>
 
-              <p className="text-[#059669] text-xs font-[700] uppercase tracking-[4px] mt-[10px] text-center">
+              <p className="text-accent text-xs font-[700] uppercase tracking-[4px] mt-[10px] text-center">
                 SI BADMINTON & KAS
               </p>
               
               {/* Card Section */}
-              <div className="bg-white rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.08)] p-[32px] mt-[36px] flex flex-col w-[86%] max-w-[420px] mx-auto">
+              <div className="bg-card rounded-[28px] border border-border shadow-theme p-[32px] mt-[36px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
                 {errorMsg && (
-                  <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
+                  <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 line-clamp-1 mb-2">
                     <AlertCircle size={14} className="flex-shrink-0" />
                     <span className="truncate">{errorMsg}</span>
                   </div>
                 )}
 
                 {successMsg && (
-                  <div className="p-2.5 bg-emerald-50 text-emerald-700 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-2">
+                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-450 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 dark:border-emerald-900/30 line-clamp-1 mb-2">
                     <CheckCircle size={14} className="flex-shrink-0" />
                     <span className="truncate">{successMsg}</span>
                   </div>
@@ -3047,11 +3050,11 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                 <form onSubmit={handleLogin} className="flex flex-col">
                   {/* Email Field */}
                   <div className="flex flex-col">
-                    <label className="text-[11px] font-[700] text-[#0F172A] tracking-[1px] uppercase mb-[12px] self-start">
+                    <label className="text-[11px] font-[700] text-primary tracking-[1px] uppercase mb-[12px] self-start">
                       EMAIL
                     </label>
                     <div className="relative h-[58px]">
-                      <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-[#10B981]">
+                      <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-accent">
                         <Mail size={20} strokeWidth={2} />
                       </div>
                       <input
@@ -3060,18 +3063,18 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         value={email}
                         onChange={e => setEmail(e.target.value)}
                         placeholder="08961234567"
-                        className="w-full h-full pl-[52px] pr-4 rounded-[18px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-[15px] transition-all"
+                        className="w-full h-full pl-[52px] pr-4 rounded-[18px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-[15px] transition-all"
                       />
                     </div>
                   </div>
 
                   {/* Password Field */}
                   <div className="flex flex-col mt-[24px]">
-                    <label className="text-[11px] font-[700] text-[#0F172A] tracking-[1px] uppercase mb-[12px] self-start">
+                    <label className="text-[11px] font-[700] text-primary tracking-[1px] uppercase mb-[12px] self-start">
                       PASSWORD
                     </label>
                     <div className="relative h-[58px]">
-                      <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-[#10B981]">
+                      <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-accent">
                         <Lock size={20} strokeWidth={2} />
                       </div>
                       <input
@@ -3080,12 +3083,12 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         placeholder="•••••••••"
-                        className="w-full h-full pl-[52px] pr-[52px] rounded-[18px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-[15px] transition-all"
+                        className="w-full h-full pl-[52px] pr-[52px] rounded-[18px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-[15px] transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-[18px] flex items-center text-[#10B981] hover:text-[#059669] transition-colors"
+                        className="absolute inset-y-0 right-0 pr-[18px] flex items-center text-accent hover:text-[#059669] transition-colors"
                       >
                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
@@ -3094,14 +3097,14 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
                   {/* Options */}
                   <div className="flex items-center justify-between mt-[18px] px-[2px]">
-                    <label className="flex items-center gap-[8px] cursor-pointer select-none text-[#64748B] text-sm font-[500]">
+                    <label className="flex items-center gap-[8px] cursor-pointer select-none text-secondary text-sm font-[500]">
                       <input
                         type="checkbox"
                         checked={rememberMe}
                         onChange={e => setRememberMe(e.target.checked)}
-                        className="rounded border-[#E5E7EB] text-[#10B981] focus:ring-[#10B981] h-[18px] w-[18px] transition-colors accent-[#10B981]"
+                        className="rounded border-border text-accent focus:ring-accent h-[18px] w-[18px] transition-colors accent-accent"
                       />
-                      <span className="text-[#64748B] text-[14px]">Remember me</span>
+                      <span className="text-secondary text-[14px]">Remember me</span>
                     </label>
                     <button
                       type="button"
@@ -3110,7 +3113,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         setSuccessMsg('');
                         setAuthMode('forgot');
                       }}
-                      className="font-[700] text-[#059669] hover:text-[#10B981] text-[14px] transition-colors"
+                      className="font-[700] text-accent hover:opacity-80 text-[14px] transition-colors"
                     >
                       Lupa password?
                     </button>
@@ -3140,9 +3143,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
                 {/* Divider */}
                 <div className="flex items-center gap-[14px] mt-[20px] mb-[20px]">
-                  <div className="h-[1px] flex-1 bg-[#E5E7EB]"></div>
-                  <span className="text-[12px] font-[700] text-[#94A3B8] tracking-widest uppercase">atau</span>
-                  <div className="h-[1px] flex-1 bg-[#E5E7EB]"></div>
+                  <div className="h-[1px] flex-1 bg-border"></div>
+                  <span className="text-[12px] font-[700] text-secondary tracking-widest uppercase">atau</span>
+                  <div className="h-[1px] flex-1 bg-border"></div>
                 </div>
 
                 {/* Google Login */}
@@ -3150,7 +3153,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isSubmitting}
-                  className="w-full h-[56px] border border-[#E5E7EB] rounded-[18px] bg-white hover:bg-[#F9FAFB] text-[#0F172A] font-[700] text-[15px] flex items-center justify-center gap-[10px] transition-all active:scale-[0.98] shadow-sm disabled:opacity-60"
+                  className="w-full h-[56px] border border-border rounded-[18px] bg-card hover:opacity-90 text-primary font-[700] text-[15px] flex items-center justify-center gap-[10px] transition-all active:scale-[0.98] shadow-sm disabled:opacity-60"
                 >
                   <svg className="w-[20px] h-[20px]" viewBox="0 0 24 24">
                     <path
@@ -3176,7 +3179,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
               {/* Footer Section */}
               <div className="mt-[20px] flex flex-col justify-start items-center w-full">
-                <p className="text-[14px] text-[#64748B] font-[500]">
+                <p className="text-[14px] text-secondary font-[500]">
                   Belum punya akun?{' '}
                   <button
                     type="button"
@@ -3185,7 +3188,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       setSuccessMsg('');
                       setAuthMode('register');
                     }}
-                    className="text-[#059669] hover:text-[#10B981] font-[700] transition-colors inline-flex items-center gap-0.5"
+                    className="text-accent hover:opacity-80 font-[700] transition-colors inline-flex items-center gap-0.5"
                   >
                     Daftar Sekarang →
                   </button>
@@ -3200,16 +3203,16 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               {renderHeader(true)}
               
               {/* Card Section */}
-              <div className="bg-white rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.08)] p-[24px] mt-[24px] flex flex-col w-[86%] max-w-[420px] mx-auto">
+              <div className="bg-card rounded-[28px] border border-border shadow-theme p-[24px] mt-[24px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
                 {errorMsg && (
-                  <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
+                  <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 line-clamp-1 mb-2">
                     <AlertCircle size={14} className="flex-shrink-0" />
                     <span className="truncate">{errorMsg}</span>
                   </div>
                 )}
 
                 {successMsg && (
-                  <div className="p-2.5 bg-emerald-50 text-emerald-700 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-2">
+                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-450 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 dark:border-emerald-900/30 line-clamp-1 mb-2">
                     <CheckCircle size={14} className="flex-shrink-0" />
                     <span className="truncate">{successMsg}</span>
                   </div>
@@ -3218,7 +3221,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                 <form onSubmit={handleRegister} className="flex flex-col gap-[14px]">
                   {/* Full Name */}
                   <div className="relative h-[52px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#10B981]">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-accent">
                       <UserIcon size={18} />
                     </div>
                     <input
@@ -3227,13 +3230,13 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       value={fullName}
                       onChange={e => setFullName(e.target.value)}
                       placeholder="Nama Lengkap"
-                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-sm transition-all"
                     />
                   </div>
 
                   {/* Email */}
                   <div className="relative h-[52px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#10B981]">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-accent">
                       <Mail size={18} />
                     </div>
                     <input
@@ -3242,13 +3245,13 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="Alamat Email"
-                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-sm transition-all"
                     />
                   </div>
 
                   {/* Phone */}
                   <div className="relative h-[52px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#10B981]">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-accent">
                       <Smartphone size={18} />
                     </div>
                     <input
@@ -3257,7 +3260,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="Nomor Handphone"
-                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-sm transition-all"
                     />
                   </div>
 
@@ -3265,7 +3268,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                   <div className="grid grid-cols-2 gap-[10px]">
                     {/* Password */}
                     <div className="relative h-[52px]">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#10B981]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-accent">
                         <Lock size={16} />
                       </div>
                       <input
@@ -3274,12 +3277,12 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         placeholder="Password"
-                        className="w-full h-full pl-9 pr-8 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                        className="w-full h-full pl-9 pr-8 rounded-[14px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-sm transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#10B981] hover:text-[#059669]"
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-accent hover:text-[#059669]"
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -3287,7 +3290,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
                     {/* Confirm Password */}
                     <div className="relative h-[52px]">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#10B981]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-accent">
                         <Lock size={16} />
                       </div>
                       <input
@@ -3296,12 +3299,12 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         value={confirmPassword}
                         onChange={e => setConfirmPassword(e.target.value)}
                         placeholder="Konfirmasi"
-                        className="w-full h-full pl-9 pr-8 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                        className="w-full h-full pl-9 pr-8 rounded-[14px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-sm transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#10B981] hover:text-[#059669]"
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-accent hover:text-[#059669]"
                       >
                         {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -3331,7 +3334,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
               {/* Footer Section */}
               <div className="mt-[20px] flex flex-col justify-start items-center w-full">
-                <p className="text-[14px] text-[#64748B] font-[500]">
+                <p className="text-[14px] text-secondary font-[500]">
                   Sudah punya akun?{' '}
                   <button
                     type="button"
@@ -3340,7 +3343,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       setSuccessMsg('');
                       setAuthMode('login');
                     }}
-                    className="text-[#059669] hover:text-[#10B981] font-[700] transition-colors"
+                    className="text-accent hover:opacity-80 font-[700] transition-colors"
                   >
                     Masuk Disini
                   </button>
@@ -3355,16 +3358,16 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               {renderHeader(false)}
               
               {/* Card Section */}
-              <div className="bg-white rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.08)] p-[32px] mt-[36px] flex flex-col w-[86%] max-w-[420px] mx-auto">
+              <div className="bg-card rounded-[28px] border border-border shadow-theme p-[32px] mt-[36px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
                 {errorMsg && (
-                  <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
+                  <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 line-clamp-1 mb-2">
                     <AlertCircle size={14} className="flex-shrink-0" />
                     <span className="truncate">{errorMsg}</span>
                   </div>
                 )}
 
                 {successMsg && (
-                  <div className="p-2.5 bg-emerald-50 text-emerald-700 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-2">
+                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-450 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 dark:border-emerald-900/30 line-clamp-1 mb-2">
                     <CheckCircle size={14} className="flex-shrink-0" />
                     <span className="truncate">{successMsg}</span>
                   </div>
@@ -3373,7 +3376,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                 <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
                   {/* Email */}
                   <div className="relative h-[58px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#10B981]">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-accent">
                       <Mail size={20} />
                     </div>
                     <input
@@ -3382,7 +3385,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="Masukkan Email Terdaftar"
-                      className="w-full h-full pl-11 pr-4 rounded-[18px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-[15px] transition-all"
+                      className="w-full h-full pl-11 pr-4 rounded-[18px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-[15px] transition-all"
                     />
                   </div>
 
@@ -3390,7 +3393,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-[58px] bg-[#0F172A] hover:bg-slate-800 text-white font-[700] rounded-[18px] transition-all shadow-md active:scale-[0.98] text-[15px] flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    className="w-full h-[58px] bg-primary text-background font-[700] rounded-[18px] transition-all shadow-theme active:scale-[0.98] text-[15px] flex items-center justify-center gap-1.5 disabled:opacity-60"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center gap-1.5">
@@ -3416,7 +3419,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     setSuccessMsg('');
                     setAuthMode('login');
                   }}
-                  className="py-2.5 text-center text-[#64748B] hover:text-[#0F172A] text-xs font-[700] uppercase tracking-wider transition-colors inline-flex items-center gap-1 group"
+                  className="py-2.5 text-center text-secondary hover:text-primary text-xs font-[700] uppercase tracking-wider transition-colors inline-flex items-center gap-1 group"
                 >
                   <span className="transition-transform group-hover:-translate-x-0.5">←</span> Kembali ke Login
                 </button>
@@ -3428,7 +3431,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         
         {/* Simulated Home Indicator */}
         <div className="hidden md:flex w-full py-2 justify-center bg-transparent z-20 select-none">
-          <div className="w-24 h-1 bg-[#CBD5E1] rounded-full"></div>
+          <div className="w-24 h-1 bg-border rounded-full"></div>
         </div>
       </div>
     </div>
