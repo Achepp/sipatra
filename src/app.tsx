@@ -2176,13 +2176,6 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         <p className="text-[#059669] text-[10px] font-[700] uppercase tracking-[4px] mt-[10px]">
           SESI BADMINTON & KAS
         </p>
-        
-        {/* Description */}
-        {!compact && (
-          <p className="text-[#64748B] text-xs font-[500] max-w-[320px] mx-auto mt-[18px] leading-relaxed">
-            Kelola sesi, iuran, dan kehadiran badminton dalam satu aplikasi.
-          </p>
-        )}
       </div>
     );
   };
@@ -2275,10 +2268,6 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
               <p className="text-[#059669] text-xs font-[700] uppercase tracking-[4px] mt-[10px] text-center">
                 SESI BADMINTON & KAS
-              </p>
-              
-              <p className="text-[#64748B] text-sm font-[500] max-w-[320px] mx-auto text-center mt-[18px] leading-relaxed">
-                Kelola sesi, iuran, dan kehadiran badminton dalam satu aplikasi.
               </p>
               
               {/* Card Section */}
