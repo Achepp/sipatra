@@ -2159,27 +2159,27 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
   const renderHeader = (compact = false) => {
     return (
       <div className="relative w-full flex flex-col items-center justify-center text-center z-10">
-        {/* Logo (Centered, 80px width, direct PNG, transparent background) */}
+        {/* Logo */}
         <img 
           src="/logo.png" 
           alt="Logo SI-PATRA" 
-          className="w-[80px] h-auto object-contain mx-auto mb-[12px]" 
+          className={`${compact ? 'w-[72px] h-[72px]' : 'w-[120px] h-[120px]'} object-contain mx-auto`}
         />
 
         {/* Title */}
-        <h1 className="text-2xl font-[800] text-[#0F172A] leading-none tracking-tight font-sans mb-[6px]">
-          SI-<span className="text-[#10B981]">PATRA</span>
+        <h1 className={`${compact ? 'text-[32px] mt-[10px]' : 'text-[44px] mt-[20px]'} font-[800] text-[#0F172A] leading-none tracking-tight font-sans bg-gradient-to-r from-[#0F172A] to-[#10B981] bg-clip-text text-transparent`}>
+          SI-PATRA
         </h1>
 
         {/* Subtitle */}
-        <p className="text-[#059669] text-[11px] font-[700] uppercase tracking-wider mb-[8px]">
-          Sesi Badminton & Kas
+        <p className="text-[#059669] text-[10px] font-[700] uppercase tracking-[4px] mt-[10px]">
+          SESI BADMINTON & KAS
         </p>
         
-        {/* Short Description (1-Line) */}
+        {/* Description */}
         {!compact && (
-          <p className="text-[#64748B] text-xs font-[500] max-w-[280px] mx-auto truncate">
-            Kelola sesi, iuran dan kehadiran badminton.
+          <p className="text-[#64748B] text-xs font-[500] max-w-[320px] mx-auto mt-[18px] leading-relaxed">
+            Kelola sesi, iuran, dan kehadiran badminton dalam satu aplikasi.
           </p>
         )}
       </div>
@@ -2189,10 +2189,10 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
   return (
     <div className="min-h-screen w-full md:bg-gradient-to-tr md:from-slate-950 md:via-slate-900 md:to-emerald-950/30 flex items-center justify-center p-0 md:p-8 font-sans overflow-hidden">
       {/* Simulated Mobile Mockup Container */}
-      <div className="w-full h-screen md:h-[844px] md:w-[390px] bg-[#F8FAFC] md:rounded-[40px] md:shadow-[0_24px_70px_rgba(0,0,0,0.4)] md:border-[8px] md:border-slate-800 overflow-hidden flex flex-col relative transition-all justify-center items-center">
+      <div className="w-full h-screen md:h-[844px] md:w-[390px] bg-gradient-to-b from-[#F0FAF6] via-white to-[#EDF9F4] md:rounded-[40px] md:shadow-[0_24px_70px_rgba(0,0,0,0.4)] md:border-[8px] md:border-slate-800 overflow-hidden flex flex-col relative transition-all justify-center items-center">
         
-        {/* Court background lines with 2% opacity */}
-        <div className="absolute inset-0 opacity-[0.02] pointer-events-none z-0">
+        {/* Court background lines with 3% opacity */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0">
           <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="stroke-emerald-800 stroke-[0.5] fill-none">
             <rect x="5" y="5" width="90" height="90" />
             <line x1="5" y1="35" x2="95" y2="35" />
@@ -2203,23 +2203,55 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           </svg>
         </div>
 
-        {/* Floating racket and shuttlecock decors (Racket: 120px, Shuttlecock: 60px) */}
-        <div className="absolute -right-4 top-[10%] text-emerald-600/[0.03] pointer-events-none transform rotate-[15deg] w-[120px] h-[120px] z-0">
-          <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[1.5]">
-            <ellipse cx="40" cy="40" rx="20" ry="25" />
-            <path d="M30 20 L30 60 M40 15 L40 65 M50 20 L50 60 M20 35 L60 35 M20 45 L60 45 M20 55 L60 55" className="stroke-[0.75] opacity-50" />
-            <line x1="40" y1="65" x2="40" y2="90" />
-            <rect x="38" y="90" width="4" height="10" rx="1" fill="currentColor" />
+        {/* Subtle green glow at bottom left */}
+        <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-[#10B981] opacity-[0.08] blur-3xl pointer-events-none z-0" />
+
+        {/* Bottom Left wave decoration */}
+        <div className="absolute -left-10 -bottom-10 w-44 h-44 bg-gradient-to-tr from-[#059669] to-[#1ED760] opacity-30 rounded-tr-[100px] pointer-events-none z-0" />
+
+        {/* Decorative dot grids on the left and right */}
+        <div className="absolute left-3 bottom-[18%] opacity-25 pointer-events-none z-0">
+          <svg width="24" height="80" viewBox="0 0 24 80" fill="currentColor" className="text-emerald-800">
+            <pattern id="dot-grid-1" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+              <circle cx="2.5" cy="2.5" r="1.2" />
+            </pattern>
+            <rect width="24" height="80" fill="url(#dot-grid-1)" />
+          </svg>
+        </div>
+        <div className="absolute right-3 top-[32%] opacity-25 pointer-events-none z-0">
+          <svg width="24" height="80" viewBox="0 0 24 80" fill="currentColor" className="text-emerald-800">
+            <rect width="24" height="80" fill="url(#dot-grid-1)" />
           </svg>
         </div>
 
-        <div className="absolute -left-4 top-[15%] text-emerald-600/[0.02] pointer-events-none transform -rotate-[30deg] w-[60px] h-[60px] z-0">
-          <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[2]">
-            <path d="M40 70 C 40 85, 60 85, 60 70 Z" fill="currentColor" className="opacity-30" />
-            <path d="M40 70 L30 30 C 35 25, 65 25, 70 30 L60 70" />
-            <line x1="45" y1="70" x2="40" y2="30" />
-            <line x1="50" y1="70" x2="50" y2="28" />
-            <line x1="55" y1="70" x2="60" y2="30" />
+        {/* Floating racket outline: Top Right, Opacity 8% */}
+        <div className="absolute -right-6 top-[2%] text-[#10B981]/[0.08] pointer-events-none transform rotate-[25deg] w-[180px] h-[180px] z-0">
+          <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[1.2]">
+            <ellipse cx="40" cy="40" rx="20" ry="25" />
+            <path d="M30 20 L30 60 M35 17 L35 63 M40 15 L40 65 M45 17 L45 63 M50 20 L50 60" className="stroke-[0.4] opacity-50" />
+            <path d="M20 30 L60 30 M17 35 L63 35 M15 40 L65 40 M17 45 L63 45 M20 50 L60 50" className="stroke-[0.4] opacity-50" />
+            <line x1="40" y1="65" x2="40" y2="95" />
+            <rect x="38" y="95" width="4" height="15" rx="0.5" fill="currentColor" className="opacity-40" />
+          </svg>
+        </div>
+
+        {/* Floating shuttlecock decor: Top Left, Opacity 100% */}
+        <div className="absolute left-2 top-[8%] w-[90px] h-[90px] pointer-events-none transform -rotate-[20deg] z-0">
+          <svg viewBox="0 0 100 100" className="w-full h-full fill-none drop-shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
+            {/* Feathers skirt (pointing up-left) */}
+            <path d="M 62 62 L 15 25 C 22 15, 45 8, 55 20 L 72 52 Z" fill="white" stroke="#E2E8F0" strokeWidth="0.5" />
+            <line x1="63" y1="61" x2="20" y2="28" stroke="#CBD5E1" strokeWidth="0.8" />
+            <line x1="65" y1="59" x2="28" y2="21" stroke="#CBD5E1" strokeWidth="0.8" />
+            <line x1="67" y1="57" x2="38" y2="16" stroke="#CBD5E1" strokeWidth="0.8" />
+            <line x1="69" y1="55" x2="48" y2="15" stroke="#CBD5E1" strokeWidth="0.8" />
+            <line x1="71" y1="53" x2="58" y2="20" stroke="#CBD5E1" strokeWidth="0.8" />
+            <path d="M 32 37 C 38 28, 48 23, 58 29" fill="none" stroke="#E2E8F0" strokeWidth="0.8" />
+            <path d="M 45 47 C 50 39, 58 35, 66 40" fill="none" stroke="#E2E8F0" strokeWidth="0.8" />
+            {/* Cork band (Green) */}
+            <path d="M 61 61 C 59 63, 61 67, 65 69 C 69 67, 71 63, 69 61 Z" fill="#059669" />
+            {/* Cork base (White dome) */}
+            <path d="M 65 67 C 70 72, 80 80, 83 75 C 86 70, 78 60, 73 55 Z" fill="white" stroke="#E2E8F0" strokeWidth="0.5" />
+            <path d="M 71 71 C 74 74, 80 78, 81 74" fill="none" stroke="#CBD5E1" strokeWidth="0.5" />
           </svg>
         </div>
 
@@ -2229,12 +2261,26 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           {authMode === 'login' && (
             <div className="w-full flex flex-col items-center justify-center animate-fadeIn">
               {/* Branding Section */}
-              <div className="w-full mb-[16px]">
-                {renderHeader(false)}
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="Logo SI-PATRA" 
+                className="w-[120px] h-[120px] object-contain mx-auto" 
+              />
+
+              <h1 className="text-[44px] font-[800] text-[#0F172A] leading-none tracking-tight font-sans mt-[20px] text-center bg-gradient-to-r from-[#0F172A] to-[#10B981] bg-clip-text text-transparent">
+                SI-PATRA
+              </h1>
+
+              <p className="text-[#059669] text-xs font-[700] uppercase tracking-[4px] mt-[10px] text-center">
+                SESI BADMINTON & KAS
+              </p>
+              
+              <p className="text-[#64748B] text-sm font-[500] max-w-[320px] mx-auto text-center mt-[18px] leading-relaxed">
+                Kelola sesi, iuran, dan kehadiran badminton dalam satu aplikasi.
+              </p>
               
               {/* Card Section */}
-              <div className="bg-white rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50 p-6 pb-4 flex flex-col w-[90%] mx-auto">
+              <div className="bg-white rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.08)] p-[32px] mt-[36px] flex flex-col w-[86%] max-w-[420px] mx-auto">
                 {errorMsg && (
                   <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
                     <AlertCircle size={14} className="flex-shrink-0" />
@@ -2250,56 +2296,63 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                 )}
 
                 <form onSubmit={handleLogin} className="flex flex-col">
-                  {/* Inputs Wrapper (Input -> Input = 16px) */}
-                  <div className="space-y-[16px]">
-                    {/* Email Field */}
-                    <div className="relative h-[52px]">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#64748B]">
-                        <Mail size={18} />
+                  {/* Email Field */}
+                  <div className="flex flex-col">
+                    <label className="text-[11px] font-[700] text-[#0F172A] tracking-[1px] uppercase mb-[12px] self-start">
+                      EMAIL
+                    </label>
+                    <div className="relative h-[58px]">
+                      <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-[#10B981]">
+                        <Mail size={20} strokeWidth={2} />
                       </div>
                       <input
                         type="email"
                         required
                         value={email}
                         onChange={e => setEmail(e.target.value)}
-                        placeholder="Alamat Email"
-                        className="w-full h-full pl-11 pr-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                        placeholder="08961234567"
+                        className="w-full h-full pl-[52px] pr-4 rounded-[18px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-[15px] transition-all"
                       />
                     </div>
+                  </div>
 
-                    {/* Password Field */}
-                    <div className="relative h-[52px]">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#64748B]">
-                        <Lock size={18} />
+                  {/* Password Field */}
+                  <div className="flex flex-col mt-[24px]">
+                    <label className="text-[11px] font-[700] text-[#0F172A] tracking-[1px] uppercase mb-[12px] self-start">
+                      PASSWORD
+                    </label>
+                    <div className="relative h-[58px]">
+                      <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-[#10B981]">
+                        <Lock size={20} strokeWidth={2} />
                       </div>
                       <input
                         type={showPassword ? "text" : "password"}
                         required
                         value={password}
                         onChange={e => setPassword(e.target.value)}
-                        placeholder="Kata Sandi"
-                        className="w-full h-full pl-11 pr-11 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                        placeholder="•••••••••"
+                        className="w-full h-full pl-[52px] pr-[52px] rounded-[18px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-[15px] transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#64748B] hover:text-[#0F172A] transition-colors"
+                        className="absolute inset-y-0 right-0 pr-[18px] flex items-center text-[#10B981] hover:text-[#059669] transition-colors"
                       >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     </div>
                   </div>
 
-                  {/* Options (Password -> Options = 12px) */}
-                  <div className="flex items-center justify-between text-xs mt-[12px] px-0.5">
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-[#64748B] font-[500]">
+                  {/* Options */}
+                  <div className="flex items-center justify-between mt-[18px] px-[2px]">
+                    <label className="flex items-center gap-[8px] cursor-pointer select-none text-[#64748B] text-sm font-[500]">
                       <input
                         type="checkbox"
                         checked={rememberMe}
                         onChange={e => setRememberMe(e.target.checked)}
-                        className="rounded border-[#E2E8F0] text-[#10B981] focus:ring-[#10B981] h-3.5 w-3.5 transition-colors accent-[#10B981]"
+                        className="rounded border-[#E5E7EB] text-[#10B981] focus:ring-[#10B981] h-[18px] w-[18px] transition-colors accent-[#10B981]"
                       />
-                      Remember me
+                      <span className="text-[#64748B] text-[14px]">Remember me</span>
                     </label>
                     <button
                       type="button"
@@ -2308,42 +2361,46 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         setSuccessMsg('');
                         setAuthMode('forgot');
                       }}
-                      className="font-[700] text-[#059669] hover:text-[#10B981] transition-colors"
+                      className="font-[700] text-[#059669] hover:text-[#10B981] text-[14px] transition-colors"
                     >
                       Lupa password?
                     </button>
                   </div>
 
-                  {/* Primary Login Button (Options -> Login Button = 16px) */}
+                  {/* Primary Login Button */}
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-[52px] bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] rounded-2xl mt-[16px] transition-all shadow-[0_6px_16px_-4px_rgba(16,185,129,0.3)] active:scale-[0.98] text-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    className="w-full h-[58px] bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-[700] rounded-[18px] mt-[20px] transition-all shadow-[0_8px_25px_rgba(5,150,105,0.15)] active:scale-[0.98] text-[16px] flex items-center justify-center gap-[10px] disabled:opacity-60"
                   >
                     {isSubmitting ? (
-                      <RefreshCw size={16} className="animate-spin" />
+                      <RefreshCw size={20} className="animate-spin" />
                     ) : (
-                      <UserCheck size={16} />
+                      <>
+                        <svg className="w-[20px] h-[20px]" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                        <span>Masuk</span>
+                      </>
                     )}
-                    Masuk
                   </button>
                 </form>
 
-                {/* Divider (Login Button -> Divider = 16px) */}
-                <div className="flex items-center gap-2.5 mt-[16px] mb-[16px]">
-                  <div className="h-[1px] flex-1 bg-[#E2E8F0]"></div>
-                  <span className="text-[10px] font-[500] text-[#94A3B8] uppercase tracking-wider">atau</span>
-                  <div className="h-[1px] flex-1 bg-[#E2E8F0]"></div>
+                {/* Divider */}
+                <div className="flex items-center gap-[14px] mt-[20px] mb-[20px]">
+                  <div className="h-[1px] flex-1 bg-[#E5E7EB]"></div>
+                  <span className="text-[12px] font-[700] text-[#94A3B8] tracking-widest uppercase">atau</span>
+                  <div className="h-[1px] flex-1 bg-[#E5E7EB]"></div>
                 </div>
 
-                {/* Google Login (Divider -> Google Button = 16px) */}
+                {/* Google Login */}
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isSubmitting}
-                  className="w-full h-[52px] border border-[#E2E8F0] rounded-2xl bg-white hover:bg-[#F8FAFC] text-[#0F172A] font-[700] text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm disabled:opacity-60"
+                  className="w-full h-[56px] border border-[#E5E7EB] rounded-[18px] bg-white hover:bg-[#F9FAFB] text-[#0F172A] font-[700] text-[15px] flex items-center justify-center gap-[10px] transition-all active:scale-[0.98] shadow-sm disabled:opacity-60"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <svg className="w-[20px] h-[20px]" viewBox="0 0 24 24">
                     <path
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                       fill="#4285F4"
@@ -2361,13 +2418,13 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       fill="#EA4335"
                     />
                   </svg>
-                  Masuk dengan Google
+                  <span>Masuk dengan Google</span>
                 </button>
               </div>
 
               {/* Footer Section */}
-              <div className="mt-[16px] flex flex-col justify-start items-center w-full">
-                <p className="text-xs text-[#64748B] font-[500]">
+              <div className="mt-[20px] flex flex-col justify-start items-center w-full">
+                <p className="text-[14px] text-[#64748B] font-[500]">
                   Belum punya akun?{' '}
                   <button
                     type="button"
@@ -2376,9 +2433,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       setSuccessMsg('');
                       setAuthMode('register');
                     }}
-                    className="text-[#059669] hover:text-[#10B981] font-[700] transition-colors inline-flex items-center gap-0.5 group"
+                    className="text-[#059669] hover:text-[#10B981] font-[700] transition-colors inline-flex items-center gap-0.5"
                   >
-                    Daftar Sekarang <span className="transition-transform group-hover:translate-x-0.5">→</span>
+                    Daftar Sekarang →
                   </button>
                 </p>
               </div>
@@ -2388,30 +2445,28 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           {authMode === 'register' && (
             <div className="w-full flex flex-col items-center justify-center animate-fadeIn">
               {/* Header Section */}
-              <div className="w-full mb-[16px]">
-                {renderHeader(true)}
-              </div>
+              {renderHeader(true)}
               
               {/* Card Section */}
-              <div className="bg-white rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50 p-6 pb-4 flex flex-col w-[90%] mx-auto">
+              <div className="bg-white rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.08)] p-[24px] mt-[24px] flex flex-col w-[86%] max-w-[420px] mx-auto">
                 {errorMsg && (
-                  <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-1">
+                  <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
                     <AlertCircle size={14} className="flex-shrink-0" />
                     <span className="truncate">{errorMsg}</span>
                   </div>
                 )}
 
                 {successMsg && (
-                  <div className="p-2.5 bg-emerald-50 text-emerald-700 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-1">
+                  <div className="p-2.5 bg-emerald-50 text-emerald-700 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-2">
                     <CheckCircle size={14} className="flex-shrink-0" />
                     <span className="truncate">{successMsg}</span>
                   </div>
                 )}
 
-                <form onSubmit={handleRegister} className="flex flex-col gap-3">
+                <form onSubmit={handleRegister} className="flex flex-col gap-[14px]">
                   {/* Full Name */}
                   <div className="relative h-[52px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#64748B]">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#10B981]">
                       <UserIcon size={18} />
                     </div>
                     <input
@@ -2420,13 +2475,13 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       value={fullName}
                       onChange={e => setFullName(e.target.value)}
                       placeholder="Nama Lengkap"
-                      className="w-full h-full pl-11 pr-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
                     />
                   </div>
 
                   {/* Email */}
                   <div className="relative h-[52px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#64748B]">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#10B981]">
                       <Mail size={18} />
                     </div>
                     <input
@@ -2435,13 +2490,13 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="Alamat Email"
-                      className="w-full h-full pl-11 pr-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
                     />
                   </div>
 
                   {/* Phone */}
                   <div className="relative h-[52px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#64748B]">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#10B981]">
                       <Smartphone size={18} />
                     </div>
                     <input
@@ -2450,15 +2505,15 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="Nomor Handphone"
-                      className="w-full h-full pl-11 pr-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                      className="w-full h-full pl-11 pr-4 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
                     />
                   </div>
 
                   {/* Passwords grid */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-[10px]">
                     {/* Password */}
                     <div className="relative h-[52px]">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#10B981]">
                         <Lock size={16} />
                       </div>
                       <input
@@ -2467,12 +2522,12 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         placeholder="Password"
-                        className="w-full h-full pl-9 pr-8 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                        className="w-full h-full pl-9 pr-8 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#64748B] hover:text-[#0F172A]"
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#10B981] hover:text-[#059669]"
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -2480,7 +2535,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
                     {/* Confirm Password */}
                     <div className="relative h-[52px]">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#10B981]">
                         <Lock size={16} />
                       </div>
                       <input
@@ -2489,12 +2544,12 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         value={confirmPassword}
                         onChange={e => setConfirmPassword(e.target.value)}
                         placeholder="Konfirmasi"
-                        className="w-full h-full pl-9 pr-8 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                        className="w-full h-full pl-9 pr-8 rounded-[14px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#64748B] hover:text-[#0F172A]"
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#10B981] hover:text-[#059669]"
                       >
                         {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -2505,7 +2560,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-[52px] bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] rounded-2xl mt-1 transition-all shadow-[0_6px_16px_-4px_rgba(16,185,129,0.3)] hover:brightness-105 active:scale-[0.98] text-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    className="w-full h-[52px] bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-[700] rounded-[14px] mt-[6px] transition-all shadow-[0_6px_16px_rgba(5,150,105,0.15)] active:scale-[0.98] text-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
                   >
                     {isSubmitting ? (
                       <RefreshCw size={16} className="animate-spin" />
@@ -2518,8 +2573,8 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               </div>
 
               {/* Footer Section */}
-              <div className="mt-[16px] flex flex-col justify-start items-center w-full">
-                <p className="text-xs text-[#64748B] font-[500]">
+              <div className="mt-[20px] flex flex-col justify-start items-center w-full">
+                <p className="text-[14px] text-[#64748B] font-[500]">
                   Sudah punya akun?{' '}
                   <button
                     type="button"
@@ -2540,12 +2595,10 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           {authMode === 'forgot' && (
             <div className="w-full flex flex-col items-center justify-center animate-fadeIn">
               {/* Header Section */}
-              <div className="w-full mb-[16px]">
-                {renderHeader(false)}
-              </div>
+              {renderHeader(false)}
               
               {/* Card Section */}
-              <div className="bg-white rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50 p-6 pb-4 flex flex-col w-[90%] mx-auto">
+              <div className="bg-white rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.08)] p-[32px] mt-[36px] flex flex-col w-[86%] max-w-[420px] mx-auto">
                 {errorMsg && (
                   <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
                     <AlertCircle size={14} className="flex-shrink-0" />
@@ -2562,9 +2615,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
                 <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
                   {/* Email */}
-                  <div className="relative h-[52px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#64748B]">
-                      <Mail size={18} />
+                  <div className="relative h-[58px]">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#10B981]">
+                      <Mail size={20} />
                     </div>
                     <input
                       type="email"
@@ -2572,7 +2625,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="Masukkan Email Terdaftar"
-                      className="w-full h-full pl-11 pr-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
+                      className="w-full h-full pl-11 pr-4 rounded-[18px] bg-white border border-[#E5E7EB] focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/10 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-[15px] transition-all"
                     />
                   </div>
 
@@ -2580,12 +2633,12 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-[52px] bg-[#0F172A] hover:bg-slate-800 text-white font-[700] rounded-2xl transition-all shadow-md active:scale-[0.98] text-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    className="w-full h-[58px] bg-[#0F172A] hover:bg-slate-800 text-white font-[700] rounded-[18px] transition-all shadow-md active:scale-[0.98] text-[15px] flex items-center justify-center gap-1.5 disabled:opacity-60"
                   >
                     {isSubmitting ? (
-                      <RefreshCw size={16} className="animate-spin" />
+                      <RefreshCw size={18} className="animate-spin" />
                     ) : (
-                      <Key size={16} />
+                      <Key size={18} />
                     )}
                     Kirim Tautan Reset
                   </button>
@@ -2593,7 +2646,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               </div>
 
               {/* Footer Section */}
-              <div className="mt-[16px] flex flex-col justify-start items-center w-full">
+              <div className="mt-[20px] flex flex-col justify-start items-center w-full">
                 <button
                   type="button"
                   onClick={() => {
