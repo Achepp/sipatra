@@ -163,6 +163,27 @@ export default function App() {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [viewProofUrl, setViewProofUrl] = useState<string | null>(null);
 
+  // Toast & Success Modal states
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onViewDetail?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: ''
+  });
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
+
   const fetchUserProfile = async (userId: string) => {
     try {
       const { data: profileData, error: profileError } = await supabase
@@ -346,7 +367,7 @@ export default function App() {
   const adminOnlyTabs = ['anggota', 'pengaturan'];
   useEffect(() => {
     if (profile && profile.role !== 'admin' && adminOnlyTabs.includes(activeTab)) {
-      alert('Akses Ditolak: Anda tidak diizinkan membuka menu ini.');
+      showToast('Akses Ditolak: Anda tidak diizinkan membuka menu ini.', 'error');
       setActiveTab('dashboard');
     }
   }, [activeTab, profile]);
@@ -395,7 +416,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error adding session:', err);
-      alert('Gagal membuat sesi baru.');
+      showToast('Gagal membuat sesi baru.', 'error');
     }
   };
 
@@ -427,7 +448,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error saving attendance:', err);
-      alert('Gagal menyimpan kehadiran.');
+      showToast('Gagal menyimpan kehadiran.', 'error');
     }
   };
 
@@ -450,7 +471,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error adding session expense:', err);
-      alert('Gagal menambahkan pengeluaran.');
+      showToast('Gagal menambahkan pengeluaran.', 'error');
     }
   };
 
@@ -465,7 +486,7 @@ export default function App() {
       setSessionExpenses(prev => prev.filter(e => e.id !== expenseId));
     } catch (err) {
       console.error('Error deleting session expense:', err);
-      alert('Gagal menghapus pengeluaran.');
+      showToast('Gagal menghapus pengeluaran.', 'error');
     }
   };
 
@@ -473,14 +494,14 @@ export default function App() {
     try {
       const sessionAttendees = attendees.filter(a => a.session_id === sessionId);
       if (sessionAttendees.length === 0) {
-        alert('Tidak ada anggota yang hadir. Tandai kehadiran terlebih dahulu.');
+        showToast('Tidak ada anggota yang hadir. Tandai kehadiran terlebih dahulu.', 'error');
         return;
       }
       
       const sessionExps = sessionExpenses.filter(e => e.session_id === sessionId);
       const totalSessionExpense = sessionExps.reduce((sum, e) => sum + e.nominal, 0);
       if (totalSessionExpense <= 0) {
-        alert('Total pengeluaran sesi adalah Rp 0. Tambahkan pengeluaran sesi terlebih dahulu.');
+        showToast('Total pengeluaran sesi adalah Rp 0. Tambahkan pengeluaran sesi terlebih dahulu.', 'error');
         return;
       }
 
@@ -521,10 +542,17 @@ export default function App() {
         setPayments(newPaymentsData);
       }
 
-      alert(`Sukses! Tagihan diterbitkan. Masing-masing: ${formatRp(costPerPerson)}`);
+      setSuccessModal({
+        isOpen: true,
+        title: "Tagihan Berhasil Diterbitkan",
+        description: `Setiap anggota dikenakan ${formatRp(costPerPerson)}`,
+        onViewDetail: () => {
+          setSelectedSessionId(sessionId);
+        }
+      });
     } catch (err) {
       console.error('Error generating bills:', err);
-      alert('Gagal menerbitkan tagihan.');
+      showToast('Gagal menerbitkan tagihan.', 'error');
     }
   };
 
@@ -574,7 +602,7 @@ export default function App() {
       setPayments(prev => prev.map(t => t.id === paymentId ? { ...t, status_pembayaran: status } : t));
     } catch (err) {
       console.error('Error verifying payment:', err);
-      alert('Gagal memverifikasi pembayaran.');
+      showToast('Gagal memverifikasi pembayaran.', 'error');
     }
   };
 
@@ -595,10 +623,10 @@ export default function App() {
       }
 
       await fetchUserProfile(session.user.id);
-      alert('Profil berhasil disimpan!');
+      showToast('Profil berhasil disimpan!', 'success');
     } catch (err) {
       console.error('Error updating profile:', err);
-      alert('Gagal menyimpan profil.');
+      showToast('Gagal menyimpan profil.', 'error');
     }
   };
 
@@ -630,7 +658,7 @@ export default function App() {
         .eq('id', settings?.id);
 
       if (error) throw error;
-      alert('Pengaturan berhasil disimpan!');
+      showToast('Pengaturan berhasil disimpan!', 'success');
       
       // Refresh settings
       const { data: settingsData } = await supabase.from('pengaturan').select('*').limit(1);
@@ -639,7 +667,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error updating settings:', err);
-      alert('Gagal menyimpan pengaturan.');
+      showToast('Gagal menyimpan pengaturan.', 'error');
     }
   };
 
@@ -670,11 +698,284 @@ export default function App() {
 
   // --- LOADING RENDER ---
   if (isLoading) {
+    let loadingMessage = "Menyiapkan dashboard...";
+    let skeletonContent = null;
+
+    if (activeTab === 'kas') {
+      loadingMessage = "Menhitung saldo kas..."; // Wait, requested: "Menghitung saldo kas..." let's write exactly "Menghitung saldo kas..."
+      loadingMessage = "Menghitung saldo kas...";
+      skeletonContent = (
+        <div className="space-y-6">
+          {/* Treasury Card Skeleton */}
+          <div className="bg-slate-800/80 rounded-[2rem] p-6 text-center border border-slate-700/50 shadow-lg relative overflow-hidden h-40 flex flex-col justify-center items-center gap-2">
+            <div className="w-28 h-3.5 bg-slate-700 shimmer-card rounded mb-1" />
+            <div className="w-48 h-8 bg-slate-750 shimmer-card rounded mb-4" />
+            <div className="grid grid-cols-2 gap-4 w-full border-t border-slate-700/50 pt-4">
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-2.5 bg-slate-700 shimmer-card rounded mb-1.5" />
+                <div className="w-16 h-3.5 bg-slate-750 shimmer-card rounded" />
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-2.5 bg-slate-700 shimmer-card rounded mb-1.5" />
+                <div className="w-16 h-3.5 bg-slate-750 shimmer-card rounded" />
+              </div>
+            </div>
+          </div>
+
+          {/* Histori Section Skeleton */}
+          <div className="space-y-4">
+            <div className="w-40 h-4 rounded bg-slate-800 shimmer-card animate-pulse" />
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80 flex items-center gap-3.5 shadow-sm justify-between">
+                <div className="flex items-center gap-3 w-full">
+                  <div className="w-10 h-10 rounded-xl bg-slate-800 shimmer-card flex-shrink-0" />
+                  <div className="flex-1 space-y-2.5">
+                    <div className="w-32 h-3.5 rounded bg-slate-800 shimmer-card" />
+                    <div className="w-24 h-2.5 rounded bg-slate-855 shimmer-card" />
+                  </div>
+                </div>
+                <div className="w-20 h-4 rounded bg-slate-800 shimmer-card" />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    } else if (activeTab === 'tagihan') {
+      const isUserAdmin = profile?.role === 'admin';
+      loadingMessage = isUserAdmin ? "Memuat data sesi..." : "Menyiapkan tagihan...";
+      if (isUserAdmin) {
+        skeletonContent = (
+          <div className="space-y-5">
+            <div className="flex justify-between items-center mb-4">
+              <div className="w-36 h-5 rounded bg-slate-800 shimmer-card" />
+              <div className="w-24 h-8 rounded-xl bg-slate-800 shimmer-card" />
+            </div>
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-slate-800/60 rounded-3xl border border-slate-800/90 shadow-md p-4 flex justify-between items-center">
+                <div className="space-y-2.5 flex-1 pr-4">
+                  <div className="w-16 h-3.5 rounded bg-slate-800 shimmer-card" />
+                  <div className="w-48 h-4 rounded bg-slate-800 shimmer-card" />
+                  <div className="w-32 h-3 rounded bg-slate-855 shimmer-card" />
+                </div>
+                <div className="text-right space-y-1.5 flex-shrink-0">
+                  <div className="w-12 h-2.5 rounded bg-slate-855 shimmer-card" />
+                  <div className="w-20 h-4.5 rounded bg-slate-800 shimmer-card" />
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      } else {
+        skeletonContent = (
+          <div className="space-y-4">
+            <div className="w-44 h-5 bg-slate-800 shimmer-card rounded mb-4" />
+            {[1, 2].map(i => (
+              <div key={i} className="bg-slate-800/60 rounded-3xl border border-slate-800 shadow-md overflow-hidden">
+                <div className="p-5 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="w-24 h-4.5 bg-slate-800 shimmer-card rounded-full" />
+                    <div className="w-20 h-4.5 bg-slate-800 shimmer-card rounded-full" />
+                  </div>
+                  <div className="w-48 h-4 bg-slate-800 shimmer-card rounded" />
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="w-28 h-3.5 bg-slate-800 shimmer-card rounded" />
+                    <div className="w-20 h-4.5 bg-slate-800 shimmer-card rounded" />
+                  </div>
+                </div>
+                <div className="bg-slate-800/30 px-5 py-4 border-t border-slate-800">
+                  <div className="w-full h-11 bg-slate-800 shimmer-card rounded-2xl" />
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+    } else if (activeTab === 'anggota') {
+      loadingMessage = "Menyiapkan data anggota...";
+      skeletonContent = (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="w-28 h-5 rounded bg-slate-800 shimmer-card" />
+            <div className="w-12 h-4 rounded bg-slate-800 shimmer-card" />
+          </div>
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80 flex items-center gap-3.5 shadow-sm justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-slate-800 shimmer-card flex-shrink-0" />
+                <div>
+                  <div className="w-28 h-3.5 bg-slate-800 shimmer-card rounded mb-2" />
+                  <div className="w-36 h-2.5 bg-slate-855 shimmer-card rounded" />
+                </div>
+              </div>
+              <div className="w-12 h-4 bg-slate-800 shimmer-card rounded" />
+            </div>
+          ))}
+        </div>
+      );
+    } else if (activeTab === 'profile') {
+      loadingMessage = "Memuat data profil...";
+      skeletonContent = (
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 bg-slate-800/60 p-5 rounded-3xl border border-slate-800 shadow-md">
+            <div className="w-14 h-14 bg-slate-800 shimmer-card rounded-full" />
+            <div className="space-y-2">
+              <div className="w-32 h-4 bg-slate-800 shimmer-card rounded" />
+              <div className="w-40 h-3 bg-slate-855 shimmer-card rounded" />
+              <div className="w-12 h-4 bg-slate-800 shimmer-card rounded mt-2" />
+            </div>
+          </div>
+          <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-800 shadow-sm space-y-4">
+            <div className="w-40 h-4 bg-slate-800 shimmer-card rounded" />
+            <div className="space-y-4">
+              <div>
+                <div className="w-24 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
+                <div className="w-full h-10 bg-slate-855 shimmer-card rounded-xl" />
+              </div>
+              <div>
+                <div className="w-36 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
+                <div className="w-full h-10 bg-slate-855 shimmer-card rounded-xl" />
+              </div>
+              <div className="w-full h-11 bg-slate-800 shimmer-card rounded-2xl" />
+            </div>
+          </div>
+        </div>
+      );
+    } else if (activeTab === 'pengaturan') {
+      loadingMessage = "Memuat pengaturan...";
+      skeletonContent = (
+        <div className="space-y-6">
+          <div className="bg-slate-800/40 p-5 rounded-3xl border border-slate-800 shadow-sm space-y-4">
+            <div className="w-40 h-4 bg-slate-800 shimmer-card rounded" />
+            <div className="space-y-4">
+              <div>
+                <div className="w-24 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
+                <div className="w-full h-10 bg-slate-855 shimmer-card rounded-xl" />
+              </div>
+              <div>
+                <div className="w-36 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
+                <div className="w-full h-10 bg-slate-855 shimmer-card rounded-xl" />
+              </div>
+              <div>
+                <div className="w-28 h-2.5 bg-slate-800 shimmer-card rounded mb-1.5" />
+                <div className="flex flex-col items-center gap-4 p-4 border border-slate-750 rounded-2xl bg-slate-850/40">
+                  <div className="w-40 h-40 bg-slate-855 shimmer-card rounded-xl" />
+                  <div className="w-36 h-8 bg-slate-800 shimmer-card rounded-xl" />
+                </div>
+              </div>
+              <div className="w-full h-11 bg-slate-800 shimmer-card rounded-2xl" />
+            </div>
+          </div>
+        </div>
+      );
+    } else {
+      loadingMessage = "Menyiapkan dashboard...";
+      skeletonContent = (
+        <div className="space-y-6">
+          {/* Shimmer Wallet/Kas Card */}
+          <div className="rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden shimmer-green h-44 flex flex-col justify-between">
+            <div>
+              <div className="w-24 h-3 bg-white/20 rounded mb-2" />
+              <div className="w-48 h-8 bg-white/30 rounded" />
+            </div>
+            <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+              <div>
+                <div className="w-16 h-2.5 bg-white/20 rounded mb-1.5" />
+                <div className="w-24 h-4 bg-white/30 rounded" />
+              </div>
+              <div>
+                <div className="w-16 h-2.5 bg-white/20 rounded mb-1.5" />
+                <div className="w-24 h-4 bg-white/30 rounded" />
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions Skeleton */}
+          <div className="grid grid-cols-2 gap-3.5">
+            <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-800 shimmer-card animate-pulse" />
+              <div className="space-y-2">
+                <div className="w-16 h-2 bg-slate-855 rounded shimmer-card" />
+                <div className="w-12 h-3.5 bg-slate-800 rounded shimmer-card" />
+              </div>
+            </div>
+            <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-800 shimmer-card animate-pulse" />
+              <div className="space-y-2">
+                <div className="w-16 h-2 bg-slate-855 rounded shimmer-card" />
+                <div className="w-12 h-3.5 bg-slate-800 rounded shimmer-card" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section Title Skeleton */}
+          <div className="w-32 h-5 rounded bg-slate-800 shimmer-card" />
+
+          {/* Sessions List Skeletons */}
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="p-4 bg-slate-800/40 rounded-3xl border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-800 shimmer-card flex-shrink-0" />
+                  <div>
+                    <div className="w-40 h-4 rounded bg-slate-800 shimmer-card mb-2" />
+                    <div className="w-28 h-3 rounded bg-slate-855 shimmer-card" />
+                  </div>
+                </div>
+                <div className="w-16 h-4 rounded bg-slate-800 shimmer-card" />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 w-full">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-emerald-400 font-extrabold tracking-wide text-sm animate-pulse">Menghubungkan ke Supabase...</p>
+      <div className="min-h-screen bg-slate-955 flex justify-center text-slate-100 font-sans">
+        <div className="w-full max-w-md bg-slate-900 min-h-screen shadow-2xl relative pb-20 flex flex-col border-x border-slate-800 animate-fadeIn">
+          
+          {/* SKELETON HEADER */}
+          <header className="bg-slate-800/80 backdrop-blur-md p-4 rounded-b-[2rem] border-b border-slate-700/50 shadow-lg">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                {/* Avatar Skeleton */}
+                <div className="w-12 h-12 rounded-full shimmer-card flex-shrink-0" />
+                <div>
+                  {/* Greeting Skeleton */}
+                  <div className="w-20 h-3 rounded bg-slate-700 shimmer-card mb-2" />
+                  {/* Name Skeleton */}
+                  <div className="w-32 h-4.5 rounded bg-slate-700 shimmer-card" />
+                </div>
+              </div>
+              {/* Role Badge Skeleton */}
+              <div className="w-20 h-6 rounded-full bg-slate-700 shimmer-card" />
+            </div>
+          </header>
+
+          {/* SKELETON BODY */}
+          <main className="p-4 flex-1 space-y-6 overflow-hidden">
+            {skeletonContent}
+          </main>
+
+          {/* User-friendly loading message at the bottom */}
+          <div className="absolute bottom-24 left-0 right-0 flex flex-col items-center justify-center gap-2 pointer-events-none z-10">
+            <div className="px-4 py-2 bg-slate-800/90 backdrop-blur-md rounded-full shadow-lg border border-slate-700/50 flex items-center gap-2">
+              <div className="w-3.5 h-3.5 border-2 border-[#10B981] border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-[11px] font-[700] text-emerald-400 tracking-wider uppercase">
+                {loadingMessage}
+              </span>
+            </div>
+          </div>
+
+          {/* SKELETON NAVIGATION BAR */}
+          <nav className="absolute bottom-0 left-0 right-0 bg-slate-850/90 backdrop-blur-lg border-t border-slate-800 p-3 flex justify-around rounded-t-[1.5rem] z-10">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="flex flex-col items-center gap-1.5 w-12">
+                <div className="w-6 h-6 rounded-md bg-slate-800 shimmer-card" />
+                <div className="w-8 h-2 bg-slate-855 rounded shimmer-card" />
+              </div>
+            ))}
+          </nav>
+
         </div>
       </div>
     );
@@ -835,6 +1136,61 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* CUSTOM SUCCESS MODAL */}
+        {successModal.isOpen && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setSuccessModal(prev => ({ ...prev, isOpen: false }))}>
+            <div className="bg-white rounded-[20px] p-6 max-w-xs w-full text-center shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 flex flex-col items-center animate-scaleUp" onClick={e => e.stopPropagation()}>
+              <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#10B981] flex items-center justify-center mb-4 border border-emerald-100/50">
+                <CheckCircle size={36} className="text-[#10B981]" strokeWidth={2.5} />
+              </div>
+              <h3 className="text-slate-900 font-extrabold text-sm mb-2 tracking-tight">
+                {successModal.title}
+              </h3>
+              <p className="text-slate-500 font-bold text-xs leading-relaxed px-1 mb-6">
+                {successModal.description}
+              </p>
+              <div className="flex flex-col gap-2 w-full">
+                {successModal.onViewDetail && (
+                  <button 
+                    onClick={() => {
+                      successModal.onViewDetail?.();
+                      setSuccessModal(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="w-full bg-[#10B981] hover:bg-[#059669] text-white font-[800] py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-500/10"
+                  >
+                    Lihat Tagihan
+                  </button>
+                )}
+                <button 
+                  onClick={() => setSuccessModal(prev => ({ ...prev, isOpen: false }))}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-[800] py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98]"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOM TOAST NOTIFICATIONS */}
+        <div className="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-[90%] max-w-[340px]">
+          {toasts.map(t => (
+            <div 
+              key={t.id} 
+              className="px-4 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-md text-slate-200 shadow-2xl border border-slate-800 flex items-center gap-2.5 pointer-events-auto animate-slideDown"
+            >
+              {t.type === 'success' ? (
+                <CheckCircle size={15} className="text-[#10B981] flex-shrink-0" />
+              ) : t.type === 'error' ? (
+                <XCircle size={15} className="text-red-500 flex-shrink-0" />
+              ) : (
+                <AlertCircle size={15} className="text-blue-500 flex-shrink-0" />
+              )}
+              <span className="text-[11px] font-[700] text-slate-200 leading-snug">{t.message}</span>
+            </div>
+          ))}
+        </div>
 
       </div>
     </div>
@@ -1942,8 +2298,17 @@ function ProfileMember({ profile, updateProfile }: { profile: Profile; updatePro
             disabled={isSubmitting}
             className="w-full bg-emerald-600 hover:bg-emerald-505 text-white font-extrabold py-3 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-            Simpan Perubahan
+            {isSubmitting ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>Menyimpan perubahan...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle size={14} />
+                <span>Simpan Perubahan</span>
+              </>
+            )}
           </button>
         </form>
       </div>
@@ -2024,8 +2389,17 @@ function SettingsAdmin({ settings, updateSettings }: any) {
           disabled={isSubmitting}
           className="w-full bg-emerald-600 hover:bg-emerald-505 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
-          {isSubmitting ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-          Simpan Pengaturan
+          {isSubmitting ? (
+            <>
+              <RefreshCw size={14} className="animate-spin" />
+              <span>Menyimpan pengaturan...</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle size={14} />
+              <span>Simpan Pengaturan</span>
+            </>
+          )}
         </button>
       </form>
     </div>
@@ -2121,7 +2495,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
       if (data.session) {
         await onLoginSuccess(data.session.user.id);
       } else {
-        alert('Registrasi berhasil! Silakan periksa email masuk Anda untuk memverifikasi akun.');
+        setSuccessMsg('Registrasi berhasil! Silakan periksa email masuk Anda untuk memverifikasi akun.');
         setAuthMode('login');
       }
     } catch (err: any) {
@@ -2382,7 +2756,10 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     className="w-full h-[58px] bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-[700] rounded-[18px] mt-[20px] transition-all shadow-[0_8px_25px_rgba(5,150,105,0.15)] active:scale-[0.98] text-[16px] flex items-center justify-center gap-[10px] disabled:opacity-60"
                   >
                     {isSubmitting ? (
-                      <RefreshCw size={20} className="animate-spin" />
+                      <div className="flex items-center gap-2">
+                        <RefreshCw size={20} className="animate-spin" />
+                        <span>Memverifikasi akun...</span>
+                      </div>
                     ) : (
                       <>
                         <svg className="w-[20px] h-[20px]" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
@@ -2571,11 +2948,16 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     className="w-full h-[52px] bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-[700] rounded-[14px] mt-[6px] transition-all shadow-[0_6px_16px_rgba(5,150,105,0.15)] active:scale-[0.98] text-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
                   >
                     {isSubmitting ? (
-                      <RefreshCw size={16} className="animate-spin" />
+                      <div className="flex items-center gap-1.5">
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>Mendaftarkan akun...</span>
+                      </div>
                     ) : (
-                      <PlusCircle size={16} />
+                      <>
+                        <PlusCircle size={16} />
+                        <span>Daftar Akun</span>
+                      </>
                     )}
-                    Daftar Akun
                   </button>
                 </form>
               </div>
@@ -2644,11 +3026,16 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     className="w-full h-[58px] bg-[#0F172A] hover:bg-slate-800 text-white font-[700] rounded-[18px] transition-all shadow-md active:scale-[0.98] text-[15px] flex items-center justify-center gap-1.5 disabled:opacity-60"
                   >
                     {isSubmitting ? (
-                      <RefreshCw size={18} className="animate-spin" />
+                      <div className="flex items-center gap-1.5">
+                        <RefreshCw size={18} className="animate-spin" />
+                        <span>Mengirim tautan...</span>
+                      </div>
                     ) : (
-                      <Key size={18} />
+                      <>
+                        <Key size={18} />
+                        <span>Kirim Tautan Reset</span>
+                      </>
                     )}
-                    Kirim Tautan Reset
                   </button>
                 </form>
               </div>
