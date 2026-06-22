@@ -990,33 +990,42 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-955 flex justify-center text-slate-100 font-sans">
-      <div className="w-full max-w-md bg-slate-900 min-h-screen shadow-2xl relative pb-20 flex flex-col border-x border-slate-800">
+      <div className="w-full max-w-md bg-slate-900 min-h-screen shadow-2xl relative pb-28 flex flex-col border-x border-slate-800">
         
         {/* HEADER */}
-        <header className="bg-slate-800/80 backdrop-blur-md text-slate-100 p-4 sticky top-0 z-10 rounded-b-[2rem] border-b border-slate-700/50 shadow-lg">
+        <header className="bg-slate-900/90 backdrop-blur-md p-4 sticky top-0 z-20 border-b border-slate-200/40 dark:border-slate-800/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)]">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_4px_12px_rgba(16,185,129,0.25)] flex items-center justify-center flex-shrink-0 text-white font-[700] text-lg select-none">
                 {getInitials(profile?.nama || profile?.full_name || session?.user?.user_metadata?.name || session?.user?.user_metadata?.nama)}
               </div>
               <div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selamat datang,</p>
-                <p className="font-bold text-sm text-slate-100 truncate w-36 tracking-wide">{profile.nama}</p>
+                <p className="text-[9px] text-slate-400 dark:text-slate-550 font-black uppercase tracking-wider leading-none">SELAMAT DATANG,</p>
+                <p className="font-extrabold text-slate-850 dark:text-slate-150 text-sm leading-tight mt-1.5 truncate w-36">{profile.nama}</p>
               </div>
             </div>
             <div className="flex gap-2.5 items-center">
-              <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${isAdmin ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
+              <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                isAdmin 
+                  ? 'bg-amber-500/10 text-amber-500 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-500/20' 
+                  : 'bg-emerald-500/10 text-[#10B981] dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/20'
+              }`}>
                 {isAdmin ? 'Bendahara' : 'Anggota'}
               </span>
               <button 
                 onClick={toggleTheme} 
-                className="p-2 bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 rounded-full transition-colors duration-200 flex items-center justify-center"
+                className="p-2.5 bg-slate-900 border border-slate-150 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-[#10B981] dark:hover:text-[#10B981] rounded-2xl shadow-sm transition-all duration-200 flex items-center justify-center"
                 title={theme === 'dark' ? 'Aktifkan Mode Terang' : 'Aktifkan Mode Gelap'}
                 aria-label="Toggle Theme"
               >
                 {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
               </button>
-              <button onClick={handleLogout} className="p-2 bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-red-400 rounded-full transition-colors duration-200 flex items-center justify-center">
+              <button 
+                onClick={handleLogout} 
+                className="p-2.5 bg-slate-900 border border-slate-150 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-2xl shadow-sm transition-all duration-200 flex items-center justify-center"
+                title="Keluar Akun"
+                aria-label="Keluar Akun"
+              >
                 <LogOut size={16} />
               </button>
             </div>
@@ -1042,6 +1051,10 @@ export default function App() {
               setSelectedPayment={setSelectedPayment}
               isInstallable={isInstallable}
               handleInstallPWA={handleInstallPWA}
+              setActiveTab={setActiveTab}
+              setSelectedSessionId={setSelectedSessionId}
+              showToast={showToast}
+              setShowAddSessionModal={setShowAddSessionModal}
             />
           )}
 
@@ -1107,10 +1120,10 @@ export default function App() {
           )}
         </main>
 
-        {/* BOTTOM NAVIGATION */}
-        <nav className="fixed bottom-0 w-full max-w-md bg-slate-900 border-t border-slate-800 flex justify-around p-3 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.3)] z-20">
+        {/* BOTTOM FLOATING NAVIGATION */}
+        <nav className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-slate-900 border border-slate-800 rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.15)] flex justify-around p-2.5 z-30">
           <NavItem icon={<Home size={20} />} label="Beranda" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-          <NavItem icon={<Receipt size={20} />} label={isAdmin ? 'Sesi' : 'Tagihan Saya'} active={activeTab === 'tagihan'} onClick={() => setActiveTab('tagihan')} />
+          <NavItem icon={<Calendar size={20} />} label={isAdmin ? 'Sesi' : 'Tagihan Saya'} active={activeTab === 'tagihan'} onClick={() => setActiveTab('tagihan')} />
           <NavItem icon={<Wallet size={20} />} label={isAdmin ? 'Laporan' : 'Kas'} active={activeTab === 'kas'} onClick={() => setActiveTab('kas')} />
           {isAdmin ? (
             <>
@@ -1118,9 +1131,21 @@ export default function App() {
               <NavItem icon={<Shield size={20} />} label="Pengaturan" active={activeTab === 'pengaturan'} onClick={() => setActiveTab('pengaturan')} />
             </>
           ) : (
-            <NavItem icon={<UserIcon size={20} />} label="Profil Saya" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+            <NavItem icon={<UserIcon size={20} />} label="Profil" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
           )}
         </nav>
+
+        {/* FLOATING ACTION BUTTON */}
+        {activeTab === 'dashboard' && isAdmin && (
+          <button 
+            onClick={() => setShowAddSessionModal(true)}
+            className="fixed bottom-28 right-6 w-14 h-14 bg-gradient-to-br from-[#10B981] to-[#059669] text-white rounded-full flex items-center justify-center shadow-[0_8px_25px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-95 transition-all z-30"
+            title="Tambah Sesi Baru"
+            aria-label="Tambah Sesi Baru"
+          >
+            <Plus size={28} strokeWidth={2.5} />
+          </button>
+        )}
 
         {/* IMAGE PROOF VIEWER MODAL */}
         {viewProofUrl && (
@@ -1200,11 +1225,19 @@ export default function App() {
 // --- SUB-COMPONENTS ---
 function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-1.5 w-16 transition-all duration-200 ${active ? 'text-emerald-400 scale-105 font-bold' : 'text-slate-500 hover:text-slate-400'}`}>
-      <div className={`${active ? 'bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : ''} p-2 rounded-2xl transition-all duration-250`}>
-        {icon}
-      </div>
-      <span className="text-[9px] tracking-wide">{label}</span>
+    <button 
+      onClick={onClick} 
+      className={`flex flex-col items-center justify-center pt-2 pb-1 relative transition-all duration-200 flex-1 ${
+        active 
+          ? 'text-[#10B981] font-extrabold scale-105' 
+          : 'text-slate-500 hover:text-slate-400 dark:text-slate-400 dark:hover:text-slate-300'
+      }`}
+    >
+      <div className="mb-0.5">{icon}</div>
+      <span className="text-[10px] tracking-tight">{label}</span>
+      {active && (
+        <div className="absolute bottom-0 left-1/4 right-1/4 h-[3px] bg-[#10B981] rounded-full animate-fadeIn" />
+      )}
     </button>
   );
 }
@@ -1212,7 +1245,7 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 // --- DASHBOARD COMPONENT ---
 function Dashboard({ 
   user, memberRecord, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
-  isInstallable, handleInstallPWA
+  isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal
 }: any) {
   const isAdmin = user.role === 'admin';
   
@@ -1225,8 +1258,369 @@ function Dashboard({
   const myPaidCount = myPayments.filter((p: any) => p.status_pembayaran === 'verified').length;
   const myTotalPaidAmount = myPayments.filter((p: any) => p.status_pembayaran === 'verified').reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
 
+  // Unpaid payments calculation for KPI card
+  const unpaidPayments = payments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected');
+  const totalUnpaidAmount = unpaidPayments.reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
+  const uniqueUnpaidMembersCount = new Set(unpaidPayments.map((p: any) => p.member_id)).size;
+
+  // Local state to view/review pending payments
+  const [reviewPayment, setReviewPayment] = useState<any>(null);
+
+  if (isAdmin) {
+    return (
+      <div className="space-y-6 animate-fadeIn pb-6">
+        
+        {/* PWA INSTALLATION BANNER */}
+        {isInstallable && (
+          <div className="bg-slate-800 border border-slate-750 p-4 rounded-3xl flex justify-between items-center shadow-md animate-bounce">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-600/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20">
+                <span className="text-lg">📱</span>
+              </div>
+              <div>
+                <p className="font-extrabold text-xs text-slate-100">Instal Aplikasi SI-PATRA</p>
+                <p className="text-[9px] text-slate-450 font-semibold mt-0.5">Akses instan dari Home Screen Anda</p>
+              </div>
+            </div>
+            <button 
+              onClick={handleInstallPWA}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-[0.97]"
+            >
+              Install
+            </button>
+          </div>
+        )}
+
+        {/* MAIN CASH CARD */}
+        <div className="bg-gradient-to-br from-[#064E3B] to-[#0D9488] rounded-[24px] p-6 text-white shadow-xl relative overflow-hidden">
+          {/* Badminton Shuttlecock Watermark SVG in bottom right */}
+          <div className="absolute bottom-0 right-0 w-36 h-36 opacity-[0.12] pointer-events-none transform translate-x-4 translate-y-4">
+            <svg viewBox="0 0 100 100" fill="currentColor" className="w-full h-full text-white">
+              <path d="M 62 62 L 15 25 C 22 15, 45 8, 55 20 L 72 52 Z" />
+              <line x1="63" y1="61" x2="20" y2="28" stroke="currentColor" strokeWidth="0.8" />
+              <line x1="65" y1="59" x2="28" y2="21" stroke="currentColor" strokeWidth="0.8" />
+              <line x1="67" y1="57" x2="38" y2="16" stroke="currentColor" strokeWidth="0.8" />
+              <line x1="69" y1="55" x2="48" y2="15" stroke="currentColor" strokeWidth="0.8" />
+              <line x1="71" y1="53" x2="58" y2="20" stroke="currentColor" strokeWidth="0.8" />
+              <path d="M 32 37 C 38 28, 48 23, 58 29" fill="none" stroke="currentColor" strokeWidth="0.8" />
+              <path d="M 45 47 C 50 39, 58 35, 66 40" fill="none" stroke="currentColor" strokeWidth="0.8" />
+              <path d="M 61 61 C 59 63, 61 67, 65 69 C 69 67, 71 63, 69 61 Z" />
+              <path d="M 65 67 C 70 72, 80 80, 83 75 C 86 70, 78 60, 73 55 Z" />
+            </svg>
+          </div>
+          
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2 text-emerald-100">
+              <Wallet size={16} strokeWidth={2.2} />
+              <span className="text-[10px] font-black uppercase tracking-wider">TOTAL SALDO KAS</span>
+            </div>
+            <button 
+              onClick={() => setActiveTab('kas')}
+              className="px-3.5 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full text-[10px] font-black text-white flex items-center gap-0.5 transition-all"
+            >
+              Detail Kas <ChevronRight size={10} strokeWidth={3} />
+            </button>
+          </div>
+
+          <h2 className="text-4xl font-[900] tracking-tight mb-7">
+            {formatRp(saldoKas)}
+          </h2>
+
+          <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-emerald-800 shadow-sm flex-shrink-0">
+                <TrendingUp size={16} strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">TOTAL PEMASUKAN</p>
+                <p className="font-extrabold text-xs text-white mt-1">
+                  {formatRp(totalIncome)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-red-600 shadow-sm flex-shrink-0">
+                <TrendingUp size={16} strokeWidth={2.5} className="transform rotate-180" />
+              </div>
+              <div>
+                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">TOTAL PENGELUARAN</p>
+                <p className="font-extrabold text-xs text-white mt-1">
+                  {formatRp(totalExpense)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* QUICK ACTION SECTION */}
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] p-3.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 grid grid-cols-5 divide-x divide-slate-150 dark:divide-slate-800">
+          <div onClick={() => setShowAddSessionModal(true)} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity">
+            <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <PlusCircle size={20} strokeWidth={2.2} />
+            </div>
+            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">Tambah Sesi</span>
+          </div>
+          <div onClick={() => { setActiveTab('tagihan'); showToast('Pilih sesi terlebih dahulu untuk mencatat biaya.', 'info'); }} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
+            <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Wallet size={20} strokeWidth={2.2} />
+            </div>
+            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">Tambah Kas</span>
+          </div>
+          <div onClick={() => setActiveTab('pengaturan')} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
+            <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <QrCode size={20} strokeWidth={2.2} />
+            </div>
+            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">QRIS Saya</span>
+          </div>
+          <div onClick={() => setActiveTab('kas')} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
+            <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Receipt size={20} strokeWidth={2.2} />
+            </div>
+            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">Laporan</span>
+          </div>
+          <div onClick={() => setActiveTab('anggota')} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
+            <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
+              <Users size={20} strokeWidth={2.2} />
+            </div>
+            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 text-center leading-tight">Anggota</span>
+          </div>
+        </div>
+
+        {/* KPI CARDS GRID */}
+        <div className="grid grid-cols-2 gap-3.5">
+          <div className="bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
+            <div className="flex justify-between items-start">
+              <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                <Users size={16} />
+              </div>
+              <span className="text-[8px] font-black text-emerald-450 dark:text-emerald-400 uppercase tracking-wider">TOTAL ANGGOTA</span>
+            </div>
+            <div>
+              <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-none">{members.filter((m: any) => m.role === 'member').length} Orang</p>
+              <p className="text-[9px] text-[#10B981] font-bold mt-1.5 flex items-center gap-1">● Aktif</p>
+            </div>
+          </div>
+
+          <div className="bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
+            <div className="flex justify-between items-start">
+              <div className="p-2 bg-purple-500/10 text-purple-600 rounded-xl">
+                <Activity size={16} />
+              </div>
+              <span className="text-[8px] font-black text-purple-450 dark:text-purple-400 uppercase tracking-wider">TOTAL SESI</span>
+            </div>
+            <div>
+              <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-none">{sessions.length} Sesi</p>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1.5">Bulan ini</p>
+            </div>
+          </div>
+
+          <div className="bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
+            <div className="flex justify-between items-start">
+              <div className="p-2 bg-blue-500/10 text-blue-650 rounded-xl">
+                <DollarSign size={16} />
+              </div>
+              <span className="text-[8px] font-black text-blue-455 dark:text-blue-400 uppercase tracking-wider">KAS BULAN INI</span>
+            </div>
+            <div>
+              <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-none truncate">{formatRp(saldoKas)}</p>
+              <p className="text-[9px] text-red-500 font-bold mt-1.5 flex items-center gap-0.5">↓ 15% dari bulan lalu</p>
+            </div>
+          </div>
+
+          <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
+            <div className="flex justify-between items-start">
+              <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
+                <Clock size={16} />
+              </div>
+              <span className="text-[8px] font-black text-amber-455 dark:text-amber-400 uppercase tracking-wider">UNPAID BILLS</span>
+            </div>
+            <div>
+              <p className="text-lg font-black text-red-500 dark:text-red-400 leading-none truncate">{formatRp(totalUnpaidAmount)}</p>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold mt-1.5 flex items-center gap-1">
+                <Users size={10} /> {uniqueUnpaidMembersCount} Anggota
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ADMIN SECTION: PENDING PAYMENTS VERIFICATION */}
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Menunggu Verifikasi</h3>
+            <span className="bg-amber-550/10 text-amber-600 dark:text-amber-300 text-[10px] px-2.5 py-0.5 rounded-full font-black border border-amber-500/20">
+              {pendingPayments.length}
+            </span>
+          </div>
+
+          {pendingPayments.length === 0 ? (
+            <div className="text-center py-6 bg-slate-50/50 dark:bg-slate-850/30 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-slate-500 text-xs font-bold">
+              Tidak ada pembayaran pending.
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {pendingPayments.slice(0, 3).map((p: any) => {
+                const member = members.find((m: any) => m.id === p.member_id);
+                const session = sessions.find((s: any) => s.id === p.session_id);
+                return (
+                  <div key={p.id} className="flex justify-between items-center gap-3 border-b border-slate-100 dark:border-slate-850/50 pb-3 last:border-0 last:pb-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-xs flex-shrink-0">
+                        {getInitials(member?.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-xs text-slate-800 dark:text-slate-200 truncate">{member?.name || 'Anggota'}</p>
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold truncate mt-0.5">
+                          {session?.nama_sesi || 'Sesi Game'} • {session?.tanggal_main ? formatDate(session.tanggal_main) : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-xs font-black text-amber-500">{formatRp(p.nominal_tagihan)}</span>
+                      <button 
+                        onClick={() => setReviewPayment(p)}
+                        className="px-3 py-1.5 border border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-xl text-[10px] font-black transition-colors"
+                      >
+                        Verifikasi
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {pendingPayments.length > 3 && (
+                <button 
+                  onClick={() => { setActiveTab('tagihan'); showToast('Tinjau semua pembayaran tertunda di halaman Sesi.', 'info'); }}
+                  className="w-full text-center text-[10px] font-black text-[#10B981] hover:text-[#059669] pt-1 block"
+                >
+                  Lihat semua &gt;
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* RECENT SESSIONS VIEW */}
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Daftar Sesi Terkini</h3>
+            <button onClick={() => setActiveTab('tagihan')} className="text-[10px] font-black text-[#10B981] hover:text-[#059669]">
+              Lihat semua &gt;
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {sessions.slice(0, 3).map((s: any, idx: number) => {
+              const attendeeCount = attendees.filter((a: any) => a.session_id === s.id).length;
+              const isGenerated = s.status_tagihan === 'generated';
+              
+              // Dynamic colors for index icons
+              const colors = [
+                'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450',
+                'bg-blue-500/10 text-blue-600 dark:text-blue-450',
+                'bg-purple-500/10 text-purple-600 dark:text-purple-450'
+              ];
+              const iconColor = colors[idx % colors.length];
+
+              return (
+                <div 
+                  key={s.id} 
+                  onClick={() => {
+                    setActiveTab('tagihan');
+                    setSelectedSessionId(s.id);
+                  }}
+                  className="flex justify-between items-center gap-3 p-2 bg-slate-50/40 dark:bg-slate-850/20 hover:bg-slate-100 dark:hover:bg-slate-850/50 rounded-2xl cursor-pointer transition-all"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl ${iconColor} flex items-center justify-center flex-shrink-0`}>
+                      <Calendar size={16} strokeWidth={2.2} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-extrabold text-xs text-slate-850 dark:text-slate-200 truncate">{s.nama_sesi}</p>
+                      <p className="text-[9px] text-slate-455 dark:text-slate-500 font-bold truncate mt-1 flex items-center gap-1.5">
+                        <span>{formatDate(s.tanggal_main)}</span>
+                        <span>•</span>
+                        <span>{s.lokasi}</span>
+                        <span>•</span>
+                        <span className="flex items-center gap-0.5"><Users size={9} /> {attendeeCount} Hadir</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right flex items-center gap-2 flex-shrink-0">
+                    <div className="space-y-1">
+                      <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider inline-block ${
+                        isGenerated 
+                          ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' 
+                          : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-550'
+                      }`}>
+                        {isGenerated ? 'Generated' : 'Draft'}
+                      </span>
+                      <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                        {isGenerated ? formatRp(s.biaya_per_orang) : '-'}
+                      </p>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-400" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* REVIEW PAYMENT MODAL */}
+        {reviewPayment && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setReviewPayment(null)}>
+            <div className="bg-slate-900 rounded-[24px] border border-slate-800 p-5 max-w-sm w-full relative overflow-hidden shadow-2xl flex flex-col gap-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setReviewPayment(null)} className="absolute top-4 right-4 p-2 bg-slate-800 text-slate-400 hover:text-slate-100 rounded-full transition-colors">
+                <XCircle size={18} />
+              </button>
+              <h3 className="font-extrabold text-sm text-slate-100 uppercase tracking-wider mb-1 pr-10">Tinjau Pembayaran</h3>
+              
+              <div className="bg-slate-855/50 p-4 rounded-2xl border border-slate-800 space-y-2.5 text-xs text-slate-350 dark:text-slate-300">
+                <div className="flex justify-between"><span className="text-slate-550 dark:text-slate-500 font-medium">Nama Anggota:</span> <span className="font-bold text-slate-100">{members.find((m: any) => m.id === reviewPayment.member_id)?.name || 'Anggota'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-550 dark:text-slate-500 font-medium">Sesi:</span> <span className="font-bold text-slate-100 truncate w-32 text-right">{sessions.find((s: any) => s.id === reviewPayment.session_id)?.nama_sesi || 'Sesi Game'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-550 dark:text-slate-500 font-medium">Nominal:</span> <span className="font-bold text-[#10B981]">{formatRp(reviewPayment.nominal_tagihan)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-550 dark:text-slate-500 font-medium">Tanggal Bayar:</span> <span className="font-bold text-slate-100">{reviewPayment.tanggal_bayar ? formatDate(reviewPayment.tanggal_bayar) : '-'}</span></div>
+              </div>
+
+              <div className="bg-slate-950 rounded-2xl overflow-hidden aspect-[4/3] border border-slate-850 flex items-center justify-center relative bg-black/40">
+                {reviewPayment.bukti_transfer ? (
+                  <img src={reviewPayment.bukti_transfer} alt="Bukti Transfer" className="w-full h-full object-contain cursor-pointer" onClick={() => setViewProofUrl(reviewPayment.bukti_transfer)} />
+                ) : (
+                  <span className="text-slate-500 text-xs font-bold italic">Tidak ada lampiran bukti transfer</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-1">
+                <button 
+                  onClick={async () => {
+                    await verifyPayment(reviewPayment.id, 'rejected');
+                    setReviewPayment(null);
+                    showToast('Pembayaran ditolak.', 'info');
+                  }}
+                  className="w-full border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98]"
+                >
+                  Tolak
+                </button>
+                <button 
+                  onClick={async () => {
+                    await verifyPayment(reviewPayment.id, 'verified');
+                    setReviewPayment(null);
+                    showToast('Pembayaran berhasil disetujui!', 'success');
+                  }}
+                  className="w-full bg-[#10B981] hover:bg-[#059669] text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-500/10"
+                >
+                  Setujui
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // MEMBER DASHBOARD UI
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn pb-6">
       
       {/* PWA INSTALLATION BANNER */}
       {isInstallable && (
@@ -1248,221 +1642,136 @@ function Dashboard({
           </button>
         </div>
       )}
-      
-      {/* STATS OVERVIEW CARD */}
-      <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-900 rounded-[2rem] p-6 text-white shadow-xl shadow-emerald-950/20 relative overflow-hidden">
-        <div className="absolute -top-10 -right-10 p-4 opacity-10 transform rotate-12 scale-150">
-          <Wallet size={160} />
+
+      {/* MAIN CASH CARD */}
+      <div className="bg-gradient-to-br from-[#064E3B] to-[#0D9488] rounded-[24px] p-6 text-white shadow-xl relative overflow-hidden">
+        {/* Shuttlecock SVG watermark */}
+        <div className="absolute bottom-0 right-0 w-36 h-36 opacity-[0.12] pointer-events-none transform translate-x-4 translate-y-4">
+          <svg viewBox="0 0 100 100" fill="currentColor" className="w-full h-full text-white">
+            <path d="M 62 62 L 15 25 C 22 15, 45 8, 55 20 L 72 52 Z" />
+            <line x1="63" y1="61" x2="20" y2="28" stroke="currentColor" strokeWidth="0.8" />
+            <line x1="65" y1="59" x2="28" y2="21" stroke="currentColor" strokeWidth="0.8" />
+            <line x1="67" y1="57" x2="38" y2="16" stroke="currentColor" strokeWidth="0.8" />
+            <line x1="69" y1="55" x2="48" y2="15" stroke="currentColor" strokeWidth="0.8" />
+            <line x1="71" y1="53" x2="58" y2="20" stroke="currentColor" strokeWidth="0.8" />
+            <path d="M 32 37 C 38 28, 48 23, 58 29" fill="none" stroke="currentColor" strokeWidth="0.8" />
+            <path d="M 45 47 C 50 39, 58 35, 66 40" fill="none" stroke="currentColor" strokeWidth="0.8" />
+            <path d="M 61 61 C 59 63, 61 67, 65 69 C 69 67, 71 63, 69 61 Z" />
+            <path d="M 65 67 C 70 72, 80 80, 83 75 C 86 70, 78 60, 73 55 Z" />
+          </svg>
         </div>
         
-        <span className="text-[10px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider text-emerald-100">
-          {isAdmin ? 'Total Saldo Kas' : 'Total Pembayaran Saya'}
-        </span>
-        <h2 className="text-3xl font-black mt-3 mb-6 tracking-tight">
-          {isAdmin ? formatRp(saldoKas) : formatRp(myTotalPaidAmount)}
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-2 text-emerald-100">
+            <Wallet size={16} strokeWidth={2.2} />
+            <span className="text-[10px] font-black uppercase tracking-wider">TOTAL PEMBAYARAN SAYA</span>
+          </div>
+          <button 
+            onClick={() => setActiveTab('tagihan')}
+            className="px-3.5 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-full text-[10px] font-black text-white flex items-center gap-0.5 transition-all"
+          >
+            Tagihan Saya <ChevronRight size={10} strokeWidth={3} />
+          </button>
+        </div>
+
+        <h2 className="text-4xl font-[900] tracking-tight mb-7">
+          {formatRp(myTotalPaidAmount)}
         </h2>
+
+        <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-emerald-800 shadow-sm flex-shrink-0">
+              <Calendar size={16} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">SESI DI IKUTI</p>
+              <p className="font-extrabold text-xs text-white mt-1">
+                {myPayments.length} Game
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#10B981] shadow-sm flex-shrink-0">
+              <CheckCircle size={16} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">STATUS LUNAS</p>
+              <p className="font-extrabold text-xs text-white mt-1">
+                {myPaidCount} Sesi
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MEMBER SECTION: MY BILLS SUMMARY & HISTORY */}
+      <div className="space-y-4">
+        <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Tagihan Belum Dibayar</h3>
         
-        <div className="flex gap-4 border-t border-white/10 pt-4">
-          <div className="flex-1">
-            <p className="text-emerald-200 text-[10px] font-bold uppercase tracking-wider">
-              {isAdmin ? 'Total Pemasukan' : 'Sesi Diikuti'}
-            </p>
-            <p className="font-extrabold text-sm text-slate-50">
-              {isAdmin ? formatRp(totalIncome) : `${myPayments.length} Game`}
-            </p>
+        {myActiveBills.length === 0 ? (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] p-5 text-center text-emerald-350 dark:text-emerald-305 flex flex-col items-center gap-3">
+            <div className="p-2.5 bg-emerald-500/20 rounded-full border border-emerald-500/30">
+              <CheckCircle size={28} className="text-emerald-450 dark:text-emerald-400 animate-pulse" />
+            </div>
+            <div>
+              <p className="font-black text-sm text-slate-100">Hebat! Iuran Anda Lunas</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Semua tagihan kehadiran sesi Anda telah diselesaikan.</p>
+            </div>
           </div>
-          <div className="w-px bg-white/10"></div>
-          <div className="flex-1">
-            <p className="text-emerald-200 text-[10px] font-bold uppercase tracking-wider">
-              {isAdmin ? 'Total Pengeluaran' : 'Lunas'}
-            </p>
-            <p className="font-extrabold text-sm text-slate-50">
-              {isAdmin ? formatRp(totalExpense) : `${myPaidCount} Sesi`}
-            </p>
+        ) : (
+          <div className="space-y-3.5">
+            {myActiveBills.map((p: any) => {
+              const session = sessions.find((s: any) => s.id === p.session_id);
+              const isRejected = p.status_pembayaran === 'rejected';
+              return (
+                <div key={p.id} className={`bg-white dark:bg-slate-900 p-4 rounded-[20px] border ${isRejected ? 'border-red-500/30 bg-red-500/5' : 'border-slate-200/40 dark:border-slate-800/80'} flex justify-between items-center gap-3 shadow-sm`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-extrabold text-sm text-slate-800 dark:text-slate-100 truncate">{session?.nama_sesi || 'Sesi Badminton'}</p>
+                    <div className="flex items-center gap-1.5 text-slate-400 mt-1">
+                      <Calendar size={11} />
+                      <span className="text-[10px] font-bold">{formatDate(session?.tanggal_main || '')}</span>
+                    </div>
+                    <p className="text-sm font-black text-red-500 dark:text-red-405 mt-1">{formatRp(p.nominal_tagihan)}</p>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-1.5">
+                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-amber-500/20 text-amber-300 border border-amber-500/35'}`}>
+                      {isRejected ? 'Ditolak' : 'Belum Bayar'}
+                    </span>
+                    <button 
+                      onClick={() => setSelectedPayment(p)}
+                      className="px-4 py-1.5 bg-[#10B981] hover:bg-[#059669] text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
+                    >
+                      Bayar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* QUICK STATS ROW */}
-      <div className="grid grid-cols-2 gap-3.5">
-        <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
-            <Users size={18} />
-          </div>
-          <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Anggota</p>
-            <p className="font-black text-slate-100 text-sm">{members.length} Orang</p>
-          </div>
-        </div>
-        <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
-            <Activity size={18} />
-          </div>
-          <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Sesi</p>
-            <p className="font-black text-slate-100 text-sm">{sessions.length} Sesi</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ADMIN SECTION: PENDING PAYMENTS VERIFICATION */}
-      {isAdmin ? (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="font-black text-sm uppercase tracking-wider text-slate-300">Menunggu Verifikasi</h3>
-            <span className="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-amber-500/30">
-              {pendingPayments.length}
-            </span>
-          </div>
-
-          {pendingPayments.length === 0 ? (
-            <div className="text-center p-8 bg-slate-800/30 border border-dashed border-slate-800 rounded-3xl text-slate-500 text-xs font-bold">
-              Tidak ada pembayaran pending.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingPayments.map((p: any) => {
-                const member = members.find((m: any) => m.id === p.member_id);
-                const session = sessions.find((s: any) => s.id === p.session_id);
-                return (
-                  <div key={p.id} className="bg-slate-800/70 p-4 rounded-2xl border border-slate-800/80 shadow-md flex justify-between items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-extrabold text-sm text-slate-100 truncate">{member?.name || 'Anggota'}</p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{session?.nama_sesi || 'Sesi Game'}</p>
-                      <p className="text-xs font-black text-emerald-400 mt-1">{formatRp(p.nominal_tagihan)}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => p.bukti_transfer && setViewProofUrl(p.bukti_transfer)}
-                        className="px-2.5 py-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-slate-100 rounded-xl text-[10px] font-bold border border-slate-650 transition-colors"
-                      >
-                        Bukti
-                      </button>
-                      <button 
-                        onClick={() => verifyPayment(p.id, 'rejected')} 
-                        className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/25 rounded-xl transition-all"
-                      >
-                        <XCircle size={15} />
-                      </button>
-                      <button 
-                        onClick={() => verifyPayment(p.id, 'verified')} 
-                        className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/25 rounded-xl transition-all"
-                      >
-                        <CheckCircle size={15} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ) : (
-        /* MEMBER SECTION: MY BILLS SUMMARY & HISTORY */
-        <div className="space-y-6">
-          
-          <div className="space-y-4">
-            <h3 className="font-black text-sm uppercase tracking-wider text-slate-300">Tagihan Belum Dibayar</h3>
-            
-            {myActiveBills.length === 0 ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-3xl p-5 text-center text-emerald-300 flex flex-col items-center gap-3">
-                <div className="p-2.5 bg-emerald-500/20 rounded-full border border-emerald-500/30">
-                  <CheckCircle size={28} className="text-emerald-400 animate-pulse" />
-                </div>
-                <div>
-                  <p className="font-black text-sm text-slate-100">Hebat! Iuran Anda Lunas</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Semua tagihan kehadiran sesi Anda telah diselesaikan.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {myActiveBills.map((p: any) => {
-                  const session = sessions.find((s: any) => s.id === p.session_id);
-                  const isRejected = p.status_pembayaran === 'rejected';
-                  return (
-                    <div key={p.id} className={`bg-slate-800/60 p-4 rounded-2xl border ${isRejected ? 'border-red-500/30' : 'border-slate-800'} flex justify-between items-center gap-3 shadow-md`}>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-extrabold text-sm text-slate-100 truncate">{session?.nama_sesi || 'Sesi Badminton'}</p>
-                        <div className="flex items-center gap-1.5 text-slate-450 mt-1">
-                          <Calendar size={11} />
-                          <span className="text-[10px] font-semibold">{formatDate(session?.tanggal_main || '')}</span>
-                        </div>
-                        <p className="text-sm font-black text-red-400 mt-1">{formatRp(p.nominal_tagihan)}</p>
-                      </div>
-                      <div className="text-right flex flex-col items-end gap-1.5">
-                        <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/35' : 'bg-amber-500/20 text-amber-300 border border-amber-500/35'}`}>
-                          {isRejected ? 'Ditolak' : 'Belum Bayar'}
-                        </span>
-                        <button 
-                          onClick={() => setSelectedPayment(p)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
-                        >
-                          Bayar
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-black text-sm uppercase tracking-wider text-slate-300">Status Pembayaran Terakhir</h3>
-            </div>
-            
-            <div className="space-y-3">
-              {myPayments.filter((p: any) => p.status_pembayaran !== 'pending').slice(0, 2).map((p: any) => {
-                const session = sessions.find((s: any) => s.id === p.session_id);
-                const isVerified = p.status_pembayaran === 'verified';
-                const isUploaded = p.status_pembayaran === 'uploaded';
-                return (
-                  <div key={p.id} className="bg-slate-800/30 p-3.5 rounded-2xl border border-slate-800/70 flex items-center gap-3.5">
-                    <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : isUploaded ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                      {isVerified ? <CheckCircle size={16} /> : <Clock size={16} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-xs text-slate-200 truncate">{session?.nama_sesi}</p>
-                      <p className="text-[9px] text-slate-500 font-semibold mt-0.5">{p.tanggal_bayar ? formatDate(p.tanggal_bayar) : '-'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-black text-slate-100">{formatRp(p.nominal_tagihan)}</p>
-                      <p className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${isVerified ? 'text-emerald-400' : isUploaded ? 'text-blue-400 animate-pulse' : 'text-red-405'}`}>
-                        {p.status_pembayaran}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* RECENT SESSIONS VIEW */}
-      <div className="space-y-4 pt-2">
-        <h3 className="font-black text-sm uppercase tracking-wider text-slate-300">Daftar Sesi Terkini</h3>
+      <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 space-y-4">
+        <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Status Pembayaran Terakhir</h3>
+        
         <div className="space-y-3">
-          {sessions.slice(0, 3).map((s: any) => {
-            const attendeeCount = attendees.filter((a: any) => a.session_id === s.id).length;
-            const isGenerated = s.status_tagihan === 'generated';
+          {myPayments.filter((p: any) => p.status_pembayaran !== 'pending').slice(0, 3).map((p: any) => {
+            const session = sessions.find((s: any) => s.id === p.session_id);
+            const isVerified = p.status_pembayaran === 'verified';
+            const isUploaded = p.status_pembayaran === 'uploaded';
             return (
-              <div key={s.id} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80 flex justify-between items-center gap-3 shadow-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="font-extrabold text-sm text-slate-200 truncate">{s.nama_sesi}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-[10px] font-semibold text-slate-400">
-                    <span className="flex items-center gap-1"><Calendar size={11} /> {formatDate(s.tanggal_main)}</span>
-                    <span className="flex items-center gap-1"><Users size={11} /> {attendeeCount} Hadir</span>
-                  </div>
+              <div key={p.id} className="bg-slate-50/40 dark:bg-slate-850/20 p-3 rounded-2xl border border-slate-100 dark:border-slate-850/40 flex items-center gap-3.5">
+                <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-[#10B981] border-emerald-500/20' : isUploaded ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                  {isVerified ? <CheckCircle size={16} /> : <Clock size={16} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">{session?.nama_sesi}</p>
+                  <p className="text-[9px] text-slate-400 font-bold mt-0.5">{p.tanggal_bayar ? formatDate(p.tanggal_bayar) : '-'}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider inline-block mb-1.5 ${isGenerated ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-700 text-slate-400'}`}>
-                    {isGenerated ? 'Generated' : 'Draft'}
-                  </span>
-                  <p className="text-xs font-black text-slate-300">
-                    {isGenerated ? formatRp(s.biaya_per_orang) : 'N/A'}
+                  <p className="text-xs font-black text-slate-850 dark:text-slate-100">{formatRp(p.nominal_tagihan)}</p>
+                  <p className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${isVerified ? 'text-emerald-550 dark:text-emerald-400' : isUploaded ? 'text-blue-400 animate-pulse' : 'text-red-500'}`}>
+                    {p.status_pembayaran === 'verified' ? 'Lunas' : p.status_pembayaran === 'uploaded' ? 'Verifikasi' : 'Ditolak'}
                   </p>
                 </div>
               </div>
@@ -1471,8 +1780,66 @@ function Dashboard({
         </div>
       </div>
 
+      {/* RECENT SESSIONS VIEW */}
+      <div className="bg-white dark:bg-slate-900 rounded-[24px] p-4.5 shadow-sm border border-slate-200/40 dark:border-slate-800/80 space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">Daftar Sesi Terkini</h3>
+          <button onClick={() => setActiveTab('tagihan')} className="text-[10px] font-black text-[#10B981] hover:text-[#059669]">
+            Lihat semua &gt;
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {sessions.slice(0, 3).map((s: any, idx: number) => {
+            const attendeeCount = attendees.filter((a: any) => a.session_id === s.id).length;
+            const isGenerated = s.status_tagihan === 'generated';
+            
+            const colors = [
+              'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450',
+              'bg-blue-500/10 text-blue-600 dark:text-blue-450',
+              'bg-purple-500/10 text-purple-600 dark:text-purple-450'
+            ];
+            const iconColor = colors[idx % colors.length];
+
+            return (
+              <div 
+                key={s.id} 
+                className="flex justify-between items-center gap-3 p-2 bg-slate-50/40 dark:bg-slate-850/20 rounded-2xl"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-xl ${iconColor} flex items-center justify-center flex-shrink-0`}>
+                    <Calendar size={16} strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-extrabold text-xs text-slate-850 dark:text-slate-200 truncate">{s.nama_sesi}</p>
+                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold truncate mt-1 flex items-center gap-1.5">
+                      <span>{formatDate(s.tanggal_main)}</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-0.5"><Users size={9} /> {attendeeCount} Hadir</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right flex items-center gap-2 flex-shrink-0">
+                  <div className="space-y-1">
+                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider inline-block ${
+                      isGenerated 
+                        ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/20' 
+                        : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-550'
+                    }`}>
+                      {isGenerated ? 'Generated' : 'Draft'}
+                    </span>
+                    <p className="text-xs font-black text-slate-800 dark:text-slate-200">
+                      {isGenerated ? formatRp(s.biaya_per_orang) : '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
-  );
+  );;
 }
 
 // --- ADMIN SESSION & ATTENDANCE COMPONENT ---
