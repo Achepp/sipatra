@@ -2158,9 +2158,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
   const renderHeader = (compact = false) => {
     return (
-      <div className={`relative w-full min-h-[320px] flex flex-col items-center justify-center text-center overflow-hidden bg-gradient-to-b from-[#E2F0D9] via-[#ECFDF5] to-[#F8FAFC] transition-all duration-300 px-6 ${compact ? 'pt-4 pb-2' : 'pt-8 pb-6'}`}>
-        {/* Court background lines */}
-        <div className="absolute inset-0 opacity-[0.06] pointer-events-none z-0">
+      <div className={`relative w-full flex flex-col items-center justify-center text-center overflow-hidden transition-all duration-300 ${compact ? 'h-[25%]' : 'h-[30%]'}`}>
+        {/* Court background lines with 3% opacity */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0">
           <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="stroke-emerald-800 stroke-[0.5] fill-none">
             <rect x="5" y="5" width="90" height="90" />
             <line x1="5" y1="35" x2="95" y2="35" />
@@ -2172,7 +2172,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         </div>
 
         {/* Floating racket and shuttlecock decors */}
-        <div className={`absolute -right-6 -top-4 text-emerald-600/10 pointer-events-none transform rotate-[15deg] transition-all duration-500 z-0 ${compact ? 'w-20 h-20' : 'w-28 h-28'}`}>
+        <div className="absolute -right-4 -top-2 text-emerald-600/5 pointer-events-none transform rotate-[15deg] w-24 h-24 z-0">
           <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[1.5]">
             <ellipse cx="40" cy="40" rx="20" ry="25" />
             <path d="M30 20 L30 60 M40 15 L40 65 M50 20 L50 60 M20 35 L60 35 M20 45 L60 45 M20 55 L60 55" className="stroke-[0.75] opacity-50" />
@@ -2181,7 +2181,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           </svg>
         </div>
 
-        <div className={`absolute -left-4 text-emerald-600/8 pointer-events-none transform -rotate-[30deg] transition-all duration-500 z-0 ${compact ? 'top-6 w-14 h-14' : 'top-10 w-20 h-20'}`}>
+        <div className="absolute -left-4 top-4 text-emerald-600/4 pointer-events-none transform -rotate-[30deg] w-16 h-16 z-0">
           <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[2]">
             <path d="M40 70 C 40 85, 60 85, 60 70 Z" fill="currentColor" className="opacity-30" />
             <path d="M40 70 L30 30 C 35 25, 65 25, 70 30 L60 70" />
@@ -2191,32 +2191,30 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           </svg>
         </div>
 
-        {/* Content wrapper flow */}
-        <div className="flex flex-col items-center z-10 w-full">
-          {/* Logo */}
+        {/* Content stacked vertically */}
+        <div className="flex flex-col items-center z-10 w-full px-4">
+          {/* Logo (80px width, direct PNG, transparent background) */}
           <img 
             src="/logo.png" 
             alt="Logo SI-PATRA" 
-            className="w-[120px] h-auto object-contain mx-auto mb-6 transition-transform duration-300 hover:scale-105" 
+            className="w-[80px] h-auto object-contain mx-auto mb-2" 
           />
 
           {/* Title */}
-          <h1 className="text-[42px] font-[800] text-[#0F172A] leading-[1.1] tracking-tight font-sans mb-3">
+          <h1 className="text-xl font-[800] text-[#0F172A] leading-none tracking-tight font-sans">
             SI-<span className="text-[#10B981]">PATRA</span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-[#059669] text-[14px] font-[700] uppercase tracking-wider mb-5">
+          <p className="text-[#059669] text-[10px] font-[700] uppercase tracking-wider mt-1">
             Sesi Badminton & Kas
           </p>
           
-          {/* Description */}
-          {!compact ? (
-            <p className="text-[#64748B] text-[18px] font-[500] max-w-[320px] mx-auto leading-relaxed mb-10">
-              Kelola sesi, iuran, dan kehadiran badminton dalam satu aplikasi.
+          {/* Short Description (1-Line) */}
+          {!compact && (
+            <p className="text-[#64748B] text-[11px] font-[500] max-w-[280px] mx-auto mt-1.5 truncate">
+              Kelola sesi, iuran, dan kehadiran badminton.
             </p>
-          ) : (
-            <div className="mb-4"></div>
           )}
         </div>
       </div>
@@ -2224,105 +2222,97 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
   };
 
   return (
-    <div className="min-h-screen w-full md:bg-gradient-to-tr md:from-slate-950 md:via-slate-900 md:to-emerald-950/30 flex items-center justify-center p-0 md:p-8 font-sans overflow-y-auto">
+    <div className="min-h-screen w-full md:bg-gradient-to-tr md:from-slate-950 md:via-slate-900 md:to-emerald-950/30 flex items-center justify-center p-0 md:p-8 font-sans overflow-hidden">
       {/* Simulated Mobile Mockup Container */}
-      <div className="w-full min-h-screen md:min-h-0 md:w-[390px] md:h-[844px] bg-[#F8FAFC] md:rounded-[40px] md:shadow-[0_24px_70px_rgba(0,0,0,0.4)] md:border-[8px] md:border-slate-800 overflow-hidden flex flex-col relative transition-all">
+      <div className="w-full h-screen md:h-[844px] md:w-[390px] bg-[#F8FAFC] md:rounded-[40px] md:shadow-[0_24px_70px_rgba(0,0,0,0.4)] md:border-[8px] md:border-slate-800 overflow-hidden flex flex-col relative transition-all">
         
-        {/* Simulated Status Bar (Visible everywhere, adds native mobile app look) */}
-        <div className="w-full px-6 pt-3.5 pb-2 flex justify-between items-center text-slate-700 text-[11px] font-[700] z-20 select-none bg-[#E2F0D9]/50">
+        {/* Simulated Status Bar */}
+        <div className="w-full px-6 pt-2 pb-1 flex justify-between items-center text-slate-700 text-[10px] font-[700] z-20 select-none bg-[#E2F0D9]/20">
           <span>09:41</span>
           <div className="flex items-center gap-1.5">
-            {/* Cellular Signal Icon */}
-            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
               <path d="M2 17h2v4H2v-4zm4-4h2v8H6v-8zm4-4h2v12h-2V9zm4-4h2v16h-2V5zm4-4h2v20h-2V1z" />
             </svg>
-            {/* Wifi Icon */}
-            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
               <path d="M12 21l-12-12c5.52-5.52 14.48-5.52 20 0l-8 12z" />
             </svg>
-            {/* Battery Icon */}
-            <div className="w-5 h-2.5 border border-slate-600 rounded-sm p-0.5 flex items-center">
+            <div className="w-4 h-2 border border-slate-600 rounded-sm p-0.5 flex items-center">
               <div className="h-full w-3/4 bg-slate-700 rounded-[1px]"></div>
             </div>
           </div>
         </div>
 
         {/* Content View Area */}
-        <div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col justify-between">
+        <div className="flex-1 flex flex-col justify-between overflow-hidden">
           
           {authMode === 'login' && (
-            <>
+            <div className="flex-1 flex flex-col justify-between overflow-hidden">
               {renderHeader(false)}
               
-              <div className="flex-1 px-6 pb-6 flex flex-col justify-start">
-                {/* Floating Card */}
-                <div className="bg-white rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50 p-6 flex flex-col gap-4">
+              {/* Card Section (60% height) */}
+              <div className="h-[60%] px-5 flex flex-col justify-center">
+                <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-5 flex flex-col justify-between h-full max-h-[380px]">
+                  
                   {errorMsg && (
-                    <div className="p-3 bg-red-50 text-red-600 text-xs rounded-2xl flex items-center gap-2 font-[600] border border-red-100">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      <span>{errorMsg}</span>
+                    <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1">
+                      <AlertCircle size={12} className="flex-shrink-0" />
+                      <span className="truncate">{errorMsg}</span>
                     </div>
                   )}
 
                   {successMsg && (
-                    <div className="p-3 bg-emerald-50 text-emerald-700 text-xs rounded-2xl flex items-center gap-2 font-[600] border border-emerald-100">
-                      <CheckCircle size={14} className="flex-shrink-0" />
-                      <span>{successMsg}</span>
+                    <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1">
+                      <CheckCircle size={12} className="flex-shrink-0" />
+                      <span className="truncate">{successMsg}</span>
                     </div>
                   )}
 
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    {/* Email */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-[700] text-[#0F172A] uppercase tracking-wider">Email</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                          <Mail size={16} />
-                        </div>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          placeholder="Masukkan email Anda"
-                          className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
-                        />
+                  <form onSubmit={handleLogin} className="flex flex-col justify-between flex-1 gap-2.5">
+                    {/* Email Field (Height: 52px) */}
+                    <div className="relative h-[52px]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                        <Mail size={16} />
                       </div>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="Alamat Email"
+                        className="w-full h-full pl-10 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                      />
                     </div>
 
-                    {/* Password */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-[700] text-[#0F172A] uppercase tracking-wider">Password</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                          <Lock size={16} />
-                        </div>
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          required
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          placeholder="Masukkan password Anda"
-                          className="w-full pl-10 pr-10 py-3 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#64748B] hover:text-[#0F172A] transition-colors"
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
+                    {/* Password Field (Height: 52px) */}
+                    <div className="relative h-[52px]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                        <Lock size={16} />
                       </div>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Kata Sandi"
+                        className="w-full h-full pl-10 pr-10 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#64748B] hover:text-[#0F172A] transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
 
                     {/* Options */}
-                    <div className="flex items-center justify-between text-xs pt-1">
-                      <label className="flex items-center gap-2 cursor-pointer select-none text-[#64748B] font-[500]">
+                    <div className="flex items-center justify-between text-[11px] py-0.5 px-0.5">
+                      <label className="flex items-center gap-1.5 cursor-pointer select-none text-[#64748B] font-[500]">
                         <input
                           type="checkbox"
                           checked={rememberMe}
                           onChange={e => setRememberMe(e.target.checked)}
-                          className="rounded border-[#E2E8F0] text-[#10B981] focus:ring-[#10B981] h-4 w-4 transition-colors accent-[#10B981]"
+                          className="rounded border-[#E2E8F0] text-[#10B981] focus:ring-[#10B981] h-3.5 w-3.5 transition-colors accent-[#10B981]"
                         />
                         Remember me
                       </label>
@@ -2339,25 +2329,25 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       </button>
                     </div>
 
-                    {/* Submit Button */}
+                    {/* Primary Button */}
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] py-3.5 px-4 rounded-2xl mt-2 transition-all shadow-[0_8px_20px_-4px_rgba(16,185,129,0.35)] hover:shadow-[0_12px_24px_-4px_rgba(16,185,129,0.45)] hover:brightness-105 active:scale-[0.98] text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                      className="w-full h-[46px] bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] rounded-xl transition-all shadow-[0_6px_16px_-4px_rgba(16,185,129,0.3)] active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
                     >
                       {isSubmitting ? (
-                        <RefreshCw size={16} className="animate-spin" />
+                        <RefreshCw size={14} className="animate-spin" />
                       ) : (
-                        <UserIcon size={16} />
+                        <UserCheck size={14} />
                       )}
                       Masuk
                     </button>
                   </form>
 
                   {/* Divider */}
-                  <div className="flex items-center gap-3 my-1">
+                  <div className="flex items-center gap-2.5 my-1.5">
                     <div className="h-[1px] flex-1 bg-[#E2E8F0]"></div>
-                    <span className="text-[11px] font-[500] text-[#94A3B8] uppercase tracking-wider">atau</span>
+                    <span className="text-[10px] font-[500] text-[#94A3B8] uppercase tracking-wider">atau</span>
                     <div className="h-[1px] flex-1 bg-[#E2E8F0]"></div>
                   </div>
 
@@ -2366,9 +2356,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     type="button"
                     onClick={handleGoogleLogin}
                     disabled={isSubmitting}
-                    className="w-full py-3 px-4 border border-[#E2E8F0] rounded-2xl bg-white hover:bg-[#F8FAFC] text-[#0F172A] font-[700] text-sm flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] shadow-sm disabled:opacity-60"
+                    className="w-full h-[46px] border border-[#E2E8F0] rounded-xl bg-white hover:bg-[#F8FAFC] text-[#0F172A] font-[700] text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm disabled:opacity-60"
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                       <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                         fill="#4285F4"
@@ -2389,154 +2379,140 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     Masuk dengan Google
                   </button>
                 </div>
-
-                {/* Footer Section */}
-                <div className="text-center mt-6">
-                  <p className="text-xs text-[#64748B] font-[500]">
-                    Belum punya akun?{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setErrorMsg('');
-                        setSuccessMsg('');
-                        setAuthMode('register');
-                      }}
-                      className="text-[#059669] hover:text-[#10B981] font-[700] transition-colors inline-flex items-center gap-1 group"
-                    >
-                      Daftar Sekarang <span className="transition-transform group-hover:translate-x-1">→</span>
-                    </button>
-                  </p>
-                </div>
               </div>
-            </>
+
+              {/* Bottom Section */}
+              <div className="h-[10%] flex items-center justify-center">
+                <p className="text-xs text-[#64748B] font-[500]">
+                  Belum punya akun?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorMsg('');
+                      setSuccessMsg('');
+                      setAuthMode('register');
+                    }}
+                    className="text-[#059669] hover:text-[#10B981] font-[700] transition-colors inline-flex items-center gap-0.5 group"
+                  >
+                    Daftar Sekarang <span className="transition-transform group-hover:translate-x-0.5">→</span>
+                  </button>
+                </p>
+              </div>
+            </div>
           )}
 
           {authMode === 'register' && (
-            <>
+            <div className="flex-1 flex flex-col justify-between overflow-hidden">
               {renderHeader(true)}
               
-              <div className="flex-1 px-6 pb-6 flex flex-col justify-start overflow-y-auto hide-scrollbar">
-                {/* Floating Card */}
-                <div className="bg-white rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50 p-6 flex flex-col gap-3.5">
+              {/* Card Section (65% height) */}
+              <div className="h-[65%] px-5 flex flex-col justify-center">
+                <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-5 flex flex-col justify-between h-full max-h-[420px]">
+                  
                   {errorMsg && (
-                    <div className="p-3 bg-red-50 text-red-600 text-xs rounded-2xl flex items-center gap-2 font-[600] border border-red-100">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      <span>{errorMsg}</span>
+                    <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1">
+                      <AlertCircle size={12} className="flex-shrink-0" />
+                      <span className="truncate">{errorMsg}</span>
                     </div>
                   )}
 
                   {successMsg && (
-                    <div className="p-3 bg-emerald-50 text-emerald-700 text-xs rounded-2xl flex items-center gap-2 font-[600] border border-emerald-100">
-                      <CheckCircle size={14} className="flex-shrink-0" />
-                      <span>{successMsg}</span>
+                    <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1">
+                      <CheckCircle size={12} className="flex-shrink-0" />
+                      <span className="truncate">{successMsg}</span>
                     </div>
                   )}
 
-                  <form onSubmit={handleRegister} className="space-y-3">
+                  <form onSubmit={handleRegister} className="flex flex-col justify-between flex-1 gap-2">
                     {/* Full Name */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-[700] text-[#0F172A] uppercase tracking-wider">Nama Lengkap</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                          <UserIcon size={14} />
-                        </div>
-                        <input
-                          type="text"
-                          required
-                          value={fullName}
-                          onChange={e => setFullName(e.target.value)}
-                          placeholder="Masukkan nama lengkap"
-                          className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                        />
+                    <div className="relative h-[48px]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                        <UserIcon size={14} />
                       </div>
+                      <input
+                        type="text"
+                        required
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        placeholder="Nama Lengkap"
+                        className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                      />
                     </div>
 
                     {/* Email */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-[700] text-[#0F172A] uppercase tracking-wider">Email</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                          <Mail size={14} />
-                        </div>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          placeholder="Masukkan email Anda"
-                          className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                        />
+                    <div className="relative h-[48px]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                        <Mail size={14} />
                       </div>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="Alamat Email"
+                        className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                      />
                     </div>
 
                     {/* Phone */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-[700] text-[#0F172A] uppercase tracking-wider">Nomor Handphone</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                          <Smartphone size={14} />
-                        </div>
-                        <input
-                          type="text"
-                          required
-                          value={phone}
-                          onChange={e => setPhone(e.target.value)}
-                          placeholder="Masukkan nomor handphone"
-                          className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                        />
+                    <div className="relative h-[48px]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                        <Smartphone size={14} />
                       </div>
+                      <input
+                        type="text"
+                        required
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        placeholder="Nomor Handphone"
+                        className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                      />
                     </div>
 
                     {/* Passwords grid */}
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-2 gap-2">
                       {/* Password */}
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-[700] text-[#0F172A] uppercase tracking-wider">Password</label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
-                            <Lock size={12} />
-                          </div>
-                          <input
-                            type={showPassword ? "text" : "password"}
-                            required
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            placeholder="Buat sandi"
-                            className="w-full pl-8 pr-8 py-2.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#64748B] hover:text-[#0F172A]"
-                          >
-                            {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                          </button>
+                      <div className="relative h-[48px]">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                          <Lock size={12} />
                         </div>
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          required
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          placeholder="Password"
+                          className="w-full h-full pl-8 pr-7 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-2 flex items-center text-[#64748B] hover:text-[#0F172A]"
+                        >
+                          {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                        </button>
                       </div>
 
                       {/* Confirm Password */}
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-[700] text-[#0F172A] uppercase tracking-wider">Konfirmasi</label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
-                            <Lock size={12} />
-                          </div>
-                          <input
-                            type={showConfirmPassword ? "text" : "password"}
-                            required
-                            value={confirmPassword}
-                            onChange={e => setConfirmPassword(e.target.value)}
-                            placeholder="Ulangi sandi"
-                            className="w-full pl-8 pr-8 py-2.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[#64748B] hover:text-[#0F172A]"
-                          >
-                            {showConfirmPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                          </button>
+                      <div className="relative h-[48px]">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                          <Lock size={12} />
                         </div>
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          required
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          placeholder="Konfirmasi"
+                          className="w-full h-full pl-8 pr-7 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute inset-y-0 right-0 pr-2 flex items-center text-[#64748B] hover:text-[#0F172A]"
+                        >
+                          {showConfirmPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                        </button>
                       </div>
                     </div>
 
@@ -2544,7 +2520,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] py-3 rounded-2xl mt-3 transition-all shadow-[0_8px_20px_-4px_rgba(16,185,129,0.3)] hover:shadow-[0_12px_24px_-4px_rgba(16,185,129,0.4)] hover:brightness-105 active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
+                      className="w-full h-[46px] bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] rounded-xl mt-1.5 transition-all shadow-[0_6px_16px_-4px_rgba(16,185,129,0.3)] hover:brightness-105 active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
                     >
                       {isSubmitting ? (
                         <RefreshCw size={14} className="animate-spin" />
@@ -2555,86 +2531,12 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     </button>
                   </form>
                 </div>
-
-                {/* Footer Section */}
-                <div className="text-center mt-4">
-                  <p className="text-xs text-[#64748B] font-[500]">
-                    Sudah punya akun?{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setErrorMsg('');
-                        setSuccessMsg('');
-                        setAuthMode('login');
-                      }}
-                      className="text-[#059669] hover:text-[#10B981] font-[700] transition-colors"
-                    >
-                      Masuk Disini
-                    </button>
-                  </p>
-                </div>
               </div>
-            </>
-          )}
 
-          {authMode === 'forgot' && (
-            <>
-              {renderHeader(false)}
-              
-              <div className="flex-1 px-6 pb-6 flex flex-col justify-start">
-                {/* Floating Card */}
-                <div className="bg-white rounded-[24px] shadow-[0_12px_40px_rgba(0,0,0,0.03)] border border-[#E2E8F0]/50 p-6 flex flex-col gap-4">
-                  {errorMsg && (
-                    <div className="p-3 bg-red-50 text-red-600 text-xs rounded-2xl flex items-center gap-2 font-[600] border border-red-100">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      <span>{errorMsg}</span>
-                    </div>
-                  )}
-
-                  {successMsg && (
-                    <div className="p-3 bg-emerald-50 text-emerald-700 text-xs rounded-2xl flex items-center gap-2 font-[600] border border-emerald-100">
-                      <CheckCircle size={14} className="flex-shrink-0" />
-                      <span>{successMsg}</span>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleForgotPassword} className="space-y-4">
-                    {/* Email */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-[700] text-[#0F172A] uppercase tracking-wider">Masukkan Email Terdaftar</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                          <Mail size={16} />
-                        </div>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          placeholder="Masukkan email Anda"
-                          className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-sm transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full bg-[#0F172A] hover:bg-slate-800 text-white font-[700] py-3.5 px-4 rounded-2xl mt-2 transition-all shadow-md active:scale-[0.98] text-sm flex items-center justify-center gap-2 disabled:opacity-60"
-                    >
-                      {isSubmitting ? (
-                        <RefreshCw size={16} className="animate-spin" />
-                      ) : (
-                        <Key size={16} />
-                      )}
-                      Kirim Tautan Reset
-                    </button>
-                  </form>
-                </div>
-
-                {/* Footer Section */}
-                <div className="text-center mt-6">
+              {/* Bottom Section */}
+              <div className="h-[10%] flex items-center justify-center">
+                <p className="text-xs text-[#64748B] font-[500]">
+                  Sudah punya akun?{' '}
                   <button
                     type="button"
                     onClick={() => {
@@ -2642,20 +2544,92 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                       setSuccessMsg('');
                       setAuthMode('login');
                     }}
-                    className="w-full py-2.5 text-center text-[#64748B] hover:text-[#0F172A] text-xs font-[700] uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-1 group"
+                    className="text-[#059669] hover:text-[#10B981] font-[700] transition-colors"
                   >
-                    <span className="transition-transform group-hover:-translate-x-1">←</span> Kembali ke Login
+                    Masuk Disini
                   </button>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {authMode === 'forgot' && (
+            <div className="flex-1 flex flex-col justify-between overflow-hidden">
+              {renderHeader(false)}
+              
+              {/* Card Section (60% height) */}
+              <div className="h-[60%] px-5 flex flex-col justify-center">
+                <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-5 flex flex-col justify-between h-full max-h-[220px]">
+                  
+                  {errorMsg && (
+                    <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1">
+                      <AlertCircle size={12} className="flex-shrink-0" />
+                      <span className="truncate">{errorMsg}</span>
+                    </div>
+                  )}
+
+                  {successMsg && (
+                    <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1">
+                      <CheckCircle size={12} className="flex-shrink-0" />
+                      <span className="truncate">{successMsg}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleForgotPassword} className="flex flex-col justify-between flex-1 gap-4">
+                    {/* Email */}
+                    <div className="relative h-[52px]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                        <Mail size={16} />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="Masukkan Email Terdaftar"
+                        className="w-full h-full pl-10 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                      />
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full h-[46px] bg-[#0F172A] hover:bg-slate-800 text-white font-[700] rounded-xl transition-all shadow-md active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    >
+                      {isSubmitting ? (
+                        <RefreshCw size={14} className="animate-spin" />
+                      ) : (
+                        <Key size={14} />
+                      )}
+                      Kirim Tautan Reset
+                    </button>
+                  </form>
                 </div>
               </div>
-            </>
+
+              {/* Bottom Section */}
+              <div className="h-[10%] flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                    setAuthMode('login');
+                  }}
+                  className="py-2.5 text-center text-[#64748B] hover:text-[#0F172A] text-xs font-[700] uppercase tracking-wider transition-colors inline-flex items-center gap-1 group"
+                >
+                  <span className="transition-transform group-hover:-translate-x-0.5">←</span> Kembali ke Login
+                </button>
+              </div>
+            </div>
           )}
 
         </div>
         
-        {/* Simulated Home Indicator for Mockup (Desktop only) */}
-        <div className="hidden md:flex w-full py-3 justify-center bg-transparent z-20 select-none">
-          <div className="w-28 h-1 bg-[#CBD5E1] rounded-full"></div>
+        {/* Simulated Home Indicator */}
+        <div className="hidden md:flex w-full py-2 justify-center bg-transparent z-20 select-none">
+          <div className="w-24 h-1 bg-[#CBD5E1] rounded-full"></div>
         </div>
       </div>
     </div>
