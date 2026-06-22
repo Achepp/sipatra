@@ -2158,7 +2158,39 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
   const renderHeader = (compact = false) => {
     return (
-      <div className="relative w-full h-full flex flex-col items-center justify-center text-center">
+      <div className="relative w-full flex flex-col items-center justify-center text-center z-10">
+        {/* Logo (Centered, 72px width, direct PNG, transparent background) */}
+        <img 
+          src="/logo.png" 
+          alt="Logo SI-PATRA" 
+          className="w-[72px] h-auto object-contain mx-auto mb-[12px]" 
+        />
+
+        {/* Title */}
+        <h1 className="text-xl font-[800] text-[#0F172A] leading-none tracking-tight font-sans mb-[6px]">
+          SI-<span className="text-[#10B981]">PATRA</span>
+        </h1>
+
+        {/* Subtitle */}
+        <p className="text-[#059669] text-[10px] font-[700] uppercase tracking-wider mb-[8px]">
+          Sesi Badminton & Kas
+        </p>
+        
+        {/* Short Description (1-Line) */}
+        {!compact && (
+          <p className="text-[#64748B] text-[11px] font-[500] max-w-[280px] mx-auto truncate">
+            Kelola sesi, iuran dan kehadiran badminton.
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen w-full md:bg-gradient-to-tr md:from-slate-950 md:via-slate-900 md:to-emerald-950/30 flex items-center justify-center p-0 md:p-8 font-sans overflow-hidden">
+      {/* Simulated Mobile Mockup Container */}
+      <div className="w-full h-screen md:h-[844px] md:w-[390px] bg-[#F8FAFC] md:rounded-[40px] md:shadow-[0_24px_70px_rgba(0,0,0,0.4)] md:border-[8px] md:border-slate-800 overflow-hidden flex flex-col relative transition-all justify-center items-center">
+        
         {/* Court background lines with 5% opacity */}
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none z-0">
           <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="stroke-emerald-800 stroke-[0.5] fill-none">
@@ -2172,7 +2204,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         </div>
 
         {/* Floating racket and shuttlecock decors (Racket: 120px, Shuttlecock: 60px) */}
-        <div className="absolute -right-4 -top-2 text-emerald-600/5 pointer-events-none transform rotate-[15deg] w-[120px] h-[120px] z-0">
+        <div className="absolute -right-4 top-[10%] text-emerald-600/5 pointer-events-none transform rotate-[15deg] w-[120px] h-[120px] z-0">
           <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[1.5]">
             <ellipse cx="40" cy="40" rx="20" ry="25" />
             <path d="M30 20 L30 60 M40 15 L40 65 M50 20 L50 60 M20 35 L60 35 M20 45 L60 45 M20 55 L60 55" className="stroke-[0.75] opacity-50" />
@@ -2181,7 +2213,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           </svg>
         </div>
 
-        <div className="absolute -left-4 top-4 text-emerald-600/4 pointer-events-none transform -rotate-[30deg] w-[60px] h-[60px] z-0">
+        <div className="absolute -left-4 top-[15%] text-emerald-600/4 pointer-events-none transform -rotate-[30deg] w-[60px] h-[60px] z-0">
           <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[2]">
             <path d="M40 70 C 40 85, 60 85, 60 70 Z" fill="currentColor" className="opacity-30" />
             <path d="M40 70 L30 30 C 35 25, 65 25, 70 30 L60 70" />
@@ -2191,205 +2223,150 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           </svg>
         </div>
 
-        {/* Content stacked vertically */}
-        <div className="flex flex-col items-center z-10 w-full px-4">
-          {/* Logo (Centered, 72px width, direct PNG, transparent background) */}
-          <img 
-            src="/logo.png" 
-            alt="Logo SI-PATRA" 
-            className="w-[72px] h-auto object-contain mx-auto mb-[12px]" 
-          />
-
-          {/* Title */}
-          <h1 className="text-xl font-[800] text-[#0F172A] leading-none tracking-tight font-sans mb-[8px]">
-            SI-<span className="text-[#10B981]">PATRA</span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-[#059669] text-[10px] font-[700] uppercase tracking-wider mb-[10px]">
-            Sesi Badminton & Kas
-          </p>
-          
-          {/* Short Description (1-Line) */}
-          {!compact && (
-            <p className="text-[#64748B] text-[11px] font-[500] max-w-[280px] mx-auto truncate">
-              Kelola sesi, iuran dan kehadiran badminton.
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen w-full md:bg-gradient-to-tr md:from-slate-950 md:via-slate-900 md:to-emerald-950/30 flex items-center justify-center p-0 md:p-8 font-sans overflow-hidden">
-      {/* Simulated Mobile Mockup Container */}
-      <div className="w-full h-screen md:h-[844px] md:w-[390px] bg-[#F8FAFC] md:rounded-[40px] md:shadow-[0_24px_70px_rgba(0,0,0,0.4)] md:border-[8px] md:border-slate-800 overflow-hidden flex flex-col relative transition-all">
-        
-        {/* Simulated Status Bar */}
-        <div className="w-full px-6 pt-2 pb-1 flex justify-between items-center text-slate-700 text-[10px] font-[700] z-20 select-none bg-[#E2F0D9]/20">
-          <span>09:41</span>
-          <div className="flex items-center gap-1.5">
-            <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
-              <path d="M2 17h2v4H2v-4zm4-4h2v8H6v-8zm4-4h2v12h-2V9zm4-4h2v16h-2V5zm4-4h2v20h-2V1z" />
-            </svg>
-            <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
-              <path d="M12 21l-12-12c5.52-5.52 14.48-5.52 20 0l-8 12z" />
-            </svg>
-            <div className="w-4 h-2 border border-slate-600 rounded-sm p-0.5 flex items-center">
-              <div className="h-full w-3/4 bg-slate-700 rounded-[1px]"></div>
-            </div>
-          </div>
-        </div>
-
         {/* Content View Area */}
-        <div className="flex-1 flex flex-col justify-between overflow-hidden">
+        <div className="flex-1 flex flex-col justify-center items-center overflow-hidden w-full h-full relative z-10">
           
           {authMode === 'login' && (
-            <div className="flex-1 flex flex-col justify-between overflow-hidden">
-              {/* Header Section: 25% viewport height */}
-              <div className="h-[25%] flex flex-col justify-end pb-[20px] relative w-full">
+            <div className="w-full flex flex-col items-center justify-center animate-fadeIn">
+              {/* Branding Section */}
+              <div className="w-full mb-[24px]">
                 {renderHeader(false)}
               </div>
               
-              {/* Card Section: 60% viewport height */}
-              <div className="h-[60%] flex flex-col justify-end items-center w-full px-5 pb-0">
-                {/* Floating Card */}
-                <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-6 pb-4 flex flex-col justify-between w-[90%] mx-auto h-full max-h-[365px]">
-                  
-                  {errorMsg && (
-                    <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
-                      <AlertCircle size={12} className="flex-shrink-0" />
-                      <span className="truncate">{errorMsg}</span>
-                    </div>
-                  )}
+              {/* Card Section */}
+              <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-6 pb-4 flex flex-col w-[90%] mx-auto">
+                {errorMsg && (
+                  <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
+                    <AlertCircle size={12} className="flex-shrink-0" />
+                    <span className="truncate">{errorMsg}</span>
+                  </div>
+                )}
 
-                  {successMsg && (
-                    <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-2">
-                      <CheckCircle size={12} className="flex-shrink-0" />
-                      <span className="truncate">{successMsg}</span>
-                    </div>
-                  )}
+                {successMsg && (
+                  <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-2">
+                    <CheckCircle size={12} className="flex-shrink-0" />
+                    <span className="truncate">{successMsg}</span>
+                  </div>
+                )}
 
-                  <form onSubmit={handleLogin} className="flex flex-col justify-between flex-1">
-                    {/* Inputs Wrapper (Input -> Input = 16px) */}
-                    <div className="space-y-[16px]">
-                      {/* Email Field */}
-                      <div className="relative h-[52px]">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                          <Mail size={16} />
-                        </div>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          placeholder="Alamat Email"
-                          className="w-full h-full pl-10 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                        />
+                <form onSubmit={handleLogin} className="flex flex-col">
+                  {/* Inputs Wrapper (Input -> Input = 16px) */}
+                  <div className="space-y-[16px]">
+                    {/* Email Field */}
+                    <div className="relative h-[52px]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                        <Mail size={16} />
                       </div>
-
-                      {/* Password Field */}
-                      <div className="relative h-[52px]">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                          <Lock size={16} />
-                        </div>
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          required
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          placeholder="Kata Sandi"
-                          className="w-full h-full pl-10 pr-10 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#64748B] hover:text-[#0F172A] transition-colors"
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="Alamat Email"
+                        className="w-full h-full pl-10 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                      />
                     </div>
 
-                    {/* Options (Password -> Options = 12px) */}
-                    <div className="flex items-center justify-between text-[11px] mt-[12px] px-0.5">
-                      <label className="flex items-center gap-1.5 cursor-pointer select-none text-[#64748B] font-[500]">
-                        <input
-                          type="checkbox"
-                          checked={rememberMe}
-                          onChange={e => setRememberMe(e.target.checked)}
-                          className="rounded border-[#E2E8F0] text-[#10B981] focus:ring-[#10B981] h-3.5 w-3.5 transition-colors accent-[#10B981]"
-                        />
-                        Remember me
-                      </label>
+                    {/* Password Field */}
+                    <div className="relative h-[52px]">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                        <Lock size={16} />
+                      </div>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Kata Sandi"
+                        className="w-full h-full pl-10 pr-10 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                      />
                       <button
                         type="button"
-                        onClick={() => {
-                          setErrorMsg('');
-                          setSuccessMsg('');
-                          setAuthMode('forgot');
-                        }}
-                        className="font-[700] text-[#059669] hover:text-[#10B981] transition-colors"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#64748B] hover:text-[#0F172A] transition-colors"
                       >
-                        Lupa password?
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
-
-                    {/* Primary Login Button (Options -> Login Button = 16px) */}
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full h-[52px] bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] rounded-xl mt-[16px] transition-all shadow-[0_6px_16px_-4px_rgba(16,185,129,0.3)] active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
-                    >
-                      {isSubmitting ? (
-                        <RefreshCw size={14} className="animate-spin" />
-                      ) : (
-                        <UserCheck size={14} />
-                      )}
-                      Masuk
-                    </button>
-                  </form>
-
-                  {/* Divider (Login Button -> Divider = 16px) */}
-                  <div className="flex items-center gap-2.5 mt-[16px] mb-[16px]">
-                    <div className="h-[1px] flex-1 bg-[#E2E8F0]"></div>
-                    <span className="text-[10px] font-[500] text-[#94A3B8] uppercase tracking-wider">atau</span>
-                    <div className="h-[1px] flex-1 bg-[#E2E8F0]"></div>
                   </div>
 
-                  {/* Google Login (Divider -> Google Button = 16px) */}
+                  {/* Options (Password -> Options = 12px) */}
+                  <div className="flex items-center justify-between text-[11px] mt-[12px] px-0.5">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-[#64748B] font-[500]">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={e => setRememberMe(e.target.checked)}
+                        className="rounded border-[#E2E8F0] text-[#10B981] focus:ring-[#10B981] h-3.5 w-3.5 transition-colors accent-[#10B981]"
+                      />
+                      Remember me
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                        setAuthMode('forgot');
+                      }}
+                      className="font-[700] text-[#059669] hover:text-[#10B981] transition-colors"
+                    >
+                      Lupa password?
+                    </button>
+                  </div>
+
+                  {/* Primary Login Button (Options -> Login Button = 16px) */}
                   <button
-                    type="button"
-                    onClick={handleGoogleLogin}
+                    type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-[50px] border border-[#E2E8F0] rounded-xl bg-white hover:bg-[#F8FAFC] text-[#0F172A] font-[700] text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm disabled:opacity-60"
+                    className="w-full h-[52px] bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] rounded-xl mt-[16px] transition-all shadow-[0_6px_16px_-4px_rgba(16,185,129,0.3)] active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
                   >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                      <path
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        fill="#4285F4"
-                      />
-                      <path
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        fill="#34A853"
-                      />
-                      <path
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                        fill="#FBBC05"
-                      />
-                      <path
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                        fill="#EA4335"
-                      />
-                    </svg>
-                    Masuk dengan Google
+                    {isSubmitting ? (
+                      <RefreshCw size={14} className="animate-spin" />
+                    ) : (
+                      <UserCheck size={14} />
+                    )}
+                    Masuk
                   </button>
+                </form>
+
+                {/* Divider (Login Button -> Divider = 16px) */}
+                <div className="flex items-center gap-2.5 mt-[16px] mb-[16px]">
+                  <div className="h-[1px] flex-1 bg-[#E2E8F0]"></div>
+                  <span className="text-[10px] font-[500] text-[#94A3B8] uppercase tracking-wider">atau</span>
+                  <div className="h-[1px] flex-1 bg-[#E2E8F0]"></div>
                 </div>
+
+                {/* Google Login (Divider -> Google Button = 16px) */}
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isSubmitting}
+                  className="w-full h-[50px] border border-[#E2E8F0] rounded-xl bg-white hover:bg-[#F8FAFC] text-[#0F172A] font-[700] text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm disabled:opacity-60"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                    <path
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      fill="#34A853"
+                    />
+                    <path
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      fill="#EA4335"
+                    />
+                  </svg>
+                  Masuk dengan Google
+                </button>
               </div>
 
-              {/* Footer Section: 15% viewport height */}
-              <div className="h-[15%] flex flex-col justify-start items-center w-full pt-[4px] pb-[12px]">
+              {/* Footer Section */}
+              <div className="mt-[16px] flex flex-col justify-start items-center w-full">
                 <p className="text-xs text-[#64748B] font-[500]">
                   Belum punya akun?{' '}
                   <button
@@ -2409,142 +2386,139 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           )}
 
           {authMode === 'register' && (
-            <div className="flex-1 flex flex-col justify-between overflow-hidden">
+            <div className="w-full flex flex-col items-center justify-center animate-fadeIn">
               {/* Header Section */}
-              <div className="h-[25%] flex flex-col justify-end pb-[20px] relative w-full">
+              <div className="w-full mb-[24px]">
                 {renderHeader(true)}
               </div>
               
               {/* Card Section */}
-              <div className="h-[60%] flex flex-col justify-end items-center w-full px-5 pb-0">
-                <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-6 pb-4 flex flex-col justify-between w-[90%] mx-auto h-full max-h-[385px]">
-                  
-                  {errorMsg && (
-                    <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-1">
-                      <AlertCircle size={12} className="flex-shrink-0" />
-                      <span className="truncate">{errorMsg}</span>
-                    </div>
-                  )}
+              <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-6 pb-4 flex flex-col w-[90%] mx-auto">
+                {errorMsg && (
+                  <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-1">
+                    <AlertCircle size={12} className="flex-shrink-0" />
+                    <span className="truncate">{errorMsg}</span>
+                  </div>
+                )}
 
-                  {successMsg && (
-                    <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-1">
-                      <CheckCircle size={12} className="flex-shrink-0" />
-                      <span className="truncate">{successMsg}</span>
-                    </div>
-                  )}
+                {successMsg && (
+                  <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-1">
+                    <CheckCircle size={12} className="flex-shrink-0" />
+                    <span className="truncate">{successMsg}</span>
+                  </div>
+                )}
 
-                  <form onSubmit={handleRegister} className="flex flex-col justify-between flex-1 gap-2">
-                    {/* Full Name */}
+                <form onSubmit={handleRegister} className="flex flex-col gap-2">
+                  {/* Full Name */}
+                  <div className="relative h-[48px]">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                      <UserIcon size={14} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={e => setFullName(e.target.value)}
+                      placeholder="Nama Lengkap"
+                      className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div className="relative h-[48px]">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                      <Mail size={14} />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="Alamat Email"
+                      className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div className="relative h-[48px]">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                      <Smartphone size={14} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="Nomor Handphone"
+                      className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                    />
+                  </div>
+
+                  {/* Passwords grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Password */}
                     <div className="relative h-[48px]">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                        <UserIcon size={14} />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                        <Lock size={12} />
                       </div>
                       <input
-                        type="text"
+                        type={showPassword ? "text" : "password"}
                         required
-                        value={fullName}
-                        onChange={e => setFullName(e.target.value)}
-                        placeholder="Nama Lengkap"
-                        className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Password"
+                        className="w-full h-full pl-8 pr-7 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-2 flex items-center text-[#64748B] hover:text-[#0F172A]"
+                      >
+                        {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
                     </div>
 
-                    {/* Email */}
+                    {/* Confirm Password */}
                     <div className="relative h-[48px]">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                        <Mail size={14} />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                        <Lock size={12} />
                       </div>
                       <input
-                        type="email"
+                        type={showConfirmPassword ? "text" : "password"}
                         required
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        placeholder="Alamat Email"
-                        className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        placeholder="Konfirmasi"
+                        className="w-full h-full pl-8 pr-7 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-2 flex items-center text-[#64748B] hover:text-[#0F172A]"
+                      >
+                        {showConfirmPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
                     </div>
+                  </div>
 
-                    {/* Phone */}
-                    <div className="relative h-[48px]">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                        <Smartphone size={14} />
-                      </div>
-                      <input
-                        type="text"
-                        required
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                        placeholder="Nomor Handphone"
-                        className="w-full h-full pl-9 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                      />
-                    </div>
-
-                    {/* Passwords grid */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Password */}
-                      <div className="relative h-[48px]">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
-                          <Lock size={12} />
-                        </div>
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          required
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          placeholder="Password"
-                          className="w-full h-full pl-8 pr-7 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-2 flex items-center text-[#64748B] hover:text-[#0F172A]"
-                        >
-                          {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                        </button>
-                      </div>
-
-                      {/* Confirm Password */}
-                      <div className="relative h-[48px]">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
-                          <Lock size={12} />
-                        </div>
-                        <input
-                          type={showConfirmPassword ? "text" : "password"}
-                          required
-                          value={confirmPassword}
-                          onChange={e => setConfirmPassword(e.target.value)}
-                          placeholder="Konfirmasi"
-                          className="w-full h-full pl-8 pr-7 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute inset-y-0 right-0 pr-2 flex items-center text-[#64748B] hover:text-[#0F172A]"
-                        >
-                          {showConfirmPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full h-[52px] bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] rounded-xl mt-1 transition-all shadow-[0_6px_16px_-4px_rgba(16,185,129,0.3)] hover:brightness-105 active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
-                    >
-                      {isSubmitting ? (
-                        <RefreshCw size={14} className="animate-spin" />
-                      ) : (
-                        <PlusCircle size={14} />
-                      )}
-                      Daftar Akun
-                    </button>
-                  </form>
-                </div>
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-[52px] bg-gradient-to-r from-[#10B981] to-[#059669] text-white font-[700] rounded-xl mt-1 transition-all shadow-[0_6px_16px_-4px_rgba(16,185,129,0.3)] hover:brightness-105 active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
+                  >
+                    {isSubmitting ? (
+                      <RefreshCw size={14} className="animate-spin" />
+                    ) : (
+                      <PlusCircle size={14} />
+                    )}
+                    Daftar Akun
+                  </button>
+                </form>
               </div>
 
               {/* Footer Section */}
-              <div className="h-[15%] flex flex-col justify-start items-center w-full pt-[4px] pb-[12px]">
+              <div className="mt-[16px] flex flex-col justify-start items-center w-full">
                 <p className="text-xs text-[#64748B] font-[500]">
                   Sudah punya akun?{' '}
                   <button
@@ -2564,65 +2538,62 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           )}
 
           {authMode === 'forgot' && (
-            <div className="flex-1 flex flex-col justify-between overflow-hidden">
+            <div className="w-full flex flex-col items-center justify-center animate-fadeIn">
               {/* Header Section */}
-              <div className="h-[25%] flex flex-col justify-end pb-[20px] relative w-full">
+              <div className="w-full mb-[24px]">
                 {renderHeader(false)}
               </div>
               
               {/* Card Section */}
-              <div className="h-[60%] flex flex-col justify-end items-center w-full px-5 pb-0">
-                <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-6 pb-4 flex flex-col justify-between w-[90%] mx-auto h-full max-h-[200px]">
-                  
-                  {errorMsg && (
-                    <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
-                      <AlertCircle size={12} className="flex-shrink-0" />
-                      <span className="truncate">{errorMsg}</span>
-                    </div>
-                  )}
+              <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.015)] border border-[#E2E8F0]/40 p-6 pb-4 flex flex-col w-[90%] mx-auto">
+                {errorMsg && (
+                  <div className="p-2 bg-red-50 text-red-600 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 line-clamp-1 mb-2">
+                    <AlertCircle size={12} className="flex-shrink-0" />
+                    <span className="truncate">{errorMsg}</span>
+                  </div>
+                )}
 
-                  {successMsg && (
-                    <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-2">
-                      <CheckCircle size={12} className="flex-shrink-0" />
-                      <span className="truncate">{successMsg}</span>
-                    </div>
-                  )}
+                {successMsg && (
+                  <div className="p-2 bg-emerald-50 text-emerald-700 text-[10px] rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 line-clamp-1 mb-2">
+                    <CheckCircle size={12} className="flex-shrink-0" />
+                    <span className="truncate">{successMsg}</span>
+                  </div>
+                )}
 
-                  <form onSubmit={handleForgotPassword} className="flex flex-col justify-between flex-1 gap-4">
-                    {/* Email */}
-                    <div className="relative h-[52px]">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
-                        <Mail size={16} />
-                      </div>
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        placeholder="Masukkan Email Terdaftar"
-                        className="w-full h-full pl-10 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
-                      />
+                <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
+                  {/* Email */}
+                  <div className="relative h-[52px]">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
+                      <Mail size={16} />
                     </div>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="Masukkan Email Terdaftar"
+                      className="w-full h-full pl-10 pr-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#10B981] focus:bg-white focus:ring-2 focus:ring-[#10B981]/15 outline-none text-[#0F172A] placeholder:text-[#94A3B8] font-[500] text-xs transition-all"
+                    />
+                  </div>
 
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full h-[52px] bg-[#0F172A] hover:bg-slate-800 text-white font-[700] rounded-xl transition-all shadow-md active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
-                    >
-                      {isSubmitting ? (
-                        <RefreshCw size={14} className="animate-spin" />
-                      ) : (
-                        <Key size={14} />
-                      )}
-                      Kirim Tautan Reset
-                    </button>
-                  </form>
-                </div>
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-[52px] bg-[#0F172A] hover:bg-slate-800 text-white font-[700] rounded-xl transition-all shadow-md active:scale-[0.98] text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
+                  >
+                    {isSubmitting ? (
+                      <RefreshCw size={14} className="animate-spin" />
+                    ) : (
+                      <Key size={14} />
+                    )}
+                    Kirim Tautan Reset
+                  </button>
+                </form>
               </div>
 
               {/* Footer Section */}
-              <div className="h-[15%] flex flex-col justify-start items-center w-full pt-[4px] pb-[12px]">
+              <div className="mt-[16px] flex flex-col justify-start items-center w-full">
                 <button
                   type="button"
                   onClick={() => {
