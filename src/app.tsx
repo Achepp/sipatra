@@ -18,6 +18,9 @@ interface Profile {
   nomor_hp: string;
   role: 'admin' | 'member';
   created_at: string;
+  foto_url?: string | null;
+  avatar_url?: string | null;
+  photo_url?: string | null;
 }
 
 interface Member {
@@ -678,8 +681,12 @@ export default function App() {
         <header className="bg-slate-800/80 backdrop-blur-md text-slate-100 p-4 sticky top-0 z-10 rounded-b-[2rem] border-b border-slate-700/50 shadow-lg">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-700/50 rounded-xl border border-slate-650 flex items-center justify-center p-1.5">
-                <img src="/logo.png" alt="SI-PATRA" className="w-full h-full object-contain" />
+              <div className="w-12 h-12 bg-white rounded-full border border-slate-600 overflow-hidden flex items-center justify-center flex-shrink-0">
+                <img 
+                  src={profile.foto_url || profile.avatar_url || profile.photo_url || "/avatar-default.png"} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover" 
+                />
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selamat datang,</p>
