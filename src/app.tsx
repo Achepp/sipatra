@@ -96,6 +96,20 @@ const formatDate = (dateStr: string) => {
   }).format(new Date(dateStr));
 };
 
+const getInitials = (name?: string | null): string => {
+  if (!name) return 'U';
+  const trimmed = name.trim();
+  if (!trimmed) return 'U';
+  
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 0) return 'U';
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  
+  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+};
+
 export default function App() {
   // Theme state
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -681,12 +695,8 @@ export default function App() {
         <header className="bg-slate-800/80 backdrop-blur-md text-slate-100 p-4 sticky top-0 z-10 rounded-b-[2rem] border-b border-slate-700/50 shadow-lg">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-full border border-slate-600 overflow-hidden flex items-center justify-center flex-shrink-0">
-                <img 
-                  src={profile.foto_url || profile.avatar_url || profile.photo_url || "/avatar-default.png"} 
-                  alt="Avatar" 
-                  className="w-full h-full object-cover" 
-                />
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_4px_12px_rgba(16,185,129,0.25)] flex items-center justify-center flex-shrink-0 text-white font-[700] text-lg select-none">
+                {getInitials(profile?.nama || profile?.full_name || session?.user?.user_metadata?.name || session?.user?.user_metadata?.nama)}
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selamat datang,</p>
