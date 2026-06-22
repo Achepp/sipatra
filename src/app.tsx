@@ -2174,7 +2174,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
         {/* Subtitle */}
         <p className="text-[#059669] text-[10px] font-[700] uppercase tracking-[4px] mt-[10px]">
-          SESI BADMINTON & KAS
+          SI BADMINTON & KAS
         </p>
       </div>
     );
@@ -2267,7 +2267,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               </h1>
 
               <p className="text-[#059669] text-xs font-[700] uppercase tracking-[4px] mt-[10px] text-center">
-                SESI BADMINTON & KAS
+                SI BADMINTON & KAS
               </p>
               
               {/* Card Section */}
