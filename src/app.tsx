@@ -2163,8 +2163,8 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         <img 
           src="/logo.png" 
           alt="Logo SI-PATRA" 
-          className={`${compact ? 'w-[72px] h-[72px]' : 'w-[120px] md:w-[150px] h-auto'} object-contain mx-auto select-none`}
-          style={{ imageRendering: 'auto' }}
+          className={`${compact ? 'w-[72px] h-[72px]' : 'w-[110px] h-[110px]'} object-contain mx-auto select-none`}
+          style={{ imageRendering: 'crisp-edges', WebkitImageRendering: 'crisp-edges' } as any}
         />
 
         {/* Title */}
@@ -2258,8 +2258,8 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               <img 
                 src="/logo.png" 
                 alt="Logo SI-PATRA" 
-                className="w-[120px] md:w-[150px] h-auto object-contain mx-auto select-none" 
-                style={{ imageRendering: 'auto' }}
+                className="w-[110px] h-[110px] object-contain mx-auto select-none" 
+                style={{ imageRendering: 'crisp-edges', WebkitImageRendering: 'crisp-edges' } as any}
               />
 
               <h1 className="text-[44px] font-[800] text-[#0F172A] leading-none tracking-tight font-sans mt-[16px] text-center bg-gradient-to-r from-[#0F172A] to-[#10B981] bg-clip-text text-transparent">
