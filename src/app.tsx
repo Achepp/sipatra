@@ -631,9 +631,7 @@ export default function App() {
     return (
       <div className="min-h-screen w-full bg-gradient-to-br from-emerald-650 via-emerald-800 to-slate-950 flex flex-col items-center justify-center p-6 text-center select-none">
         <div className="space-y-6 max-w-sm w-full">
-          <div className="w-24 h-24 bg-white/10 rounded-[2.2rem] border border-white/20 flex items-center justify-center mx-auto shadow-2xl p-4 animate-pulse-gentle">
-            <img src="/logo.svg" alt="Logo SI-PATRA" className="w-full h-full object-contain" />
-          </div>
+          <img src="/logo.png" alt="Logo SI-PATRA" className="w-[150px] h-auto object-contain mx-auto animate-pulse-gentle" />
           <div className="space-y-2">
             <h1 className="text-4xl font-black text-white tracking-wider">SI-PATRA</h1>
             <p className="text-emerald-300 text-[10px] font-extrabold uppercase tracking-widest leading-relaxed">
@@ -681,7 +679,7 @@ export default function App() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-slate-700/50 rounded-xl border border-slate-650 flex items-center justify-center p-1.5">
-                <img src="/logo.svg" alt="SI-PATRA" className="w-full h-full object-contain" />
+                <img src="/logo.png" alt="SI-PATRA" className="w-full h-full object-contain" />
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selamat datang,</p>
@@ -2160,9 +2158,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
   const renderHeader = (compact = false) => {
     return (
-      <div className={`relative px-6 text-center overflow-hidden bg-gradient-to-b from-[#E2F0D9] via-[#ECFDF5] to-[#F8FAFC] transition-all duration-300 ${compact ? 'pt-4 pb-2' : 'pt-6 pb-4'}`}>
+      <div className={`relative w-full min-h-[320px] flex flex-col items-center justify-center text-center overflow-hidden bg-gradient-to-b from-[#E2F0D9] via-[#ECFDF5] to-[#F8FAFC] transition-all duration-300 px-6 ${compact ? 'pt-4 pb-2' : 'pt-8 pb-6'}`}>
         {/* Court background lines */}
-        <div className="absolute inset-0 opacity-[0.06] pointer-events-none">
+        <div className="absolute inset-0 opacity-[0.06] pointer-events-none z-0">
           <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="stroke-emerald-800 stroke-[0.5] fill-none">
             <rect x="5" y="5" width="90" height="90" />
             <line x1="5" y1="35" x2="95" y2="35" />
@@ -2174,7 +2172,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
         </div>
 
         {/* Floating racket and shuttlecock decors */}
-        <div className={`absolute -right-6 -top-4 text-emerald-600/10 pointer-events-none transform rotate-[15deg] transition-all duration-500 ${compact ? 'w-20 h-20' : 'w-28 h-28'}`}>
+        <div className={`absolute -right-6 -top-4 text-emerald-600/10 pointer-events-none transform rotate-[15deg] transition-all duration-500 z-0 ${compact ? 'w-20 h-20' : 'w-28 h-28'}`}>
           <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[1.5]">
             <ellipse cx="40" cy="40" rx="20" ry="25" />
             <path d="M30 20 L30 60 M40 15 L40 65 M50 20 L50 60 M20 35 L60 35 M20 45 L60 45 M20 55 L60 55" className="stroke-[0.75] opacity-50" />
@@ -2183,7 +2181,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           </svg>
         </div>
 
-        <div className={`absolute -left-4 text-emerald-600/8 pointer-events-none transform -rotate-[30deg] transition-all duration-500 ${compact ? 'top-6 w-14 h-14' : 'top-10 w-20 h-20'}`}>
+        <div className={`absolute -left-4 text-emerald-600/8 pointer-events-none transform -rotate-[30deg] transition-all duration-500 z-0 ${compact ? 'top-6 w-14 h-14' : 'top-10 w-20 h-20'}`}>
           <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[2]">
             <path d="M40 70 C 40 85, 60 85, 60 70 Z" fill="currentColor" className="opacity-30" />
             <path d="M40 70 L30 30 C 35 25, 65 25, 70 30 L60 70" />
@@ -2193,22 +2191,34 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           </svg>
         </div>
 
-        {/* Logo */}
-        <div className={`bg-white rounded-3xl flex items-center justify-center mx-auto shadow-[0_8px_20px_rgba(16,185,129,0.1)] border border-emerald-50 transition-all duration-300 hover:scale-105 ${compact ? 'w-12 h-12 mb-2' : 'w-16 h-16 mb-3'}`}>
-          <img src="/logo.svg" alt="Logo SI-PATRA" className={`${compact ? 'w-8 h-8' : 'w-11 h-11'} object-contain`} />
-        </div>
+        {/* Content wrapper flow */}
+        <div className="flex flex-col items-center z-10 w-full">
+          {/* Logo */}
+          <img 
+            src="/logo.png" 
+            alt="Logo SI-PATRA" 
+            className="w-[120px] h-auto object-contain mx-auto mb-6 transition-transform duration-300 hover:scale-105" 
+          />
 
-        {/* App Title */}
-        <h1 className={`${compact ? 'text-xl' : 'text-2xl'} font-[800] text-[#0F172A] tracking-tight font-sans`}>
-          SI-<span className="text-[#10B981]">PATRA</span>
-        </h1>
-        <p className="text-[#059669] text-[10px] font-[700] uppercase tracking-wider mt-0.5">Sesi Badminton & Kas</p>
-        
-        {!compact && (
-          <p className="text-[#64748B] text-[12px] font-[500] max-w-[280px] mx-auto mt-2 leading-relaxed">
-            Kelola sesi, iuran, dan kehadiran badminton dalam satu aplikasi.
+          {/* Title */}
+          <h1 className="text-[42px] font-[800] text-[#0F172A] leading-[1.1] tracking-tight font-sans mb-3">
+            SI-<span className="text-[#10B981]">PATRA</span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-[#059669] text-[14px] font-[700] uppercase tracking-wider mb-5">
+            Sesi Badminton & Kas
           </p>
-        )}
+          
+          {/* Description */}
+          {!compact ? (
+            <p className="text-[#64748B] text-[18px] font-[500] max-w-[320px] mx-auto leading-relaxed mb-10">
+              Kelola sesi, iuran, dan kehadiran badminton dalam satu aplikasi.
+            </p>
+          ) : (
+            <div className="mb-4"></div>
+          )}
+        </div>
       </div>
     );
   };
