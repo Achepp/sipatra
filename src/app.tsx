@@ -9,6 +9,7 @@ import {
   Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 
 // --- TYPES ---
 interface Profile {
@@ -142,6 +143,7 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [memberRecord, setMemberRecord] = useState<Member | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   
   // Database states
   const [members, setMembers] = useState<Member[]>([]);
@@ -151,6 +153,359 @@ export default function App() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [settings, setSettings] = useState<Pengaturan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Superadmin & Trash Bin states
+  const [softDeletedItems, setSoftDeletedItems] = useState<{ sessions: any[]; payments: any[]; members: any[] }>(() => {
+    try {
+      const saved = localStorage.getItem('sipatra_trash_bin');
+      return saved ? JSON.parse(saved) : { sessions: [], payments: [], members: [] };
+    } catch (e) {
+      return { sessions: [], payments: [], members: [] };
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sipatra_trash_bin', JSON.stringify(softDeletedItems));
+  }, [softDeletedItems]);
+
+  const restoreSoftDeletedItem = async (item: any) => {
+    try {
+      setIsLoading(true);
+      if (item.type === 'session') {
+        const { data: insertedSession, error: sErr } = await supabase
+          .from('sessions')
+          .insert({
+            nama_sesi: item.data.nama_sesi,
+            tanggal_main: item.data.tanggal_main,
+            jam_main: item.data.jam_main,
+            lokasi: item.data.lokasi,
+            catatan: item.data.catatan,
+            status_tagihan: item.data.status_tagihan,
+            biaya_per_orang: item.data.biaya_per_orang
+          })
+          .select()
+          .single();
+
+        if (sErr) throw sErr;
+
+        if (insertedSession) {
+          const newSessionId = insertedSession.id;
+
+          if (item.attendees && item.attendees.length > 0) {
+            const attendeesToInsert = item.attendees.map((a: any) => ({
+              session_id: newSessionId,
+              member_id: a.member_id
+            }));
+            await supabase.from('session_attendees').insert(attendeesToInsert);
+          }
+
+          if (item.expenses && item.expenses.length > 0) {
+            const expensesToInsert = item.expenses.map((e: any) => ({
+              session_id: newSessionId,
+              keterangan: e.keterangan,
+              nominal: e.nominal,
+              kategori: e.kategori
+            }));
+            await supabase.from('session_expenses').insert(expensesToInsert);
+          }
+
+          if (item.payments && item.payments.length > 0) {
+            const paymentsToInsert = item.payments.map((p: any) => ({
+              session_id: newSessionId,
+              member_id: p.member_id,
+              nominal_tagihan: p.nominal_tagihan,
+              status_pembayaran: p.status_pembayaran,
+              tanggal_bayar: p.tanggal_bayar,
+              bukti_transfer: p.bukti_transfer
+            }));
+            await supabase.from('payments').insert(paymentsToInsert);
+          }
+        }
+        
+        setSoftDeletedItems(prev => ({
+          ...prev,
+          sessions: prev.sessions.filter(s => s.id !== item.id)
+        }));
+        showToast('✅ Sesi berhasil dipulihkan', 'success');
+
+      } else if (item.type === 'payment') {
+        const { error: pErr } = await supabase
+          .from('payments')
+          .insert({
+            session_id: item.data.session_id,
+            member_id: item.data.member_id,
+            nominal_tagihan: item.data.nominal_tagihan,
+            status_pembayaran: item.data.status_pembayaran,
+            tanggal_bayar: item.data.tanggal_bayar,
+            bukti_transfer: item.data.bukti_transfer
+          });
+
+        if (pErr) throw pErr;
+
+        setSoftDeletedItems(prev => ({
+          ...prev,
+          payments: prev.payments.filter(p => p.id !== item.id)
+        }));
+        showToast('✅ Pembayaran berhasil dipulihkan', 'success');
+
+      } else if (item.type === 'member') {
+        const { error } = await supabase
+          .from('members')
+          .update({ status: 'aktif' })
+          .eq('id', item.data.id);
+        
+        if (error) throw error;
+
+        setSoftDeletedItems(prev => ({
+          ...prev,
+          members: prev.members.filter(m => m.id !== item.id)
+        }));
+        showToast('✅ Anggota berhasil dipulihkan', 'success');
+      }
+      
+      await fetchData();
+    } catch (e: any) {
+      console.error(e);
+      showToast(`❌ Gagal memulihkan: ${e.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const executeHardDeleteFromTrash = async (item: any) => {
+    try {
+      if (item.type === 'member') {
+        if (item.data.user_id) {
+          await supabase.rpc('admin_delete_user', { target_user_id: item.data.user_id });
+        } else {
+          await supabase.from('members').delete().eq('id', item.data.id);
+        }
+      }
+      
+      setSoftDeletedItems(prev => {
+        const updated = { ...prev };
+        if (item.type === 'session') {
+          updated.sessions = updated.sessions.filter(s => s.id !== item.id);
+        } else if (item.type === 'payment') {
+          updated.payments = updated.payments.filter(p => p.id !== item.id);
+        } else if (item.type === 'member') {
+          updated.members = updated.members.filter(m => m.id !== item.id);
+        }
+        return updated;
+      });
+      showToast('✅ Data berhasil dihapus permanen', 'success');
+      await fetchData();
+    } catch (e: any) {
+      showToast(`❌ Gagal: ${e.message}`, 'error');
+    }
+  };
+
+  const resetUserPassword = async (userId: string, userName: string) => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.rpc('admin_reset_user_password', { target_user_id: userId });
+      if (error) throw error;
+      showToast(`✅ Password "${userName}" berhasil di-reset ke "sisteminformasi"`, 'success');
+    } catch (e: any) {
+      console.error(e);
+      showToast(`❌ Gagal reset password: ${e.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const changeUserRole = async (userId: string, memberId: number, newRole: string) => {
+    try {
+      setIsLoading(true);
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+      if (profileErr) throw profileErr;
+
+      const { error: memberErr } = await supabase
+        .from('members')
+        .update({ role: newRole })
+        .eq('id', memberId);
+      if (memberErr) throw memberErr;
+
+      setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+      showToast(`✅ Role berhasil diubah menjadi ${newRole === 'superadmin' ? 'SUPERADMIN' : newRole === 'admin' ? 'BENDAHARA' : 'ANGGOTA'}`, 'success');
+    } catch (e: any) {
+      console.error(e);
+      showToast(`❌ Gagal mengubah role: ${e.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const changeUserStatus = async (memberId: number, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('members')
+        .update({ status: newStatus })
+        .eq('id', memberId);
+      if (error) throw error;
+
+      setMembers(prev => prev.map(m => m.id === memberId ? { ...m, status: newStatus } : m));
+      showToast(`✅ Status anggota berhasil diubah menjadi ${newStatus}`, 'success');
+    } catch (e: any) {
+      console.error(e);
+      showToast(`❌ Gagal mengubah status: ${e.message}`, 'error');
+    }
+  };
+
+  const createAccountBySuperadmin = async (name: string, idDosenVal: string, phone: string, roleVal: string) => {
+    try {
+      setIsLoading(true);
+      
+      if (!/^\d{5}$/.test(idDosenVal)) {
+        throw new Error('ID Dosen harus terdiri dari 5 digit angka.');
+      }
+
+      const targetEmail = `dosen${idDosenVal}@unpam.ac.id`;
+
+      const { data: checkMember } = await supabase.from('members').select('*').eq('email', targetEmail).maybeSingle();
+      if (checkMember) throw new Error('ID Dosen sudah terdaftar.');
+
+      const tempSupabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL || '',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+          }
+        }
+      );
+
+      const { data: signUpData, error: signUpErr } = await tempSupabase.auth.signUp({
+        email: targetEmail,
+        password: 'sisteminformasi',
+        options: {
+          data: {
+            nama: name,
+            nomor_hp: phone,
+            id_dosen: idDosenVal,
+            password_changed: false
+          }
+        }
+      });
+
+      if (signUpErr) throw signUpErr;
+
+      if (signUpData.user) {
+        const { data: existingProfile } = await supabase.from('profiles').select('*').eq('id', signUpData.user.id).maybeSingle();
+        if (existingProfile) {
+          await supabase.from('profiles').update({ role: roleVal, nama: name, nomor_hp: phone }).eq('id', signUpData.user.id);
+        } else {
+          await supabase.from('profiles').insert({
+            id: signUpData.user.id,
+            nama: name,
+            email: targetEmail,
+            nomor_hp: phone,
+            role: roleVal
+          });
+        }
+
+        const { data: existingMember } = await supabase.from('members').select('*').eq('user_id', signUpData.user.id).maybeSingle();
+        if (existingMember) {
+          await supabase.from('members').update({ role: roleVal, name: name, email: targetEmail, status: 'aktif' }).eq('user_id', signUpData.user.id);
+        } else {
+          await supabase.from('members').insert({
+            name: name,
+            email: targetEmail,
+            role: roleVal,
+            status: 'aktif',
+            user_id: signUpData.user.id
+          });
+        }
+      }
+
+      await fetchData();
+      showToast(`✅ Akun berhasil dibuat dengan password awal "sisteminformasi"`, 'success');
+      return true;
+    } catch (e: any) {
+      console.error(e);
+      showToast(`❌ Gagal membuat akun: ${e.message}`, 'error');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteMember = async (memberId: number, userId: string | null) => {
+    const isSuperAdmin = profile?.role === 'superadmin';
+    const memberObj = members.find(m => m.id === memberId);
+    
+    if (isSuperAdmin) {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Hapus Anggota (Soft/Hard)',
+        message: `Pilih metode penghapusan untuk pengguna "${memberObj?.name}":`,
+        listItems: [
+          `Nama: ${memberObj?.name}`,
+          `Role: ${memberObj?.role}`,
+          'Soft Delete: Pengguna dinonaktifkan dan disembunyikan. Dapat dipulihkan.',
+          'Hard Delete: Akun pengguna dihapus secara permanen dari database.'
+        ],
+        showSoftDeleteOption: true,
+        onSoftConfirm: async () => {
+          try {
+            const { error } = await supabase
+              .from('members')
+              .update({ status: 'soft_deleted' })
+              .eq('id', memberId);
+            if (error) throw error;
+            
+            const newSoftDeletedItem = {
+              id: `member_${memberId}_${Date.now()}`,
+              type: 'member' as const,
+              deletedAt: new Date().toISOString(),
+              data: memberObj
+            };
+            setSoftDeletedItems(prev => ({
+              ...prev,
+              members: [...prev.members, newSoftDeletedItem]
+            }));
+            
+            setMembers(prev => prev.filter(m => m.id !== memberId));
+            showToast('✅ Pengguna dipindahkan ke Keranjang Sampah', 'success');
+          } catch (e: any) {
+            showToast(`❌ Gagal: ${e.message}`, 'error');
+          }
+        },
+        onConfirm: async () => {
+          if (userId) {
+            await executeHardDeleteUser(userId, memberId);
+          } else {
+            await supabase.from('members').delete().eq('id', memberId);
+            setMembers(prev => prev.filter(m => m.id !== memberId));
+            showToast('✅ Data berhasil dihapus permanen', 'success');
+          }
+        }
+      });
+    } else {
+      showToast('Akses Terbatas: Hanya Superadmin yang dapat menghapus anggota.', 'error');
+    }
+  };
+
+  const executeHardDeleteUser = async (userId: string, memberId: number) => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
+      if (error) throw error;
+      
+      setMembers(prev => prev.filter(m => m.id !== memberId));
+      showToast('✅ Akun berhasil dihapus secara permanen', 'success');
+    } catch (e: any) {
+      console.error(e);
+      showToast(`❌ Gagal: ${e.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // PWA & Splash Screen states
   const [showSplash, setShowSplash] = useState(true);
@@ -182,6 +537,8 @@ export default function App() {
     title: string;
     message: string;
     listItems?: string[];
+    showSoftDeleteOption?: boolean;
+    onSoftConfirm?: () => void | Promise<void>;
     onConfirm: () => void | Promise<void>;
   }>({
     isOpen: false,
@@ -198,7 +555,7 @@ export default function App() {
     }, 3000);
   };
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, userEmail?: string) => {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -207,7 +564,35 @@ export default function App() {
         .single();
       
       if (profileError) throw profileError;
-      setProfile(profileData);
+      
+      let finalProfile = profileData;
+      
+      // Resolve the actual authenticated user's email
+      let actualEmail = userEmail;
+      if (!actualEmail) {
+        const { data: { user } } = await supabase.auth.getUser();
+        actualEmail = user?.email || profileData?.email || '';
+      }
+      
+      // Auto-migrate dosen02975@unpam.ac.id to superadmin
+      if (profileData && (actualEmail === 'dosen02975@unpam.ac.id' || profileData.email === 'dosen02975@unpam.ac.id') && profileData.role !== 'superadmin') {
+        const { error: profileUpdateErr } = await supabase
+          .from('profiles')
+          .update({ role: 'superadmin', email: 'dosen02975@unpam.ac.id' })
+          .eq('id', userId);
+        
+        if (!profileUpdateErr) {
+          finalProfile = { ...profileData, role: 'superadmin', email: 'dosen02975@unpam.ac.id' };
+        }
+        
+        // Also update role in members table
+        await supabase
+          .from('members')
+          .update({ role: 'superadmin', email: 'dosen02975@unpam.ac.id' })
+          .eq('user_id', userId);
+      }
+      
+      setProfile(finalProfile);
 
       const { data: memberData } = await supabase
         .from('members')
@@ -228,7 +613,7 @@ export default function App() {
         .select('*')
         .order('id', { ascending: true });
       if (membersError) throw membersError;
-      setMembers(membersData || []);
+      setMembers(membersData?.filter(m => m.status !== 'soft_deleted') || []);
 
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
@@ -271,31 +656,87 @@ export default function App() {
     }
   };
 
+  const checkDefaultPassword = async (email: string): Promise<boolean> => {
+    try {
+      const tempSupabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL || '',
+        import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+          }
+        }
+      );
+      const { data, error } = await tempSupabase.auth.signInWithPassword({
+        email,
+        password: 'sisteminformasi'
+      });
+      if (!error && data.session) {
+        return true;
+      }
+    } catch (e) {
+      console.error('Silent password check error:', e);
+    }
+    return false;
+  };
+
   // Auth monitoring & PWA initialization
   useEffect(() => {
     // 1. Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session) {
-        fetchUserProfile(session.user.id).then(() => {
-          fetchData().then(() => setIsLoading(false));
-        });
+        setIsLoading(true);
+        if (session.user.user_metadata?.password_changed) {
+          setMustChangePassword(false);
+          await fetchUserProfile(session.user.id);
+          await fetchData();
+          setIsLoading(false);
+        } else {
+          const isDefault = await checkDefaultPassword(session.user.email);
+          setMustChangePassword(isDefault);
+          if (!isDefault) {
+            await supabase.auth.updateUser({
+              data: { password_changed: true }
+            });
+          }
+          await fetchUserProfile(session.user.id);
+          await fetchData();
+          setIsLoading(false);
+        }
       } else {
         setIsLoading(false);
       }
     });
 
     // 2. Listen to auth state changes
-    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session) {
         setIsLoading(true);
-        fetchUserProfile(session.user.id).then(() => {
-          fetchData().then(() => setIsLoading(false));
-        });
+        if (session.user.user_metadata?.password_changed) {
+          setMustChangePassword(false);
+          await fetchUserProfile(session.user.id);
+          await fetchData();
+          setIsLoading(false);
+        } else {
+          const isDefault = await checkDefaultPassword(session.user.email);
+          setMustChangePassword(isDefault);
+          if (!isDefault) {
+            await supabase.auth.updateUser({
+              data: { password_changed: true }
+            });
+          }
+          await fetchUserProfile(session.user.id);
+          await fetchData();
+          setIsLoading(false);
+        }
       } else {
         setProfile(null);
         setMemberRecord(null);
+        setMustChangePassword(false);
         setIsLoading(false);
       }
     });
@@ -378,11 +819,18 @@ export default function App() {
   }, []);
 
   // Protected Route Logic
-  const adminOnlyTabs = ['anggota', 'pengaturan'];
   useEffect(() => {
-    if (profile && profile.role !== 'admin' && adminOnlyTabs.includes(activeTab)) {
-      showToast('Akses Ditolak: Anda tidak diizinkan membuka menu ini.', 'error');
-      setActiveTab('dashboard');
+    if (profile) {
+      const isSuperAdmin = profile.role === 'superadmin';
+      const isAdmin = profile.role === 'superadmin' || profile.role === 'admin';
+      
+      if (activeTab === 'pengaturan' && !isSuperAdmin) {
+        showToast('Akses Ditolak: Menu ini khusus untuk Superadmin.', 'error');
+        setActiveTab('dashboard');
+      } else if (activeTab === 'anggota' && !isAdmin) {
+        showToast('Akses Ditolak: Anda tidak diizinkan membuka menu ini.', 'error');
+        setActiveTab('dashboard');
+      }
     }
   }, [activeTab, profile]);
 
@@ -505,7 +953,70 @@ export default function App() {
     }
   };
 
-  const deleteSession = async (sessionId: number) => {
+  const deleteSession = async (sessionId: number, isHardDelete = false) => {
+    const isSuperAdmin = profile?.role === 'superadmin';
+    if (isSuperAdmin && !isHardDelete) {
+      const sessionObj = sessions.find(s => s.id === sessionId);
+      const sessionAttendees = attendees.filter(a => a.session_id === sessionId);
+      const sessionExpensesList = sessionExpenses.filter(e => e.session_id === sessionId);
+      const sessionPayments = payments.filter(p => p.session_id === sessionId);
+
+      setConfirmModal({
+        isOpen: true,
+        title: 'Hapus Sesi (Soft/Hard)',
+        message: `Pilih metode penghapusan untuk sesi "${sessionObj?.nama_sesi}":`,
+        listItems: [
+          `Sesi: ${sessionObj?.nama_sesi}`,
+          `${sessionAttendees.length} data kehadiran`,
+          `${sessionExpensesList.length} pengeluaran`,
+          `${sessionPayments.length} pembayaran`
+        ],
+        showSoftDeleteOption: true,
+        onSoftConfirm: () => {
+          const newSoftDeletedItem = {
+            id: `session_${sessionId}_${Date.now()}`,
+            type: 'session' as const,
+            deletedAt: new Date().toISOString(),
+            data: sessionObj,
+            attendees: sessionAttendees,
+            expenses: sessionExpensesList,
+            payments: sessionPayments
+          };
+          setSoftDeletedItems(prev => ({
+            ...prev,
+            sessions: [...prev.sessions, newSoftDeletedItem]
+          }));
+          executeHardDeleteSession(sessionId);
+          showToast('✅ Sesi dipindahkan ke Keranjang Sampah', 'success');
+        },
+        onConfirm: () => {
+          executeHardDeleteSession(sessionId);
+        }
+      });
+    } else {
+      const sessionObj = sessions.find(s => s.id === sessionId);
+      const sessionAttendees = attendees.filter(a => a.session_id === sessionId);
+      const sessionExpensesList = sessionExpenses.filter(e => e.session_id === sessionId);
+      const sessionPayments = payments.filter(p => p.session_id === sessionId);
+
+      setConfirmModal({
+        isOpen: true,
+        title: 'Hapus Sesi Permanen',
+        message: `Apakah Anda yakin ingin menghapus sesi "${sessionObj?.nama_sesi}" secara permanen?`,
+        listItems: [
+          `Sesi: ${sessionObj?.nama_sesi}`,
+          `${sessionAttendees.length} data kehadiran`,
+          `${sessionExpensesList.length} pengeluaran`,
+          `${sessionPayments.length} pembayaran`
+        ],
+        onConfirm: () => {
+          executeHardDeleteSession(sessionId);
+        }
+      });
+    }
+  };
+
+  const executeHardDeleteSession = async (sessionId: number) => {
     try {
       const { error } = await supabase
         .from('sessions')
@@ -514,7 +1025,6 @@ export default function App() {
       
       if (error) throw error;
       
-      // Cascade delete in client states
       setSessions(prev => prev.filter(s => s.id !== sessionId));
       setAttendees(prev => prev.filter(a => a.session_id !== sessionId));
       setSessionExpenses(prev => prev.filter(e => e.session_id !== sessionId));
@@ -523,10 +1033,10 @@ export default function App() {
       if (selectedSessionId === sessionId) {
         setSelectedSessionId(null);
       }
-      showToast('✅ Data berhasil dihapus', 'success');
+      showToast('✅ Sesi berhasil dihapus secara permanen', 'success');
     } catch (err: any) {
-      console.error('Error deleting session:', err);
-      showToast(`❌ Gagal menghapus data${err?.message ? `: ${err.message}` : ''}`, 'error');
+      console.error('Error hard deleting session:', err);
+      showToast(`❌ Gagal menghapus sesi: ${err.message}`, 'error');
     }
   };
 
@@ -551,6 +1061,46 @@ export default function App() {
   };
 
   const deletePayment = async (paymentId: number) => {
+    const isSuperAdmin = profile?.role === 'superadmin';
+    const paymentObj = payments.find(p => p.id === paymentId);
+    
+    if (isSuperAdmin) {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Hapus Pembayaran (Soft/Hard)',
+        message: `Pilih metode penghapusan untuk pembayaran tagihan ini:`,
+        showSoftDeleteOption: true,
+        onSoftConfirm: () => {
+          const newSoftDeletedItem = {
+            id: `payment_${paymentId}_${Date.now()}`,
+            type: 'payment' as const,
+            deletedAt: new Date().toISOString(),
+            data: paymentObj
+          };
+          setSoftDeletedItems(prev => ({
+            ...prev,
+            payments: [...prev.payments, newSoftDeletedItem]
+          }));
+          executeHardDeletePayment(paymentId);
+          showToast('✅ Pembayaran dipindahkan ke Keranjang Sampah', 'success');
+        },
+        onConfirm: () => {
+          executeHardDeletePayment(paymentId);
+        }
+      });
+    } else {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Hapus Pembayaran Permanen',
+        message: `Apakah Anda yakin ingin menghapus data pembayaran ini?`,
+        onConfirm: () => {
+          executeHardDeletePayment(paymentId);
+        }
+      });
+    }
+  };
+
+  const executeHardDeletePayment = async (paymentId: number) => {
     try {
       const { error } = await supabase
         .from('payments')
@@ -559,10 +1109,10 @@ export default function App() {
       
       if (error) throw error;
       setPayments(prev => prev.filter(p => p.id !== paymentId));
-      showToast('✅ Data berhasil dihapus', 'success');
+      showToast('✅ Pembayaran berhasil dihapus secara permanen', 'success');
     } catch (err: any) {
       console.error('Error deleting payment:', err);
-      showToast(`❌ Gagal menghapus data${err?.message ? `: ${err.message}` : ''}`, 'error');
+      showToast(`❌ Gagal menghapus pembayaran: ${err.message}`, 'error');
     }
   };
 
@@ -748,6 +1298,56 @@ export default function App() {
     }
   };
 
+  const cleanupTestData = async () => {
+    try {
+      // 1. Delete all payments
+      const { error: err1 } = await supabase.from('payments').delete().neq('id', 0);
+      if (err1) throw err1;
+
+      // 2. Delete all attendance records
+      const { error: err2 } = await supabase.from('session_attendees').delete().neq('id', 0);
+      if (err2) throw err2;
+
+      // 3. Delete all expenses
+      const { error: err3 } = await supabase.from('session_expenses').delete().neq('id', 0);
+      if (err3) throw err3;
+
+      // 4. Delete all sessions
+      const { error: err4 } = await supabase.from('sessions').delete().neq('id', 0);
+      if (err4) throw err4;
+
+      // Sync local state
+      setPayments([]);
+      setAttendees([]);
+      setSessionExpenses([]);
+      setSessions([]);
+
+      showToast('✅ Berhasil membersihkan semua data transaksi!', 'success');
+    } catch (err: any) {
+      console.error('Error cleaning up test data:', err);
+      showToast(`❌ Gagal membersihkan data: ${err?.message || 'Error tidak diketahui'}`, 'error');
+    }
+  };
+
+  const cleanupMemberAccounts = async () => {
+    try {
+      const { error } = await supabase.rpc('cleanup_member_accounts');
+      if (error) throw error;
+
+      // Sync local state
+      setPayments([]);
+      setAttendees([]);
+      setSessionExpenses([]);
+      setSessions([]);
+      setMembers(prev => prev.filter(m => m.role === 'admin' || m.role === 'superadmin'));
+
+      showToast('✅ Berhasil menghapus semua member & data transaksi!', 'success');
+    } catch (err: any) {
+      console.error('Error cleaning up member accounts:', err);
+      showToast(`❌ Gagal menghapus: ${err?.message || 'Error tidak diketahui'}`, 'error');
+    }
+  };
+
   const updateProfile = async (nama: string, nomor_hp: string) => {
     try {
       const { error: profileError } = await supabase
@@ -882,7 +1482,7 @@ export default function App() {
         </div>
       );
     } else if (activeTab === 'tagihan') {
-      const isUserAdmin = profile?.role === 'admin';
+      const isUserAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
       loadingMessage = isUserAdmin ? "Memuat data sesi..." : "Menyiapkan tagihan...";
       if (isUserAdmin) {
         skeletonContent = (
@@ -1122,12 +1722,29 @@ export default function App() {
     );
   }
 
+  // --- CHANGE PASSWORD SCREEN ---
+  if (session && mustChangePassword) {
+    return (
+      <ChangePasswordScreen
+        session={session}
+        onPasswordChanged={async () => {
+          setMustChangePassword(false);
+          setIsLoading(true);
+          await fetchUserProfile(session.user.id);
+          await fetchData();
+          setIsLoading(false);
+        }}
+      />
+    );
+  }
+
   // --- AUTH SCREENS ---
   if (!session || !profile) {
     return <AuthScreen onLoginSuccess={fetchUserProfile} members={members} />;
   }
 
-  const isAdmin = profile.role === 'admin';
+  const isSuperAdmin = profile.role === 'superadmin';
+  const isAdmin = profile.role === 'superadmin' || profile.role === 'admin';
 
   return (
     <div className="min-h-screen bg-background flex justify-center text-primary font-sans transition-all duration-200">
@@ -1147,11 +1764,13 @@ export default function App() {
             </div>
             <div className="flex gap-2.5 items-center">
               <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                isAdmin 
-                  ? 'bg-amber-550/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' 
-                  : 'bg-emerald-500/10 text-accent border border-emerald-500/20'
+                profile.role === 'superadmin'
+                  ? 'bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 border border-indigo-500/20'
+                  : profile.role === 'admin'
+                    ? 'bg-amber-550/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' 
+                    : 'bg-emerald-500/10 text-accent border border-emerald-500/20'
               }`}>
-                {isAdmin ? 'Bendahara' : 'Anggota'}
+                {profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA'}
               </span>
               <button 
                 onClick={toggleTheme} 
@@ -1250,7 +1869,16 @@ export default function App() {
           )}
 
           {activeTab === 'anggota' && isAdmin && (
-            <MembersList members={members} />
+            <MembersList 
+              members={members} 
+              isSuperAdmin={isSuperAdmin}
+              isAdmin={isAdmin}
+              resetUserPassword={resetUserPassword}
+              changeUserRole={changeUserRole}
+              changeUserStatus={changeUserStatus}
+              deleteMember={deleteMember}
+              createAccountBySuperadmin={createAccountBySuperadmin}
+            />
           )}
 
           {activeTab === 'profile' && !isAdmin && (
@@ -1260,10 +1888,17 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'pengaturan' && isAdmin && (
+          {activeTab === 'pengaturan' && isSuperAdmin && (
             <SettingsAdmin 
               settings={settings} 
               updateSettings={updateSettings} 
+              setConfirmModal={setConfirmModal}
+              cleanupTestData={cleanupTestData}
+              cleanupMemberAccounts={cleanupMemberAccounts}
+              isSuperAdmin={isSuperAdmin}
+              softDeletedItems={softDeletedItems}
+              restoreSoftDeletedItem={restoreSoftDeletedItem}
+              executeHardDeleteFromTrash={executeHardDeleteFromTrash}
             />
           )}
         </main>
@@ -1276,7 +1911,9 @@ export default function App() {
           {isAdmin ? (
             <>
               <NavItem icon={<Users size={20} />} label="Anggota" active={activeTab === 'anggota'} onClick={() => setActiveTab('anggota')} />
-              <NavItem icon={<Shield size={20} />} label="Pengaturan" active={activeTab === 'pengaturan'} onClick={() => setActiveTab('pengaturan')} />
+              {isSuperAdmin && (
+                <NavItem icon={<Shield size={20} />} label="Pengaturan" active={activeTab === 'pengaturan'} onClick={() => setActiveTab('pengaturan')} />
+              )}
             </>
           ) : (
             <NavItem icon={<UserIcon size={20} />} label="Profil" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
@@ -1375,23 +2012,54 @@ export default function App() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 mt-2">
-                <button 
-                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                  className="w-full border border-border bg-background text-secondary hover:text-primary font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] hover:bg-border/60"
-                >
-                  Batal
-                </button>
-                <button 
-                  onClick={async () => {
-                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                    await confirmModal.onConfirm();
-                  }}
-                  className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-red-950/20"
-                >
-                  Hapus
-                </button>
-              </div>
+              {confirmModal.showSoftDeleteOption ? (
+                <div className="flex flex-col gap-2.5 mt-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button 
+                      onClick={async () => {
+                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                        if (confirmModal.onSoftConfirm) await confirmModal.onSoftConfirm();
+                      }}
+                      className="w-full bg-amber-500 hover:bg-amber-400 text-white font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] shadow-md"
+                    >
+                      Soft Delete
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                        await confirmModal.onConfirm();
+                      }}
+                      className="w-full bg-red-650 hover:bg-red-500 text-white font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] shadow-md"
+                    >
+                      Hard Delete
+                    </button>
+                  </div>
+                  <button 
+                    onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                    className="w-full border border-border bg-background text-secondary hover:text-primary font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] hover:bg-border/60"
+                  >
+                    Batal
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <button 
+                    onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                    className="w-full border border-border bg-background text-secondary hover:text-primary font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] hover:bg-border/60"
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                      await confirmModal.onConfirm();
+                    }}
+                    className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-red-950/20"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1445,7 +2113,7 @@ function Dashboard({
   user, memberRecord, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
   isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal
 }: any) {
-  const isAdmin = user.role === 'admin';
+  const isAdmin = user.role === 'admin' || user.role === 'superadmin';
   
   // Pending payments (uploaded state)
   const pendingPayments = payments.filter((p: any) => p.status_pembayaran === 'uploaded');
@@ -3206,36 +3874,327 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
 }
 
 // --- MEMBERS LIST COMPONENT ---
-function MembersList({ members }: any) {
+function MembersList({ 
+  members, 
+  isSuperAdmin, 
+  isAdmin, 
+  resetUserPassword, 
+  changeUserRole, 
+  changeUserStatus, 
+  deleteMember, 
+  createAccountBySuperadmin 
+}: any) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  // Form states for creating a new user
+  const [newIdDosen, setNewIdDosen] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newRole, setNewRole] = useState('member');
+  const [isCreating, setIsCreating] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  // States for managing an existing user
+  const [manageRole, setManageRole] = useState('');
+  const [manageStatus, setManageStatus] = useState('');
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    if (!/^\d{5}$/.test(newIdDosen)) {
+      setFormError('ID Dosen harus terdiri dari 5 digit angka.');
+      return;
+    }
+    if (!newName.trim()) {
+      setFormError('Nama lengkap harus diisi.');
+      return;
+    }
+    
+    setIsCreating(true);
+    const success = await createAccountBySuperadmin(newName, newIdDosen, newPhone, newRole);
+    setIsCreating(false);
+    
+    if (success) {
+      setShowAddModal(false);
+      setNewIdDosen('');
+      setNewName('');
+      setNewPhone('');
+      setNewRole('member');
+    }
+  };
+
+  const handleOpenManage = (user: any) => {
+    if (!isSuperAdmin && user.role !== 'member') {
+      return;
+    }
+    setSelectedUser(user);
+    setManageRole(user.role);
+    setManageStatus(user.status);
+    setShowManageModal(true);
+  };
+
+  const handleApplyChanges = async () => {
+    if (!selectedUser) return;
+    
+    if (isSuperAdmin && manageRole !== selectedUser.role) {
+      if (selectedUser.user_id) {
+        await changeUserRole(selectedUser.user_id, selectedUser.id, manageRole);
+      } else {
+        await supabase.from('members').update({ role: manageRole }).eq('id', selectedUser.id);
+      }
+    }
+
+    if (manageStatus !== selectedUser.status) {
+      await changeUserStatus(selectedUser.id, manageStatus);
+    }
+
+    setShowManageModal(false);
+    setSelectedUser(null);
+  };
+
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-4 animate-fadeIn">
       <div className="flex justify-between items-center">
         <h2 className="text-sm font-black text-primary uppercase tracking-wider">Daftar Anggota</h2>
-        <span className="text-xs font-bold text-secondary">{members.length} Orang</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-secondary">{members.length} Orang</span>
+          {isSuperAdmin && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="py-1 px-3 bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-extrabold text-[10px] rounded-lg uppercase tracking-wider transition-all hover:opacity-90 active:scale-[0.97]"
+            >
+              + Tambah Akun
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-3">
-        {members.map((m: any) => (
-          <div key={m.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm ${m.role === 'admin' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
-              {m.name.charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-extrabold text-xs text-primary truncate">{m.name}</p>
-              <p className="text-[10px] text-secondary truncate mt-0.5">{m.email}</p>
-            </div>
-            <div>
-              <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
-                m.role === 'admin' 
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
-                  : 'bg-background text-secondary border border-border'
+        {members.map((m: any) => {
+          const canManage = isSuperAdmin || (isAdmin && m.role === 'member');
+          
+          return (
+            <div key={m.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm ${
+                m.role === 'superadmin'
+                  ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                  : m.role === 'admin'
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
               }`}>
-                {m.role}
-              </span>
+                {m.name.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-extrabold text-xs text-primary truncate flex items-center gap-1.5">
+                  {m.name}
+                  <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'aktif' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                </p>
+                <p className="text-[10px] text-secondary truncate mt-0.5">{m.email}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+                  m.role === 'superadmin'
+                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                    : m.role === 'admin' 
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
+                      : 'bg-background text-secondary border border-border'
+                }`}>
+                  {m.role === 'superadmin' ? 'SUPERADMIN' : m.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA'}
+                </span>
+                
+                {canManage && (
+                  <button
+                    onClick={() => handleOpenManage(m)}
+                    className="p-1.5 bg-background border border-border hover:border-accent rounded-lg text-secondary hover:text-accent transition-colors"
+                    title="Kelola Pengguna"
+                  >
+                    <Edit size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* MODAL TAMBAH AKUN */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setShowAddModal(false)}>
+          <div className="bg-card rounded-[28px] p-6 max-w-sm w-full shadow-theme border border-border flex flex-col gap-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col gap-1">
+              <h3 className="text-primary font-black text-base uppercase tracking-wider">Tambah Akun Baru</h3>
+              <p className="text-xs text-secondary font-bold">Password awal adalah "sisteminformasi".</p>
+            </div>
+
+            {formError && (
+              <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30">
+                <AlertCircle size={14} />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateAccount} className="space-y-4">
+              <div>
+                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">ID Dosen (5 Digit)</label>
+                <input 
+                  type="text" 
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={5}
+                  required 
+                  value={newIdDosen} 
+                  onChange={e => setNewIdDosen(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Contoh: 02975"
+                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Nama Lengkap</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={newName} 
+                  onChange={e => setNewName(e.target.value)} 
+                  placeholder="Nama Lengkap"
+                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Nomor HP</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={newPhone} 
+                  onChange={e => setNewPhone(e.target.value)} 
+                  placeholder="Contoh: 08123456789"
+                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+                />
+              </div>
+              <div>
+                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Role Akun</label>
+                <select 
+                  value={newRole} 
+                  onChange={e => setNewRole(e.target.value)} 
+                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs"
+                >
+                  <option value="member">Anggota (MEMBER)</option>
+                  <option value="admin">Bendahara (ADMIN)</option>
+                  <option value="superadmin">Superadmin (SUPERADMIN)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="w-full border border-border bg-background text-secondary hover:text-primary font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98]"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isCreating}
+                  className="w-full bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] disabled:opacity-60"
+                >
+                  {isCreating ? 'Membuat...' : 'Buat Akun'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KELOLA USER */}
+      {showManageModal && selectedUser && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => { setShowManageModal(false); setSelectedUser(null); }}>
+          <div className="bg-card rounded-[28px] p-6 max-w-sm w-full shadow-theme border border-border flex flex-col gap-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col gap-1 border-b border-border pb-3">
+              <h3 className="text-primary font-black text-base uppercase tracking-wider">Kelola Pengguna</h3>
+              <p className="text-xs text-secondary font-bold">{selectedUser.name}</p>
+            </div>
+
+            <div className="space-y-4">
+              {isSuperAdmin && (
+                <div>
+                  <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Role Akun</label>
+                  <select 
+                    value={manageRole} 
+                    onChange={e => setManageRole(e.target.value)} 
+                    className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs"
+                  >
+                    <option value="member">Anggota (ANGGOTA)</option>
+                    <option value="admin">Bendahara (BENDAHARA)</option>
+                    <option value="superadmin">Superadmin (SUPERADMIN)</option>
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Status Keaktifan</label>
+                <select 
+                  value={manageStatus} 
+                  onChange={e => setManageStatus(e.target.value)} 
+                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs"
+                >
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                </select>
+              </div>
+
+              {isSuperAdmin && selectedUser.user_id && (
+                <div className="pt-2 border-t border-border space-y-2.5">
+                  <p className="text-[9px] font-black text-secondary uppercase tracking-wider">Tindakan Khusus Superadmin</p>
+                  
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm(`Reset password pengguna "${selectedUser.name}" ke "sisteminformasi"?`)) {
+                        await resetUserPassword(selectedUser.user_id, selectedUser.name);
+                        setShowManageModal(false);
+                        setSelectedUser(null);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs rounded-xl transition-all"
+                  >
+                    <Key size={14} /> Reset Password ke Bawaan
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setShowManageModal(false);
+                      await deleteMember(selectedUser.id, selectedUser.user_id);
+                      setSelectedUser(null);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-xs rounded-xl transition-all"
+                  >
+                    <Trash2 size={14} /> Hapus Pengguna
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border">
+              <button 
+                type="button"
+                onClick={() => { setShowManageModal(false); setSelectedUser(null); }}
+                className="w-full border border-border bg-background text-secondary hover:text-primary font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98]"
+              >
+                Batal
+              </button>
+              <button 
+                type="button"
+                onClick={handleApplyChanges}
+                className="w-full bg-primary text-background font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98]"
+              >
+                Simpan
+              </button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3262,8 +4221,14 @@ function ProfileMember({ profile, updateProfile }: { profile: Profile; updatePro
         <div>
           <h3 className="font-black text-base text-primary">{profile.nama}</h3>
           <p className="text-xs text-secondary font-bold mt-0.5">{profile.email}</p>
-          <span className="inline-block mt-2 text-[8px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded uppercase tracking-wider">
-            {profile.role}
+          <span className={`inline-block mt-2 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+            profile.role === 'superadmin'
+              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+              : profile.role === 'admin'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+          }`}>
+            {profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA'}
           </span>
         </div>
       </div>
@@ -3315,12 +4280,23 @@ function ProfileMember({ profile, updateProfile }: { profile: Profile; updatePro
 }
 
 // --- SETTINGS ADMIN COMPONENT ---
-function SettingsAdmin({ settings, updateSettings }: any) {
+function SettingsAdmin({ 
+  settings, 
+  updateSettings, 
+  setConfirmModal, 
+  cleanupTestData, 
+  cleanupMemberAccounts,
+  isSuperAdmin,
+  softDeletedItems,
+  restoreSoftDeletedItem,
+  executeHardDeleteFromTrash
+}: any) {
   const [namaKomunitas, setNamaKomunitas] = useState(settings?.nama_komunitas || '');
   const [rekeningPenerima, setRekeningPenerima] = useState(settings?.rekening_penerima || '');
   const [qrisFile, setQrisFile] = useState<File | null>(null);
   const [qrisPreview, setQrisPreview] = useState<string | null>(settings?.qris_image_url || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTrashTab, setActiveTrashTab] = useState<'session' | 'payment' | 'member'>('session');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3338,68 +4314,509 @@ function SettingsAdmin({ settings, updateSettings }: any) {
   };
 
   return (
-    <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-4 animate-fade-in">
-      <h2 className="text-sm font-black text-primary uppercase tracking-wider mb-2">Pengaturan Komunitas</h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Komunitas</label>
-          <input 
-            type="text" 
-            required 
-            value={namaKomunitas} 
-            onChange={e => setNamaKomunitas(e.target.value)} 
-            className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-          />
-        </div>
-        <div>
-          <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Informasi Rekening Penerima</label>
-          <input 
-            type="text" 
-            required 
-            value={rekeningPenerima} 
-            onChange={e => setRekeningPenerima(e.target.value)} 
-            placeholder="Mandiri 1234567890 a.n Bendahara"
-            className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-          />
-        </div>
-        <div>
-          <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">QRIS Statis (Gambar)</label>
-          
-          <div className="flex flex-col items-center gap-4 p-4 border border-border rounded-2xl bg-background/40">
-            {qrisPreview ? (
-              <img src={qrisPreview} alt="QRIS Preview" className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-border" />
-            ) : (
-              <div className="w-40 h-40 border border-dashed border-border rounded-xl flex items-center justify-center text-secondary text-xs">
-                Belum ada QRIS
-              </div>
-            )}
+    <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-6 animate-fadeIn">
+      <div className="space-y-4">
+        <h2 className="text-sm font-black text-primary uppercase tracking-wider mb-2">Pengaturan Komunitas</h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Komunitas</label>
+            <input 
+              type="text" 
+              required 
+              value={namaKomunitas} 
+              onChange={e => setNamaKomunitas(e.target.value)} 
+              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Informasi Rekening Penerima</label>
+            <input 
+              type="text" 
+              required 
+              value={rekeningPenerima} 
+              onChange={e => setRekeningPenerima(e.target.value)} 
+              placeholder="Mandiri 1234567890 a.n Bendahara"
+              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+            />
+          </div>
+          <div>
+            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">QRIS Statis (Gambar)</label>
             
-            <label className="px-4 py-2 bg-background hover:bg-border text-[10px] font-black text-primary cursor-pointer border border-border flex items-center gap-1.5 transition-colors">
-              <Upload size={12} /> Pilih Gambar QRIS Baru
-              <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-            </label>
+            <div className="flex flex-col items-center gap-4 p-4 border border-border rounded-2xl bg-background/40">
+              {qrisPreview ? (
+                <img src={qrisPreview} alt="QRIS Preview" className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-border" />
+              ) : (
+                <div className="w-40 h-40 border border-dashed border-border rounded-xl flex items-center justify-center text-secondary text-xs">
+                  Belum ada QRIS
+                </div>
+              )}
+              
+              <label className="px-4 py-2 bg-background hover:bg-border text-[10px] font-black text-primary cursor-pointer border border-border flex items-center gap-1.5 transition-colors">
+                <Upload size={12} /> Pilih Gambar QRIS Baru
+                <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+              </label>
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>Menyimpan pengaturan...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle size={14} />
+                <span>Simpan Pengaturan</span>
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* KERANJANG SAMPAH (SUPERADMIN ONLY) */}
+      {isSuperAdmin && (
+        <div className="border border-border p-5 rounded-[24px] space-y-4">
+          <div className="border-b border-border pb-3">
+            <h3 className="text-primary font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+              <Trash2 size={14} className="text-secondary" /> Keranjang Sampah (Trash Bin)
+            </h3>
+            <p className="text-[9px] text-secondary mt-1 font-bold">Pulihkan data soft-deleted atau hapus secara permanen.</p>
+          </div>
+
+          {/* TRASH TABS */}
+          <div className="flex gap-1.5 bg-background p-1 rounded-xl border border-border">
+            {(['session', 'payment', 'member'] as const).map(tab => {
+              const count = tab === 'session' 
+                ? softDeletedItems.sessions.length 
+                : tab === 'payment' 
+                  ? softDeletedItems.payments.length 
+                  : softDeletedItems.members.length;
+
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTrashTab(tab)}
+                  className={`flex-1 py-1.5 text-center text-[10px] font-extrabold rounded-lg uppercase tracking-wider transition-all ${
+                    activeTrashTab === tab
+                      ? 'bg-card text-primary shadow-sm border border-border'
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  {tab === 'session' ? 'Sesi' : tab === 'payment' ? 'Bayar' : 'Anggota'} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* TRASH ITEMS LIST */}
+          <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+            {activeTrashTab === 'session' && (
+              softDeletedItems.sessions.length === 0 ? (
+                <p className="text-[10px] text-secondary font-bold text-center py-4">Keranjang sampah sesi kosong.</p>
+              ) : (
+                softDeletedItems.sessions.map((item: any) => (
+                  <div key={item.id} className="bg-background/40 p-3 rounded-xl border border-border flex justify-between items-center gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-primary truncate">{item.data?.nama_sesi || 'Sesi Tanpa Nama'}</p>
+                      <p className="text-[9px] text-secondary font-bold mt-0.5">{item.data?.tanggal_main} • {item.data?.jam_main}</p>
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => restoreSoftDeletedItem(item)}
+                        className="py-1 px-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Pulihkan
+                      </button>
+                      <button
+                        onClick={() => executeHardDeleteFromTrash(item)}
+                        className="py-1 px-2.5 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
+            )}
+
+            {activeTrashTab === 'payment' && (
+              softDeletedItems.payments.length === 0 ? (
+                <p className="text-[10px] text-secondary font-bold text-center py-4">Keranjang sampah pembayaran kosong.</p>
+              ) : (
+                softDeletedItems.payments.map((item: any) => (
+                  <div key={item.id} className="bg-background/40 p-3 rounded-xl border border-border flex justify-between items-center gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-primary truncate">Tagihan: Rp{item.data?.nominal_tagihan?.toLocaleString('id-ID')}</p>
+                      <p className="text-[9px] text-secondary font-bold mt-0.5">Status: {item.data?.status_pembayaran}</p>
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => restoreSoftDeletedItem(item)}
+                        className="py-1 px-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Pulihkan
+                      </button>
+                      <button
+                        onClick={() => executeHardDeleteFromTrash(item)}
+                        className="py-1 px-2.5 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
+            )}
+
+            {activeTrashTab === 'member' && (
+              softDeletedItems.members.length === 0 ? (
+                <p className="text-[10px] text-secondary font-bold text-center py-4">Keranjang sampah anggota kosong.</p>
+              ) : (
+                softDeletedItems.members.map((item: any) => (
+                  <div key={item.id} className="bg-background/40 p-3 rounded-xl border border-border flex justify-between items-center gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-primary truncate">{item.data?.name}</p>
+                      <p className="text-[9px] text-secondary font-bold mt-0.5">{item.data?.email}</p>
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => restoreSoftDeletedItem(item)}
+                        className="py-1 px-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Pulihkan
+                      </button>
+                      <button
+                        onClick={() => executeHardDeleteFromTrash(item)}
+                        className="py-1 px-2.5 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ZONA BAHAYA / DANGER ZONE */}
+      <div className="border border-red-500/20 bg-red-500/5 p-5 rounded-[24px] space-y-4">
+        <div>
+          <h3 className="text-red-550 dark:text-red-500 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+            <Trash2 size={14} /> Zona Bahaya (Danger Zone)
+          </h3>
+          <p className="text-[10px] text-secondary mt-1 font-bold leading-relaxed">
+            Gunakan alat ini untuk membersihkan seluruh data transaksi uji coba sebelum onboard ke produksi. Tindakan ini akan menghapus semua sesi, tagihan, riwayat kehadiran, dan pengeluaran kas sesi secara permanen.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmModal({
+                isOpen: true,
+                title: 'Hapus Semua Data Transaksi',
+                message: 'Apakah Anda yakin ingin menghapus seluruh data transaksi? Tindakan ini akan menghapus secara permanen:',
+                listItems: [
+                  'Semua data sesi badminton',
+                  'Semua tagihan & bukti pembayaran',
+                  'Semua daftar kehadiran (absen)',
+                  'Semua rincian pengeluaran kas sesi'
+                ],
+                onConfirm: async () => {
+                  await cleanupTestData();
+                }
+              });
+            }}
+            className="w-full bg-red-600 hover:bg-red-550 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-md shadow-red-950/25"
+          >
+            <AlertCircle size={14} />
+            <span>Bersihkan Semua Data Transaksi</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmModal({
+                isOpen: true,
+                title: 'Hapus Semua Akun Member & Profil',
+                message: 'Apakah Anda yakin ingin menghapus seluruh akun member dan profil? Tindakan ini akan menghapus secara permanen:',
+                listItems: [
+                  'Semua akun autentikasi member (auth.users)',
+                  'Semua data profil public.profiles member',
+                  'Semua data anggota public.members (non-admin)',
+                  'Semua data transaksi (sesi, tagihan, kas, dll.) untuk menghindari data yatim'
+                ],
+                onConfirm: async () => {
+                  await cleanupMemberAccounts();
+                }
+              });
+            }}
+            className="w-full border border-red-500/20 bg-red-500/10 hover:bg-red-500/15 text-red-550 dark:text-red-500 font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5"
+          >
+            <Users size={14} />
+            <span>Hapus Semua Akun Member & Profil</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- GANTI PASSWORD SCREEN ---
+function ChangePasswordScreen({ session, onPasswordChanged }: { session: any; onPasswordChanged: () => void }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const getPasswordStrength = (pwd: string) => {
+    if (!pwd) return { score: 0, label: 'Belum diisi', color: 'bg-border', textColor: 'text-secondary' };
+    if (pwd.length < 8) return { score: 1, label: 'Sangat Lemah (Min. 8 Karakter)', color: 'bg-red-500', textColor: 'text-red-500' };
+    
+    const hasLetters = /[a-zA-Z]/.test(pwd);
+    const hasNumbers = /[0-9]/.test(pwd);
+    const hasSpecial = /[^a-zA-Z0-9]/.test(pwd);
+    const hasUpper = /[A-Z]/.test(pwd);
+
+    if (pwd === 'sisteminformasi') {
+      return { score: 1, label: 'Sangat Lemah (Password Bawaan)', color: 'bg-red-500', textColor: 'text-red-500' };
+    }
+
+    if (hasLetters && hasNumbers && (hasSpecial || hasUpper)) {
+      return { score: 4, label: 'Kuat', color: 'bg-emerald-500', textColor: 'text-emerald-500' };
+    }
+    if (hasLetters && hasNumbers) {
+      return { score: 3, label: 'Sedang', color: 'bg-amber-500', textColor: 'text-amber-500' };
+    }
+    return { score: 2, label: 'Lemah', color: 'bg-orange-500', textColor: 'text-orange-500' };
+  };
+
+  const strength = getPasswordStrength(newPassword);
+
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (newPassword.length < 8) {
+      setErrorMsg('Password baru minimal 8 karakter.');
+      return;
+    }
+
+    if (newPassword === 'sisteminformasi') {
+      setErrorMsg('Password baru tidak boleh menggunakan password bawaan.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Konfirmasi password tidak cocok.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+        data: { password_changed: true }
+      });
+
+      if (error) throw error;
+
+      setSuccessMsg('Password berhasil diperbarui.');
+      setTimeout(() => {
+        onPasswordChanged();
+      }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || 'Gagal memperbarui password.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Error logging out:', err);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full md:bg-gradient-to-tr md:from-background md:via-card md:to-emerald-950/30 flex items-center justify-center p-0 md:p-8 font-sans overflow-hidden transition-colors duration-200">
+      <div className="w-full h-screen md:h-[844px] md:w-[390px] md:rounded-[40px] md:shadow-theme md:border-[8px] md:border-border overflow-hidden flex flex-col relative transition-all justify-center items-center" style={{ background: 'var(--login-bg)' }}>
+        
+        {/* Court lines */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0">
+          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="stroke-emerald-800 stroke-[0.5] fill-none">
+            <rect x="5" y="5" width="90" height="90" />
+            <line x1="5" y1="35" x2="95" y2="35" />
+            <line x1="5" y1="65" x2="95" y2="65" />
+            <line x1="50" y1="5" x2="50" y2="95" />
+          </svg>
+        </div>
+
+        <div className="flex-1 flex flex-col justify-center items-center overflow-hidden w-full h-full relative z-10">
+          <div className="w-full flex flex-col items-center justify-center animate-fadeIn">
+            {/* Logo and title */}
+            <img 
+              src="/logo.png" 
+              alt="Logo SI-PATRA" 
+              className="w-[90px] h-[90px] object-contain mx-auto select-none"
+              style={{ imageRendering: 'crisp-edges', WebkitImageRendering: 'crisp-edges' } as any}
+            />
+
+            <h1 className="text-[36px] font-[800] text-primary leading-none tracking-tight font-sans mt-[12px] text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              SI-PATRA
+            </h1>
+
+            <p className="text-accent text-[10px] font-[700] uppercase tracking-[3px] mt-[6px] text-center">
+              SI BADMINTON & KAS
+            </p>
+            
+            {/* Card wrapper */}
+            <div className="bg-card rounded-[28px] border border-border shadow-theme p-[28px] mt-[28px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
+              <h2 className="text-xl font-[800] text-primary text-center mb-2">Ganti Password</h2>
+              <p className="text-xs text-secondary text-center mb-6 leading-relaxed">
+                Demi keamanan akun, silakan ubah password bawaan Anda sebelum melanjutkan.
+              </p>
+
+              {errorMsg && (
+                <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 mb-4">
+                  <AlertCircle size={14} className="flex-shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-450 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-emerald-100 dark:border-emerald-900/30 mb-4">
+                  <CheckCircle size={14} className="flex-shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSavePassword} className="flex flex-col gap-4">
+                {/* New Password Field */}
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-[700] text-primary tracking-[1px] uppercase mb-2 self-start">
+                    PASSWORD BARU
+                  </label>
+                  <div className="relative h-[52px]">
+                    <div className="absolute inset-y-0 left-0 pl-[16px] flex items-center pointer-events-none text-accent">
+                      <Lock size={18} strokeWidth={2} />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="Masukkan password baru"
+                      className="w-full h-full pl-[46px] pr-[46px] rounded-[16px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-sm transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-[16px] flex items-center text-accent hover:text-[#059669] transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+
+                  {/* Strength Bar */}
+                  {newPassword && (
+                    <div className="mt-2.5 px-1">
+                      <div className="flex justify-between items-center text-[10px] font-[700] mb-1">
+                        <span className="text-secondary">Kekuatan:</span>
+                        <span className={strength.textColor}>{strength.label}</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-border rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-300 ${strength.color}`} 
+                          style={{ width: `${(strength.score / 4) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirm Password Field */}
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-[700] text-primary tracking-[1px] uppercase mb-2 self-start">
+                    KONFIRMASI PASSWORD BARU
+                  </label>
+                  <div className="relative h-[52px]">
+                    <div className="absolute inset-y-0 left-0 pl-[16px] flex items-center pointer-events-none text-accent">
+                      <Lock size={18} strokeWidth={2} />
+                    </div>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      placeholder="Ulangi password baru"
+                      className="w-full h-full pl-[46px] pr-[46px] rounded-[16px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-sm transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-[16px] flex items-center text-accent hover:text-[#059669] transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting || strength.score < 2}
+                  className="w-full h-[52px] bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-[700] rounded-[16px] mt-2 transition-all shadow-[0_6px_20px_rgba(5,150,105,0.15)] active:scale-[0.98] text-[15px] flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-2">
+                      <RefreshCw size={18} className="animate-spin" />
+                      <span>Menyimpan...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <CheckCircle size={18} />
+                      <span>Simpan Password</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* Logout Footer Button */}
+            <div className="mt-6 flex justify-center w-full">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="py-2 px-4 text-center text-secondary hover:text-red-500 text-xs font-[700] uppercase tracking-wider transition-colors inline-flex items-center gap-1.5"
+              >
+                <LogOut size={14} /> Keluar dari Akun
+              </button>
+            </div>
           </div>
         </div>
 
-        <button 
-          type="submit" 
-          disabled={isSubmitting}
-          className="w-full bg-emerald-600 hover:bg-emerald-505 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
-        >
-          {isSubmitting ? (
-            <>
-              <RefreshCw size={14} className="animate-spin" />
-              <span>Menyimpan pengaturan...</span>
-            </>
-          ) : (
-            <>
-              <CheckCircle size={14} />
-              <span>Simpan Pengaturan</span>
-            </>
-          )}
-        </button>
-      </form>
+        <div className="hidden md:flex w-full py-2 justify-center bg-transparent z-20 select-none">
+          <div className="w-24 h-1 bg-border rounded-full"></div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -3409,7 +4826,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   
   // Input fields
-  const [email, setEmail] = useState('');
+  const [idDosen, setIdDosen] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -3425,11 +4842,11 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Load saved email on mount if rememberMe was previously active
+  // Load saved ID Dosen on mount if rememberMe was previously active
   useEffect(() => {
-    const savedEmail = localStorage.getItem('sipatra_remember_email');
-    if (savedEmail) {
-      setEmail(savedEmail);
+    const savedIdDosen = localStorage.getItem('sipatra_remember_iddosen');
+    if (savedIdDosen) {
+      setIdDosen(savedIdDosen);
       setRememberMe(true);
     }
   }, []);
@@ -3438,26 +4855,33 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    if (!/^\d{5}$/.test(idDosen)) {
+      setErrorMsg('ID Dosen harus terdiri dari 5 digit angka.');
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
+      const email = `dosen${idDosen}@unpam.ac.id`;
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
+        email,
         password
       });
 
       if (error) throw error;
       if (data.session) {
         if (rememberMe) {
-          localStorage.setItem('sipatra_remember_email', email.trim().toLowerCase());
+          localStorage.setItem('sipatra_remember_iddosen', idDosen);
         } else {
-          localStorage.removeItem('sipatra_remember_email');
+          localStorage.removeItem('sipatra_remember_iddosen');
         }
         await onLoginSuccess(data.session.user.id);
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Gagal login. Periksa kembali email dan password.');
+      setErrorMsg(err.message || 'Gagal login. Periksa kembali ID Dosen dan password.');
     } finally {
       setIsSubmitting(false);
     }
@@ -3468,6 +4892,11 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
     setErrorMsg('');
     setSuccessMsg('');
 
+    if (!/^\d{5}$/.test(idDosen)) {
+      setErrorMsg('ID Dosen harus terdiri dari 5 digit angka.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setErrorMsg('Konfirmasi password tidak cocok.');
       return;
@@ -3475,25 +4904,27 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
     setIsSubmitting(true);
     try {
+      const email = `dosen${idDosen}@unpam.ac.id`;
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
+        email,
         password,
         options: {
           data: {
             nama: fullName,
-            nomor_hp: phone
+            nomor_hp: phone,
+            id_dosen: idDosen,
+            password_changed: password !== 'sisteminformasi'
           }
         }
       });
 
       if (error) throw error;
       
-      setSuccessMsg('Pendaftaran sukses! Silakan periksa email untuk verifikasi (jika diaktifkan) atau langsung masuk.');
+      setSuccessMsg('Pendaftaran sukses! Silakan langsung masuk.');
       
       if (data.session) {
         await onLoginSuccess(data.session.user.id);
       } else {
-        setSuccessMsg('Registrasi berhasil! Silakan periksa email masuk Anda untuk memverifikasi akun.');
         setAuthMode('login');
       }
     } catch (err: any) {
@@ -3508,10 +4939,17 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    if (!/^\d{5}$/.test(idDosen)) {
+      setErrorMsg('ID Dosen harus terdiri dari 5 digit angka.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      const email = `dosen${idDosen}@unpam.ac.id`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin
       });
 
@@ -3676,21 +5114,24 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                 )}
 
                 <form onSubmit={handleLogin} className="flex flex-col">
-                  {/* Email Field */}
+                  {/* ID Dosen Field */}
                   <div className="flex flex-col">
                     <label className="text-[11px] font-[700] text-primary tracking-[1px] uppercase mb-[12px] self-start">
-                      EMAIL
+                      ID DOSEN
                     </label>
                     <div className="relative h-[58px]">
                       <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-accent">
-                        <Mail size={20} strokeWidth={2} />
+                        <UserIcon size={20} strokeWidth={2} />
                       </div>
                       <input
-                        type="email"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={5}
                         required
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        placeholder="name@email.com"
+                        value={idDosen}
+                        onChange={e => setIdDosen(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Contoh: 02975"
                         className="w-full h-full pl-[52px] pr-4 rounded-[18px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-[15px] transition-all"
                       />
                     </div>
@@ -3862,17 +5303,20 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     />
                   </div>
 
-                  {/* Email */}
+                  {/* ID Dosen */}
                   <div className="relative h-[52px]">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-accent">
-                      <Mail size={18} />
+                      <UserIcon size={18} />
                     </div>
                     <input
-                      type="email"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={5}
                       required
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="Alamat Email"
+                      value={idDosen}
+                      onChange={e => setIdDosen(e.target.value.replace(/\D/g, ''))}
+                      placeholder="ID Dosen (Contoh: 02975)"
                       className="w-full h-full pl-11 pr-4 rounded-[14px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-sm transition-all"
                     />
                   </div>
@@ -4002,18 +5446,21 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                 )}
 
                 <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
-                  {/* Email */}
+                  {/* ID Dosen */}
                   <div className="relative h-[58px]">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-accent">
-                      <Mail size={20} />
+                    <div className="absolute inset-y-0 left-0 pl-[18px] flex items-center pointer-events-none text-accent">
+                      <UserIcon size={20} />
                     </div>
                     <input
-                      type="email"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={5}
                       required
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="Masukkan Email Terdaftar"
-                      className="w-full h-full pl-11 pr-4 rounded-[18px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-[15px] transition-all"
+                      value={idDosen}
+                      onChange={e => setIdDosen(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Masukkan ID Dosen Anda (Contoh: 02975)"
+                      className="w-full h-full pl-[52px] pr-4 rounded-[18px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-[15px] transition-all"
                     />
                   </div>
 
