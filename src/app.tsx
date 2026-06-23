@@ -6,7 +6,7 @@ import {
   User as UserIcon, Activity, Calendar, MapPin, 
   TrendingUp, PlusCircle, DollarSign, AlertCircle, 
   ChevronDown, Check, RefreshCw, Key, Shield, UserCheck,
-  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone
+  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -174,6 +174,20 @@ export default function App() {
     isOpen: false,
     title: '',
     description: ''
+  });
+
+  // Confirmation Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    listItems?: string[];
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
   });
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -484,9 +498,88 @@ export default function App() {
       
       if (error) throw error;
       setSessionExpenses(prev => prev.filter(e => e.id !== expenseId));
-    } catch (err) {
+      showToast('✅ Data berhasil dihapus', 'success');
+    } catch (err: any) {
       console.error('Error deleting session expense:', err);
-      showToast('Gagal menghapus pengeluaran.', 'error');
+      showToast(`❌ Gagal menghapus data${err?.message ? `: ${err.message}` : ''}`, 'error');
+    }
+  };
+
+  const deleteSession = async (sessionId: number) => {
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', sessionId);
+      
+      if (error) throw error;
+      
+      // Cascade delete in client states
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+      setAttendees(prev => prev.filter(a => a.session_id !== sessionId));
+      setSessionExpenses(prev => prev.filter(e => e.session_id !== sessionId));
+      setPayments(prev => prev.filter(p => p.session_id !== sessionId));
+      
+      if (selectedSessionId === sessionId) {
+        setSelectedSessionId(null);
+      }
+      showToast('✅ Data berhasil dihapus', 'success');
+    } catch (err: any) {
+      console.error('Error deleting session:', err);
+      showToast(`❌ Gagal menghapus data${err?.message ? `: ${err.message}` : ''}`, 'error');
+    }
+  };
+
+  const updateSession = async (sessionId: number, updatedData: { nama_sesi: string; tanggal_main: string; jam_main: string; lokasi: string; catatan: string }) => {
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .update(updatedData)
+        .eq('id', sessionId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        setSessions(prev => prev.map(s => s.id === sessionId ? data : s));
+        showToast('Sesi berhasil diperbarui!', 'success');
+      }
+    } catch (err: any) {
+      console.error('Error updating session:', err);
+      showToast(`Gagal memperbarui sesi${err?.message ? `: ${err.message}` : ''}`, 'error');
+    }
+  };
+
+  const deletePayment = async (paymentId: number) => {
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId);
+      
+      if (error) throw error;
+      setPayments(prev => prev.filter(p => p.id !== paymentId));
+      showToast('✅ Data berhasil dihapus', 'success');
+    } catch (err: any) {
+      console.error('Error deleting payment:', err);
+      showToast(`❌ Gagal menghapus data${err?.message ? `: ${err.message}` : ''}`, 'error');
+    }
+  };
+
+  const deleteAttendanceRecord = async (sessionId: number, memberId: number) => {
+    try {
+      const { error } = await supabase
+        .from('session_attendees')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('member_id', memberId);
+      
+      if (error) throw error;
+      setAttendees(prev => prev.filter(a => !(a.session_id === sessionId && a.member_id === memberId)));
+      showToast('✅ Data berhasil dihapus', 'success');
+    } catch (err: any) {
+      console.error('Error deleting attendance record:', err);
+      showToast(`❌ Gagal menghapus data${err?.message ? `: ${err.message}` : ''}`, 'error');
     }
   };
 
@@ -1126,6 +1219,11 @@ export default function App() {
                 verifyPayment={verifyPayment}
                 setViewProofUrl={setViewProofUrl}
                 markAsPaidCashDirectly={markAsPaidCashDirectly}
+                deleteSession={deleteSession}
+                updateSession={updateSession}
+                deletePayment={deletePayment}
+                deleteAttendanceRecord={deleteAttendanceRecord}
+                setConfirmModal={setConfirmModal}
               />
             ) : (
               <MyBillsMember 
@@ -1242,6 +1340,56 @@ export default function App() {
                   className="w-full bg-background hover:bg-border/60 text-primary border border-border font-[800] py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98]"
                 >
                   Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOM CONFIRMATION MODAL */}
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fadeIn" onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}>
+            <div className="bg-card rounded-[24px] p-6 max-w-sm w-full shadow-theme border border-border flex flex-col gap-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 flex items-center justify-center">
+                  <AlertCircle size={24} className="text-red-500 animate-pulse-gentle" />
+                </div>
+                <h3 className="text-primary font-extrabold text-base tracking-tight uppercase">
+                  {confirmModal.title}
+                </h3>
+                <p className="text-secondary font-bold text-xs leading-relaxed px-1">
+                  {confirmModal.message}
+                </p>
+              </div>
+
+              {confirmModal.listItems && confirmModal.listItems.length > 0 && (
+                <div className="bg-background/50 p-4 rounded-2xl border border-border/85 text-left">
+                  <p className="text-[10px] text-secondary font-black uppercase tracking-wider mb-2">Tindakan ini juga akan menghapus:</p>
+                  <ul className="list-disc list-inside space-y-1.5 text-xs text-primary font-bold">
+                    {confirmModal.listItems.map((item, idx) => (
+                      <li key={idx} className="text-secondary/90">
+                        <span className="text-primary">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <button 
+                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                  className="w-full border border-border bg-background text-secondary hover:text-primary font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] hover:bg-border/60"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={async () => {
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    await confirmModal.onConfirm();
+                  }}
+                  className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-red-950/20"
+                >
+                  Hapus
                 </button>
               </div>
             </div>
@@ -2009,8 +2157,19 @@ function Dashboard({
 function SessionsAdmin({ 
   sessions, members, attendees, sessionExpenses, payments, selectedSessionId, setSelectedSessionId, 
   showAddSessionModal, setShowAddSessionModal, addSession, saveAttendance, addSessionExpense, deleteSessionExpense, generateBillsForSession, verifyPayment, setViewProofUrl,
-  markAsPaidCashDirectly
+  markAsPaidCashDirectly, deleteSession, updateSession, deletePayment, deleteAttendanceRecord, setConfirmModal
 }: any) {
+  const [openMenuSessionId, setOpenMenuSessionId] = useState<number | null>(null);
+  const [editingSession, setEditingSession] = useState<any | null>(null);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setOpenMenuSessionId(null);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
   
   const handleCreateSession = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -2023,6 +2182,20 @@ function SessionsAdmin({
       catatan: fd.get('catatan') as string
     });
     setShowAddSessionModal(false);
+  };
+
+  const handleEditSessionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingSession) return;
+    const fd = new FormData(e.currentTarget);
+    updateSession(editingSession.id, {
+      nama_sesi: fd.get('nama_sesi') as string,
+      tanggal_main: fd.get('tanggal_main') as string,
+      jam_main: fd.get('jam_main') as string,
+      lokasi: fd.get('lokasi') as string,
+      catatan: fd.get('catatan') as string
+    });
+    setEditingSession(null);
   };
 
   const handleAddExpenseInline = (e: React.FormEvent<HTMLFormElement>, sessionId: number) => {
@@ -2089,6 +2262,52 @@ function SessionsAdmin({
                     <p className="text-[10px] text-secondary font-bold uppercase tracking-wider">Split Cost</p>
                     <p className="text-sm font-black text-accent mt-0.5">{s.status_tagihan === 'generated' ? formatRp(s.biaya_per_orang) : '-'}</p>
                   </div>
+                  <div className="relative">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuSessionId(openMenuSessionId === s.id ? null : s.id);
+                      }}
+                      className="p-1 hover:bg-background rounded-lg text-secondary hover:text-primary transition-colors flex items-center justify-center"
+                      title="Menu Aksi"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    {openMenuSessionId === s.id && (
+                      <div className="absolute right-0 mt-1 w-28 bg-card border border-border rounded-xl shadow-theme z-40 overflow-hidden py-1 animate-scaleUp">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuSessionId(null);
+                            setEditingSession(s);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs font-bold text-primary hover:bg-background/80 flex items-center gap-2 transition-colors"
+                        >
+                          <Edit size={13} className="text-secondary" /> Edit
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuSessionId(null);
+                            setConfirmModal({
+                              isOpen: true,
+                              title: 'Hapus Sesi',
+                              message: 'Yakin ingin menghapus sesi ini?',
+                              listItems: [
+                                'session_attendees (catatan kehadiran)',
+                                'session_expenses (rincian biaya sesi)',
+                                'generated bills/payments related to this session (tagihan & pembayaran)'
+                              ],
+                              onConfirm: () => deleteSession(s.id)
+                            });
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors border-t border-border/45"
+                        >
+                          <Trash2 size={13} className="text-red-500" /> Hapus
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <ChevronDown size={18} className={`text-secondary transition-transform duration-250 ${isSelected ? 'transform rotate-180 text-accent' : ''}`} />
                 </div>
               </div>
@@ -2118,12 +2337,21 @@ function SessionsAdmin({
                               <input 
                                 type="checkbox" 
                                 checked={isChecked}
-                                onChange={async () => {
+                                onChange={() => {
                                   const currentIds = sAttendees.map((a: any) => a.member_id);
-                                  const newIds = isChecked 
-                                    ? currentIds.filter(id => id !== m.id)
-                                    : [...currentIds, m.id];
-                                  await saveAttendance(s.id, newIds);
+                                  if (isChecked) {
+                                    setConfirmModal({
+                                      isOpen: true,
+                                      title: 'Hapus Kehadiran',
+                                      message: `Yakin ingin menghapus catatan kehadiran untuk ${m.name}?`,
+                                      onConfirm: async () => {
+                                        const newIds = currentIds.filter(id => id !== m.id);
+                                        await saveAttendance(s.id, newIds);
+                                      }
+                                    });
+                                  } else {
+                                    saveAttendance(s.id, [...currentIds, m.id]);
+                                  }
                                 }}
                                 className="w-4.5 h-4.5 rounded text-accent focus:ring-accent/10 bg-card border-border accent-accent" 
                               />
@@ -2137,8 +2365,23 @@ function SessionsAdmin({
                         {sAttendees.map((a: any) => {
                           const mName = members.find((m: any) => m.id === a.member_id)?.name || 'Anggota';
                           return (
-                            <span key={a.id} className="bg-emerald-500/10 text-accent border border-emerald-500/15 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-                              <Check size={10} strokeWidth={3} /> {mName}
+                            <span key={a.id} className="bg-emerald-500/10 text-accent border border-emerald-500/15 text-[10px] font-bold pl-2.5 pr-1.5 py-1 rounded-full flex items-center gap-1.5">
+                              <Check size={10} strokeWidth={3} /> 
+                              <span>{mName}</span>
+                              <button
+                                onClick={() => {
+                                  setConfirmModal({
+                                    isOpen: true,
+                                    title: 'Hapus Kehadiran',
+                                    message: `Yakin ingin menghapus catatan kehadiran untuk ${mName}?`,
+                                    onConfirm: () => deleteAttendanceRecord(s.id, a.member_id)
+                                  });
+                                }}
+                                className="text-accent/60 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-red-500/10 flex items-center justify-center"
+                                title="Hapus Kehadiran"
+                              >
+                                <XCircle size={11} />
+                              </button>
                             </span>
                           );
                         })}
@@ -2169,8 +2412,16 @@ function SessionsAdmin({
                               <span className="font-extrabold text-primary">{formatRp(exp.nominal)}</span>
                               {s.status_tagihan === 'draft' && (
                                 <button 
-                                  onClick={() => deleteSessionExpense(exp.id)} 
+                                  onClick={() => {
+                                    setConfirmModal({
+                                      isOpen: true,
+                                      title: 'Hapus Pengeluaran',
+                                      message: 'Yakin ingin menghapus pengeluaran ini?',
+                                      onConfirm: () => deleteSessionExpense(exp.id)
+                                    });
+                                  }} 
                                   className="text-red-500 hover:text-red-400 p-1 hover:bg-background rounded-lg transition-colors"
+                                  title="Hapus Pengeluaran"
                                 >
                                   <XCircle size={14} />
                                 </button>
@@ -2295,6 +2546,22 @@ function SessionsAdmin({
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
+                                  {(p.status_pembayaran === 'pending' || p.status_pembayaran === 'Menunggu Verifikasi Cash' || p.status_pembayaran === 'rejected') && (
+                                    <button 
+                                      onClick={() => {
+                                        setConfirmModal({
+                                          isOpen: true,
+                                          title: 'Hapus Tagihan Pending',
+                                          message: `Yakin ingin menghapus tagihan pending untuk ${mName}?`,
+                                          onConfirm: () => deletePayment(p.id)
+                                        });
+                                      }}
+                                      className="p-1 text-red-500 hover:bg-red-500/10 rounded border border-red-500/20 flex items-center justify-center"
+                                      title="Hapus Tagihan Pending"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  )}
                                   {isUploaded && p.bukti_transfer && p.bukti_transfer !== 'CASH' && (
                                     <button 
                                       onClick={() => setViewProofUrl(p.bukti_transfer)}
@@ -2383,6 +2650,45 @@ function SessionsAdmin({
               </div>
               <button type="submit" className="w-full bg-accent hover:opacity-90 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs">
                 Buat Sesi & Tandai Hadir
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* EDIT SESSION MODAL */}
+      {editingSession && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center p-4">
+          <div className="bg-card w-full max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] p-6 relative border border-border shadow-theme animate-slide-up transition-colors duration-200" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setEditingSession(null)} className="absolute top-5 right-5 p-2 bg-background border border-border/45 text-secondary hover:text-primary rounded-full transition-colors">
+              <XCircle size={18} />
+            </button>
+            <h3 className="text-base font-black text-primary uppercase tracking-wide mb-6">Edit Sesi</h3>
+            
+            <form onSubmit={handleEditSessionSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Sesi</label>
+                <input required name="nama_sesi" defaultValue={editingSession.nama_sesi} type="text" placeholder="Contoh: Badminton Minggu Pagi" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+              </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Tanggal Main</label>
+                  <input required name="tanggal_main" defaultValue={editingSession.tanggal_main} type="date" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Jam Main</label>
+                  <input required name="jam_main" defaultValue={editingSession.jam_main} type="text" placeholder="08:00 - 10:00" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Lokasi</label>
+                <input required name="lokasi" defaultValue={editingSession.lokasi} type="text" placeholder="GOR Badminton Utama" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Catatan (Optional)</label>
+                <textarea name="catatan" defaultValue={editingSession.catatan || ''} placeholder="Catatan opsional..." rows={2} className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs resize-none"></textarea>
+              </div>
+              <button type="submit" className="w-full bg-accent hover:opacity-90 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs">
+                Simpan Perubahan
               </button>
             </form>
           </div>
