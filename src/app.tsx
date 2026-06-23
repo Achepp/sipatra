@@ -6,7 +6,7 @@ import {
   User as UserIcon, Activity, Calendar, MapPin, 
   TrendingUp, PlusCircle, DollarSign, AlertCircle, 
   ChevronDown, Check, RefreshCw, Key, Shield, UserCheck,
-  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download
+  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
@@ -111,6 +111,36 @@ const getInitials = (name?: string | null): string => {
   return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
 };
 
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = 150;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        const minSize = Math.min(img.width, img.height);
+        const startX = (img.width - minSize) / 2;
+        const startY = (img.height - minSize) / 2;
+        ctx.drawImage(img, startX, startY, minSize, minSize, 0, 0, size, size);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Gagal memuat gambar.'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function App() {
   // Theme state
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -144,6 +174,15 @@ export default function App() {
   const [memberRecord, setMemberRecord] = useState<Member | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      setProfilePhoto(localStorage.getItem(`sipatra_profile_photo_${session.user.id}`));
+    } else {
+      setProfilePhoto(null);
+    }
+  }, [session]);
   
   // Database states
   const [members, setMembers] = useState<Member[]>([]);
@@ -1381,7 +1420,7 @@ export default function App() {
     }
   };
 
-  const updateProfile = async (nama: string, nomor_hp: string) => {
+  const updateProfile = async (nama: string, nomor_hp: string, photo: string | null) => {
     try {
       const { error: profileError } = await supabase
         .from('profiles')
@@ -1397,7 +1436,16 @@ export default function App() {
         if (memberError) throw memberError;
       }
 
+      if (photo) {
+        localStorage.setItem(`sipatra_profile_photo_${session.user.id}`, photo);
+        setProfilePhoto(photo);
+      } else {
+        localStorage.removeItem(`sipatra_profile_photo_${session.user.id}`);
+        setProfilePhoto(null);
+      }
+
       await fetchUserProfile(session.user.id);
+      await fetchData();
       showToast('Profil berhasil disimpan!', 'success');
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -1786,15 +1834,22 @@ export default function App() {
         {/* HEADER */}
         <header className="bg-card/90 backdrop-blur-md p-4 sticky top-0 z-20 border-b border-border shadow-theme transition-all duration-200">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_4px_12px_rgba(16,185,129,0.25)] flex items-center justify-center flex-shrink-0 text-white font-[700] text-lg select-none">
-                {getInitials(profile?.nama || profile?.full_name || session?.user?.user_metadata?.name || session?.user?.user_metadata?.nama)}
+            <button 
+              onClick={() => setActiveTab('profile')}
+              className="flex items-center gap-3 text-left focus:outline-none hover:opacity-85 active:scale-[0.98] transition-all group"
+            >
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_4px_12px_rgba(16,185,129,0.25)] flex items-center justify-center flex-shrink-0 text-white font-[700] text-lg select-none overflow-hidden border border-border group-hover:border-accent transition-colors">
+                {profilePhoto ? (
+                  <img src={profilePhoto} alt="Foto Profil" className="w-full h-full object-cover" />
+                ) : (
+                  getInitials(profile?.nama || profile?.full_name || session?.user?.user_metadata?.name || session?.user?.user_metadata?.nama)
+                )}
               </div>
               <div>
-                <p className="text-[9px] text-secondary font-black uppercase tracking-wider leading-none">SELAMAT DATANG,</p>
+                <p className="text-[9px] text-secondary font-black uppercase tracking-wider leading-none group-hover:text-accent transition-colors">SELAMAT DATANG,</p>
                 <p className="font-extrabold text-primary text-sm leading-tight mt-1.5 truncate w-36">{profile.nama}</p>
               </div>
-            </div>
+            </button>
             <div className="flex gap-2.5 items-center">
               <span className={`text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                 profile.role === 'superadmin'
@@ -1849,6 +1904,8 @@ export default function App() {
               showToast={showToast}
               setShowAddSessionModal={setShowAddSessionModal}
               contributionsThisMonth={contributionsThisMonth}
+              profilePhoto={profilePhoto}
+              session={session}
             />
           )}
 
@@ -1914,13 +1971,16 @@ export default function App() {
               changeUserStatus={changeUserStatus}
               deleteMember={deleteMember}
               createAccountBySuperadmin={createAccountBySuperadmin}
+              session={session}
+              profilePhoto={profilePhoto}
             />
           )}
 
-          {activeTab === 'profile' && !isAdmin && (
+          {activeTab === 'profile' && (
             <ProfileMember 
               profile={profile} 
               updateProfile={updateProfile} 
+              profilePhoto={profilePhoto}
             />
           )}
 
@@ -1984,6 +2044,21 @@ export default function App() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* STANDALONE MEMBER PAYMENT MODAL */}
+        {!isAdmin && (
+          <PaymentModal
+            user={profile}
+            memberRecord={memberRecord}
+            sessions={sessions}
+            payments={payments}
+            settings={settings}
+            selectedPayment={selectedPayment}
+            setSelectedPayment={setSelectedPayment}
+            submitPaymentWithProof={submitPaymentWithProof}
+            submitCashPayment={submitCashPayment}
+          />
         )}
 
         {/* CUSTOM SUCCESS MODAL */}
@@ -2150,7 +2225,7 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 // --- DASHBOARD COMPONENT ---
 function Dashboard({ 
   user, memberRecord, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
-  isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal, contributionsThisMonth
+  isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal, contributionsThisMonth, profilePhoto, session: authSession
 }: any) {
   const isAdmin = user.role === 'admin' || user.role === 'superadmin';
   
@@ -2379,8 +2454,12 @@ function Dashboard({
                 return (
                   <div key={p.id} className="flex justify-between items-center gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-xs flex-shrink-0">
-                        {getInitials(member?.name)}
+                      <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-xs flex-shrink-0 overflow-hidden border border-border">
+                        {member?.user_id === authSession?.user?.id && profilePhoto ? (
+                          <img src={profilePhoto} alt="Foto Profil" className="w-full h-full object-cover" />
+                        ) : (
+                          getInitials(member?.name)
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -2462,8 +2541,12 @@ function Dashboard({
                 return (
                   <div key={p.id} className="flex justify-between items-center gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black text-xs flex-shrink-0">
-                        {getInitials(member?.name)}
+                      <div className="w-10 h-10 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black text-xs flex-shrink-0 overflow-hidden border border-border">
+                        {member?.user_id === authSession?.user?.id && profilePhoto ? (
+                          <img src={profilePhoto} alt="Foto Profil" className="w-full h-full object-cover" />
+                        ) : (
+                          getInitials(member?.name)
+                        )}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -2785,7 +2868,9 @@ function Dashboard({
                     
                     {(p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'rejected') && (
                       <button 
-                        onClick={() => setSelectedPayment(p)}
+                        onClick={() => {
+                          setSelectedPayment(p);
+                        }}
                         className="px-4 py-1.5 bg-accent hover:opacity-90 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
                       >
                         Bayar
@@ -2870,6 +2955,86 @@ function SessionsAdmin({
   const [openMenuSessionId, setOpenMenuSessionId] = useState<number | null>(null);
   const [editingSession, setEditingSession] = useState<any | null>(null);
 
+  // States for Date & Time Pickers (Create and Edit forms)
+  const [createDate, setCreateDate] = useState('');
+  const [createStartTime, setCreateStartTime] = useState('');
+  const [createEndTime, setCreateEndTime] = useState('');
+
+  const [editDate, setEditDate] = useState('');
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editEndTime, setEditEndTime] = useState('');
+
+  const [showTimePickerModal, setShowTimePickerModal] = useState(false);
+  const [timePickerMode, setTimePickerMode] = useState('create');
+  const [tempStartTime, setTempStartTime] = useState('');
+  const [tempEndTime, setTempEndTime] = useState('');
+  const [timeValidationError, setTimeValidationError] = useState('');
+
+  // Refs for Date picker triggers
+  const createDateInputRef = React.useRef(null);
+  const editDateInputRef = React.useRef(null);
+
+  const triggerDatePicker = (ref) => {
+    try {
+      ref.current?.showPicker();
+    } catch (e) {
+      console.error('showPicker error, fallback click', e);
+      ref.current?.click();
+    }
+  };
+
+  // Sync editingSession to Edit form state
+  useEffect(() => {
+    if (editingSession) {
+      setEditDate(editingSession.tanggal_main || '');
+      const jamMain = editingSession.jam_main || '';
+      const parts = jamMain.split(' - ');
+      if (parts.length === 2) {
+        setEditStartTime(parts[0].trim());
+        setEditEndTime(parts[1].trim());
+      } else {
+        setEditStartTime('');
+        setEditEndTime('');
+      }
+    } else {
+      setEditDate('');
+      setEditStartTime('');
+      setEditEndTime('');
+    }
+  }, [editingSession]);
+
+  const openTimePicker = (mode) => {
+    setTimePickerMode(mode);
+    if (mode === 'create') {
+      setTempStartTime(createStartTime || '08:00');
+      setTempEndTime(createEndTime || '10:00');
+    } else {
+      setTempStartTime(editStartTime || '08:00');
+      setTempEndTime(editEndTime || '10:00');
+    }
+    setTimeValidationError('');
+    setShowTimePickerModal(true);
+  };
+
+  const handleSaveTime = () => {
+    if (!tempStartTime || !tempEndTime) {
+      setTimeValidationError('Jam mulai dan selesai harus diisi.');
+      return;
+    }
+    if (tempEndTime <= tempStartTime) {
+      setTimeValidationError('Jam selesai harus lebih besar dari jam mulai.');
+      return;
+    }
+    if (timePickerMode === 'create') {
+      setCreateStartTime(tempStartTime);
+      setCreateEndTime(tempEndTime);
+    } else {
+      setEditStartTime(tempStartTime);
+      setEditEndTime(tempEndTime);
+    }
+    setShowTimePickerModal(false);
+  };
+
   // Close menus when clicking outside
   useEffect(() => {
     const handleOutsideClick = () => {
@@ -2890,6 +3055,9 @@ function SessionsAdmin({
       catatan: fd.get('catatan') as string
     });
     setShowAddSessionModal(false);
+    setCreateDate('');
+    setCreateStartTime('');
+    setCreateEndTime('');
   };
 
   const handleEditSessionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -2910,7 +3078,8 @@ function SessionsAdmin({
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const keterangan = fd.get('keterangan') as string;
-    const nominal = parseInt(fd.get('nominal') as string);
+    const nominalRaw = (fd.get('nominal') as string || '').replace(/\./g, '');
+    const nominal = parseInt(nominalRaw);
     const kategori = fd.get('kategori') as string;
     
     if (keterangan && nominal > 0) {
@@ -3152,9 +3321,18 @@ function SessionsAdmin({
                           />
                           <input 
                             name="nominal" 
-                            type="number" 
+                            type="text" 
+                            inputMode="numeric"
                             required 
                             placeholder="Nominal (Rp)" 
+                            onChange={(e) => {
+                              const rawVal = e.target.value.replace(/\D/g, '');
+                              if (!rawVal) {
+                                e.target.value = '';
+                                return;
+                              }
+                              e.target.value = new Intl.NumberFormat('id-ID').format(parseInt(rawVal));
+                            }}
                             className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-card border border-border focus:border-accent focus:ring-1 focus:ring-accent/15 outline-none text-primary placeholder:text-secondary" 
                           />
                         </div>
@@ -3325,9 +3503,10 @@ function SessionsAdmin({
                                   {!isVerified && (
                                     <button 
                                       onClick={() => markAsPaidCashDirectly(p.id)}
-                                      className="px-2 py-1 bg-orange-500/10 text-orange-550 border border-orange-500/20 hover:bg-orange-500/20 rounded text-[9px] font-black transition-colors"
+                                      className="px-2 py-1 bg-card hover:bg-background border border-border/60 text-secondary hover:text-primary text-[9px] font-extrabold rounded-md transition-all active:scale-[0.98]"
+                                      title="Tandai tagihan ini sebagai Lunas secara manual"
                                     >
-                                      ✓ Bayar Cash
+                                      Tandai Lunas
                                     </button>
                                   )}
                                   {isVerified && (
@@ -3354,7 +3533,7 @@ function SessionsAdmin({
       {showAddSessionModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center p-4">
           <div className="bg-card w-full max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] p-6 relative border border-border shadow-theme animate-slide-up transition-colors duration-200">
-            <button onClick={() => setShowAddSessionModal(false)} className="absolute top-5 right-5 p-2 bg-background border border-border/45 text-secondary hover:text-primary rounded-full transition-colors">
+            <button onClick={() => { setShowAddSessionModal(false); setCreateDate(''); setCreateStartTime(''); setCreateEndTime(''); }} className="absolute top-5 right-5 p-2 bg-background border border-border/45 text-secondary hover:text-primary rounded-full transition-colors">
               <XCircle size={18} />
             </button>
             <h3 className="text-base font-black text-primary uppercase tracking-wide mb-6">Tambah Sesi Baru</h3>
@@ -3367,11 +3546,41 @@ function SessionsAdmin({
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Tanggal Main</label>
-                  <input required name="tanggal_main" type="date" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+                  <div className="relative cursor-pointer" onClick={() => triggerDatePicker(createDateInputRef)}>
+                    <input 
+                      required
+                      type="text" 
+                      readOnly
+                      value={createDate ? formatDate(createDate) : ''} 
+                      placeholder="Pilih Tanggal Main" 
+                      className="w-full pl-9 pr-3 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent outline-none font-bold text-xs cursor-pointer truncate"
+                    />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" size={14} />
+                    <input 
+                      ref={createDateInputRef}
+                      type="date" 
+                      required
+                      value={createDate}
+                      onChange={(e) => setCreateDate(e.target.value)}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <input type="hidden" name="tanggal_main" value={createDate} />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Jam Main</label>
-                  <input required name="jam_main" type="text" placeholder="08:00 - 10:00" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+                  <div className="relative cursor-pointer" onClick={() => openTimePicker('create')}>
+                    <input 
+                      required
+                      type="text" 
+                      readOnly
+                      value={createStartTime && createEndTime ? `${createStartTime} - ${createEndTime}` : ''}
+                      placeholder="Pilih Jam Main" 
+                      className="w-full pl-9 pr-3 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent outline-none font-bold text-xs cursor-pointer truncate"
+                    />
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" size={14} />
+                    <input type="hidden" name="jam_main" value={createStartTime && createEndTime ? `${createStartTime} - ${createEndTime}` : ''} />
+                  </div>
                 </div>
               </div>
               <div>
@@ -3406,11 +3615,41 @@ function SessionsAdmin({
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Tanggal Main</label>
-                  <input required name="tanggal_main" defaultValue={editingSession.tanggal_main} type="date" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+                  <div className="relative cursor-pointer" onClick={() => triggerDatePicker(editDateInputRef)}>
+                    <input 
+                      required
+                      type="text" 
+                      readOnly
+                      value={editDate ? formatDate(editDate) : ''} 
+                      placeholder="Pilih Tanggal Main" 
+                      className="w-full pl-9 pr-3 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent outline-none font-bold text-xs cursor-pointer truncate"
+                    />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" size={14} />
+                    <input 
+                      ref={editDateInputRef}
+                      type="date" 
+                      required
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <input type="hidden" name="tanggal_main" value={editDate} />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Jam Main</label>
-                  <input required name="jam_main" defaultValue={editingSession.jam_main} type="text" placeholder="08:00 - 10:00" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+                  <div className="relative cursor-pointer" onClick={() => openTimePicker('edit')}>
+                    <input 
+                      required
+                      type="text" 
+                      readOnly
+                      value={editStartTime && editEndTime ? `${editStartTime} - ${editEndTime}` : ''}
+                      placeholder="Pilih Jam Main" 
+                      className="w-full pl-9 pr-3 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent outline-none font-bold text-xs cursor-pointer truncate"
+                    />
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" size={14} />
+                    <input type="hidden" name="jam_main" value={editStartTime && editEndTime ? `${editStartTime} - ${editEndTime}` : ''} />
+                  </div>
                 </div>
               </div>
               <div>
@@ -3429,152 +3668,82 @@ function SessionsAdmin({
         </div>
       )}
 
+      {/* TIME PICKER MODAL */}
+      {showTimePickerModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-sm rounded-[2rem] border border-border p-6 shadow-theme flex flex-col gap-5 animate-scaleUp">
+            <div className="text-center">
+              <h3 className="font-extrabold text-sm text-primary uppercase tracking-wider">Pilih Jam Main</h3>
+              <p className="text-[10px] text-secondary mt-1">Tentukan jam mulai dan jam selesai sesi</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* JAM MULAI */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider text-center">Jam Mulai</label>
+                <div className="relative">
+                  <input 
+                    type="time" 
+                    value={tempStartTime} 
+                    onChange={(e) => setTempStartTime(e.target.value)} 
+                    className="w-full px-3 py-3 rounded-2xl bg-background border border-border text-primary font-bold text-sm text-center outline-none focus:border-accent cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* JAM SELESAI */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider text-center">Jam Selesai</label>
+                <div className="relative">
+                  <input 
+                    type="time" 
+                    value={tempEndTime} 
+                    onChange={(e) => setTempEndTime(e.target.value)} 
+                    className="w-full px-3 py-3 rounded-2xl bg-background border border-border text-primary font-bold text-sm text-center outline-none focus:border-accent cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Validation warning */}
+            {timeValidationError && (
+              <p className="text-red-500 text-[10px] font-bold text-center animate-shake">
+                ⚠️ {timeValidationError}
+              </p>
+            )}
+
+            {/* Action buttons */}
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <button 
+                type="button"
+                onClick={() => setShowTimePickerModal(false)}
+                className="w-full border border-border bg-background hover:bg-border/40 text-primary font-bold py-3 rounded-2xl transition-all text-xs"
+              >
+                Batal
+              </button>
+              <button 
+                type="button"
+                onClick={handleSaveTime}
+                className="w-full bg-accent hover:opacity-90 text-white font-extrabold py-3 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-500/10"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// --- MEMBER MY BILLS & QRIS MODAL COMPONENT ---
+// --- MEMBER MY BILLS COMPONENT ---
 function MyBillsMember({ 
-  user, sessions, payments, settings, selectedPayment, setSelectedPayment, submitPaymentWithProof, submitCashPayment 
+  user, sessions, payments, setSelectedPayment 
 }: any) {
-  
-  const currentPayment = selectedPayment 
-    ? payments.find((p: any) => p.id === selectedPayment.id) 
-    : null;
-
-  const sessionDetail = currentPayment 
-    ? sessions.find((s: any) => s.id === currentPayment.session_id) 
-    : null;
-
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastError, setToastError] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const [paymentMethod, setPaymentMethod] = useState<'QRIS' | 'CASH'>('QRIS');
-  const [showConfirmCash, setShowConfirmCash] = useState(false);
-  
-  const [showBankInfo, setShowBankInfo] = useState(false);
-  const [hasClickedPaid, setHasClickedPaid] = useState(false);
-
-  useEffect(() => {
-    if (!currentPayment) {
-      setHasClickedPaid(false);
-      setShowBankInfo(false);
-    }
-  }, [currentPayment]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !currentPayment) return;
-
-    if (currentPayment.nominal_tagihan <= 0) {
-      setToastError('Nominal tagihan harus lebih dari Rp 0.');
-      setTimeout(() => setToastError(''), 4000);
-      return;
-    }
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-    if (!allowedTypes.includes(file.type)) {
-      setToastError('Format file harus JPG, PNG, atau WEBP.');
-      setTimeout(() => setToastError(''), 4000);
-      return;
-    }
-
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setToastError('Ukuran file maksimal 5 MB.');
-      setTimeout(() => setToastError(''), 4000);
-      return;
-    }
-
-    setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-  };
-
-  const handleCancelFile = () => {
-    setSelectedFile(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile || !currentPayment) return;
-
-    setIsUploading(true);
-    try {
-      await submitPaymentWithProof(currentPayment.id, selectedFile);
-      setToastMessage('Bukti pembayaran berhasil dikirim!');
-      handleCancelFile();
-      setTimeout(() => setToastMessage(''), 4000);
-    } catch (err: any) {
-      console.error(err);
-      setToastError(err.message || 'Gagal mengirim bukti pembayaran.');
-      setTimeout(() => setToastError(''), 5000);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleConfirmCash = async () => {
-    if (!currentPayment) return;
-    setIsUploading(true);
-    try {
-      await submitCashPayment(currentPayment.id);
-      setToastMessage('Pembayaran Cash ditandai! Menunggu verifikasi Bendahara.');
-      setShowConfirmCash(false);
-      setSelectedPayment(null);
-      setPaymentMethod('QRIS');
-      setTimeout(() => setToastMessage(''), 4000);
-    } catch (err: any) {
-      console.error(err);
-      setToastError(err.message || 'Gagal menandai pembayaran cash.');
-      setTimeout(() => setToastError(''), 5000);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const triggerFilePicker = () => {
-    if (currentPayment?.status_pembayaran === 'verified') {
-      setToastError('Pembayaran sudah lunas.');
-      setTimeout(() => setToastError(''), 4000);
-      return;
-    }
-    fileInputRef.current?.click();
-  };
-
-  const handleCloseModal = () => {
-    setSelectedPayment(null);
-    handleCancelFile();
-    setPaymentMethod('QRIS');
-    setShowConfirmCash(false);
-    setHasClickedPaid(false);
-    setShowBankInfo(false);
-  };
-
   const myPayments = user ? payments.filter((p: any) => p.member_id === user.id) : [];
 
   return (
     <div className="space-y-4">
-      {toastMessage && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-card text-primary px-5 py-3.5 rounded-full shadow-theme z-50 text-xs font-bold flex items-center gap-2 border border-border animate-bounce">
-          <CheckCircle size={15} className="text-emerald-400" /> {toastMessage}
-        </div>
-      )}
-      {toastError && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-red-655 text-white px-5 py-3.5 rounded-full shadow-2xl z-50 text-xs font-bold flex items-center gap-2 border border-red-500 animate-shake">
-          <XCircle size={15} className="text-white" /> {toastError}
-        </div>
-      )}
-
       <h2 className="text-lg font-black tracking-wide text-primary uppercase mb-2">Tagihan Sesi Saya</h2>
 
       {myPayments.length === 0 ? (
@@ -3588,7 +3757,6 @@ function MyBillsMember({
             const isVerified = p.status_pembayaran === 'verified';
             const isUploaded = p.status_pembayaran === 'uploaded';
             const isRejected = p.status_pembayaran === 'rejected';
-            const isCashPending = p.status_pembayaran === 'Menunggu Verifikasi Cash';
             
             return (
               <div key={p.id} className="bg-card rounded-3xl border border-border shadow-theme overflow-hidden">
@@ -3664,316 +3832,457 @@ function MyBillsMember({
           })}
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* MODAL QRIS & STATUS */}
-      {currentPayment && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card w-full max-w-sm rounded-[2.5rem] overflow-hidden border border-border shadow-theme flex flex-col animate-scale-up">
-            
-            <div className="bg-emerald-700 p-5 text-center relative text-white">
-              <button onClick={handleCloseModal} className="absolute top-4.5 right-4.5 p-1.5 bg-white/10 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-all">
-                <XCircle size={18} />
-              </button>
-              <h3 className="font-black text-sm uppercase tracking-wider">Pembayaran QRIS</h3>
-              <p className="text-emerald-100 text-[10px] font-bold mt-0.5 truncate px-6">{sessionDetail?.nama_sesi}</p>
-            </div>
+// --- MEMBER STANDALONE PAYMENT MODAL COMPONENT ---
+function PaymentModal({ 
+  user, memberRecord, sessions, payments, settings, selectedPayment, setSelectedPayment, submitPaymentWithProof, submitCashPayment 
+}: any) {
+  const currentPayment = selectedPayment 
+    ? payments.find((p: any) => p.id === selectedPayment.id) 
+    : null;
 
-            {currentPayment.status_pembayaran === 'uploaded' || currentPayment.status_pembayaran === 'verified' ? (
-              <div className="p-6 flex flex-col items-center gap-6 text-center">
-                <div className={`w-18 h-18 rounded-full flex items-center justify-center shadow-lg ${
-                  currentPayment.status_pembayaran === 'verified'
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse'
-                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-bounce'
-                }`}>
-                  <CheckCircle size={36} strokeWidth={2.5} />
-                </div>
+  const sessionDetail = currentPayment 
+    ? sessions.find((s: any) => s.id === currentPayment.session_id) 
+    : null;
 
-                <div className="space-y-1.5">
-                  <h4 className="text-base font-black text-primary tracking-tight">
-                    {currentPayment.status_pembayaran === 'verified' ? 'Pembayaran Terverifikasi' : 'Bukti Pembayaran Dikirim'}
-                  </h4>
-                  <p className="text-[10px] font-bold text-secondary leading-relaxed px-4">
-                    {currentPayment.status_pembayaran === 'verified'
-                      ? 'Terima kasih! Pembayaran Anda telah terverifikasi oleh Bendahara PB.'
-                      : 'Bukti transfer berhasil diunggah. Sedang menunggu konfirmasi/verifikasi dari admin.'}
-                  </p>
-                </div>
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastError, setToastError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-                <div className="w-full bg-background border border-border rounded-2xl p-4 text-left space-y-3">
-                  <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className="text-secondary uppercase tracking-wider">Nominal</span>
-                    <span className="text-primary">{formatRp(currentPayment.nominal_tagihan)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className="text-secondary uppercase tracking-wider">Tanggal Upload</span>
-                    <span className="text-primary">{currentPayment.tanggal_bayar ? formatDate(currentPayment.tanggal_bayar) : '-'}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className="text-secondary uppercase tracking-wider">Status</span>
-                    <span>
-                      {currentPayment.status_pembayaran === 'verified' ? (
-                        <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">Lunas</span>
-                      ) : (
-                        <span className="bg-blue-500/15 text-blue-400 border border-blue-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">Menunggu Verifikasi</span>
-                      )}
-                    </span>
-                  </div>
-                </div>
+  const [paymentMethod, setPaymentMethod] = useState<'QRIS' | 'CASH'>('QRIS');
+  const [showConfirmCash, setShowConfirmCash] = useState(false);
+  
+  const [showBankInfo, setShowBankInfo] = useState(false);
+  const [hasClickedPaid, setHasClickedPaid] = useState(false);
 
-                <button onClick={handleCloseModal} className="w-full bg-background hover:bg-border/60 text-primary font-extrabold py-3.5 rounded-2xl border border-border transition-all text-xs active:scale-[0.98]">
-                  Tutup Rincian
-                </button>
+  useEffect(() => {
+    if (!currentPayment) {
+      setHasClickedPaid(false);
+      setShowBankInfo(false);
+    }
+  }, [currentPayment]);
+
+  if (!currentPayment) return null;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentPayment) return;
+
+    if (currentPayment.nominal_tagihan <= 0) {
+      setToastError('Nominal tagihan harus lebih dari Rp 0.');
+      setTimeout(() => setToastError(''), 4000);
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      setToastError('Format file harus JPG, PNG, atau WEBP.');
+      setTimeout(() => setToastError(''), 4000);
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setToastError('Ukuran file maksimal 5 MB.');
+      setTimeout(() => setToastError(''), 4000);
+      return;
+    }
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleCancelFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !currentPayment) return;
+
+    setIsUploading(true);
+    try {
+      await submitPaymentWithProof(currentPayment.id, selectedFile);
+      setToastMessage('Bukti pembayaran berhasil dikirim!');
+      handleCancelFile();
+      setTimeout(() => {
+        setToastMessage('');
+        setSelectedPayment(null);
+      }, 3000);
+    } catch (err: any) {
+      console.error(err);
+      setToastError(err.message || 'Gagal mengirim bukti pembayaran.');
+      setTimeout(() => setToastError(''), 5000);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleConfirmCash = async () => {
+    if (!currentPayment) return;
+    setIsUploading(true);
+    try {
+      await submitCashPayment(currentPayment.id);
+      setToastMessage('Pembayaran Cash ditandai! Menunggu verifikasi Bendahara.');
+      setShowConfirmCash(false);
+      setSelectedPayment(null);
+      setPaymentMethod('QRIS');
+      setTimeout(() => setToastMessage(''), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setToastError(err.message || 'Gagal menandai pembayaran cash.');
+      setTimeout(() => setToastError(''), 5000);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const triggerFilePicker = () => {
+    if (currentPayment?.status_pembayaran === 'verified') {
+      setToastError('Pembayaran sudah lunas.');
+      setTimeout(() => setToastError(''), 4000);
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleCloseModal = () => {
+    setSelectedPayment(null);
+    handleCancelFile();
+    setPaymentMethod('QRIS');
+    setShowConfirmCash(false);
+    setHasClickedPaid(false);
+    setShowBankInfo(false);
+  };
+
+  return (
+    <>
+      {toastMessage && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-card text-primary px-5 py-3.5 rounded-full shadow-theme z-55 text-xs font-bold flex items-center gap-2 border border-border animate-bounce">
+          <CheckCircle size={15} className="text-emerald-400" /> {toastMessage}
+        </div>
+      )}
+      {toastError && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-red-655 text-white px-5 py-3.5 rounded-full shadow-2xl z-55 text-xs font-bold flex items-center gap-2 border border-red-500 animate-shake">
+          <XCircle size={15} className="text-white" /> {toastError}
+        </div>
+      )}
+
+      <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-card w-full max-w-sm rounded-[2.5rem] overflow-hidden border border-border shadow-theme flex flex-col animate-scale-up">
+          
+          <div className="bg-emerald-700 p-5 text-center relative text-white">
+            <button onClick={handleCloseModal} className="absolute top-4.5 right-4.5 p-1.5 bg-white/10 rounded-full text-white/80 hover:text-white hover:bg-white/20 transition-all">
+              <XCircle size={18} />
+            </button>
+            <h3 className="font-black text-sm uppercase tracking-wider">Pembayaran QRIS</h3>
+            <p className="text-emerald-100 text-[10px] font-bold mt-0.5 truncate px-6">{sessionDetail?.nama_sesi}</p>
+          </div>
+
+          {currentPayment.status_pembayaran === 'uploaded' || currentPayment.status_pembayaran === 'verified' ? (
+            <div className="p-6 flex flex-col items-center gap-6 text-center">
+              <div className={`w-18 h-18 rounded-full flex items-center justify-center shadow-lg ${
+                currentPayment.status_pembayaran === 'verified'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse'
+                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-bounce'
+              }`}>
+                <CheckCircle size={36} strokeWidth={2.5} />
               </div>
-            ) : (
-              <div className="p-6 flex flex-col items-center gap-5">
-                <div className="text-center">
-                  <p className="text-[8px] font-black text-secondary uppercase tracking-widest mb-1">Nominal Transfer</p>
-                  <p className="text-2xl font-black text-emerald-450 tracking-tight">{formatRp(currentPayment.nominal_tagihan)}</p>
-                </div>
 
-                {/* Breakdown Display */}
-                <div className="w-full bg-background border border-border/80 rounded-2xl p-4 text-xs space-y-2">
-                  <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className="text-secondary uppercase tracking-wider">Biaya Sesi</span>
-                    <span className="text-primary">{formatRp(sessionDetail?.biaya_per_orang || 0)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-bold">
-                    <span className="text-secondary uppercase tracking-wider">Iuran Kas</span>
-                    <span className="text-primary">{formatRp(Math.max(0, currentPayment.nominal_tagihan - (sessionDetail?.biaya_per_orang || 0)))}</span>
-                  </div>
-                  <div className="border-t border-border/60 my-2 pt-2 flex justify-between items-center text-[11px] font-black">
-                    <span className="text-secondary uppercase tracking-wider">Total Tagihan</span>
-                    <span className="text-emerald-500 dark:text-emerald-400">{formatRp(currentPayment.nominal_tagihan)}</span>
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <h4 className="text-base font-black text-primary tracking-tight">
+                  {currentPayment.status_pembayaran === 'verified' ? 'Pembayaran Terverifikasi' : 'Bukti Pembayaran Dikirim'}
+                </h4>
+                <p className="text-[10px] font-bold text-secondary leading-relaxed px-4">
+                  {currentPayment.status_pembayaran === 'verified'
+                    ? 'Terima kasih! Pembayaran Anda telah terverifikasi oleh Bendahara PB.'
+                    : 'Bukti transfer berhasil diunggah. Sedang menunggu konfirmasi/verifikasi dari admin.'}
+                </p>
+              </div>
 
-                {/* Payment Method Selector */}
-                <div className="w-full space-y-2 border-b border-border/50 pb-4 mb-1">
-                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider text-left">
-                    Metode Pembayaran
+              <div className="w-full bg-background border border-border rounded-2xl p-4 text-left space-y-3">
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-secondary uppercase tracking-wider">Nominal</span>
+                  <span className="text-primary">{formatRp(currentPayment.nominal_tagihan)}</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-secondary uppercase tracking-wider">Tanggal Upload</span>
+                  <span className="text-primary">{currentPayment.tanggal_bayar ? formatDate(currentPayment.tanggal_bayar) : '-'}</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-secondary uppercase tracking-wider">Status</span>
+                  <span>
+                    {currentPayment.status_pembayaran === 'verified' ? (
+                      <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">Lunas</span>
+                    ) : (
+                      <span className="bg-blue-500/15 text-blue-400 border border-blue-500/25 px-2 py-0.5 rounded text-[8px] uppercase tracking-wider font-black">Menunggu Verifikasi</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <button onClick={handleCloseModal} className="w-full bg-background hover:bg-border/60 text-primary font-extrabold py-3.5 rounded-2xl border border-border transition-all text-xs active:scale-[0.98]">
+                Tutup Rincian
+              </button>
+            </div>
+          ) : (
+            <div className="p-6 flex flex-col items-center gap-5">
+              <div className="text-center">
+                <p className="text-[8px] font-black text-secondary uppercase tracking-widest mb-1">Nominal Transfer</p>
+                <p className="text-2xl font-black text-emerald-450 tracking-tight">{formatRp(currentPayment.nominal_tagihan)}</p>
+              </div>
+
+              {/* Breakdown Display */}
+              <div className="w-full bg-background border border-border/80 rounded-2xl p-4 text-xs space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-secondary uppercase tracking-wider">Biaya Sesi</span>
+                  <span className="text-primary">{formatRp(sessionDetail?.biaya_per_orang || 0)}</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <span className="text-secondary uppercase tracking-wider">Iuran Kas</span>
+                  <span className="text-primary">{formatRp(Math.max(0, currentPayment.nominal_tagihan - (sessionDetail?.biaya_per_orang || 0)))}</span>
+                </div>
+                <div className="border-t border-border/60 my-2 pt-2 flex justify-between items-center text-[11px] font-black">
+                  <span className="text-secondary uppercase tracking-wider">Total Tagihan</span>
+                  <span className="text-emerald-500 dark:text-emerald-400">{formatRp(currentPayment.nominal_tagihan)}</span>
+                </div>
+              </div>
+
+              {/* Payment Method Selector */}
+              <div className="w-full space-y-2 border-b border-border/50 pb-4 mb-1">
+                <label className="block text-[10px] font-black text-secondary uppercase tracking-wider text-left">
+                  Metode Pembayaran
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className={`flex items-center justify-center gap-2 p-3 rounded-2xl border cursor-pointer transition-all ${
+                    paymentMethod === 'QRIS'
+                      ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-455 font-bold'
+                      : 'border-border bg-background text-secondary hover:bg-background/80'
+                  }`}>
+                    <input 
+                      type="radio" 
+                      name="payment_method" 
+                      value="QRIS" 
+                      checked={paymentMethod === 'QRIS'} 
+                      onChange={() => setPaymentMethod('QRIS')} 
+                      className="sr-only" 
+                    />
+                    <QrCode size={14} />
+                    <span className="text-xs">QRIS</span>
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className={`flex items-center justify-center gap-2 p-3 rounded-2xl border cursor-pointer transition-all ${
-                      paymentMethod === 'QRIS'
-                        ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-450 font-bold'
-                        : 'border-border bg-background text-secondary hover:bg-background/80'
-                    }`}>
-                      <input 
-                        type="radio" 
-                        name="payment_method" 
-                        value="QRIS" 
-                        checked={paymentMethod === 'QRIS'} 
-                        onChange={() => setPaymentMethod('QRIS')} 
-                        className="sr-only" 
-                      />
-                      <QrCode size={14} />
-                      <span className="text-xs">QRIS</span>
-                    </label>
 
-                    <label className={`flex items-center justify-center gap-2 p-3 rounded-2xl border cursor-pointer transition-all ${
-                      paymentMethod === 'CASH'
-                        ? 'border-orange-500 bg-orange-500/5 text-orange-600 dark:text-orange-450 font-bold'
-                        : 'border-border bg-background text-secondary hover:bg-background/80'
-                    }`}>
-                      <input 
-                        type="radio" 
-                        name="payment_method" 
-                        value="CASH" 
-                        checked={paymentMethod === 'CASH'} 
-                        onChange={() => setPaymentMethod('CASH')} 
-                        className="sr-only" 
-                      />
-                      <Wallet size={14} />
-                      <span className="text-xs">CASH</span>
-                    </label>
-                  </div>
+                  <label className={`flex items-center justify-center gap-2 p-3 rounded-2xl border cursor-pointer transition-all ${
+                    paymentMethod === 'CASH'
+                      ? 'border-orange-500 bg-orange-500/5 text-orange-600 dark:text-orange-455 font-bold'
+                      : 'border-border bg-background text-secondary hover:bg-background/80'
+                  }`}>
+                    <input 
+                      type="radio" 
+                      name="payment_method" 
+                      value="CASH" 
+                      checked={paymentMethod === 'CASH'} 
+                      onChange={() => setPaymentMethod('CASH')} 
+                      className="sr-only" 
+                    />
+                    <Wallet size={14} />
+                    <span className="text-xs">CASH</span>
+                  </label>
                 </div>
+              </div>
 
-                {paymentMethod === 'QRIS' ? (
-                  <>
-
-
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="bg-white p-3 rounded-[2rem] border border-border shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
-                        {settings?.qris_image_url ? (
-                          <img src={settings.qris_image_url} alt="QRIS Code" className="w-full h-full object-contain rounded-2xl" />
-                        ) : (
-                          <div className="text-center p-4">
-                            <QrCode size={36} className="text-secondary mx-auto mb-2" />
-                            <p className="text-[9px] font-bold text-secondary">QRIS Admin Belum Diunggah</p>
-                          </div>
-                        )}
-                      </div>
-                      {settings?.qris_image_url && (
-                        <a 
-                          href={settings.qris_image_url} 
-                          download="qris_pembayaran.jpg"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-450 hover:opacity-85 transition-all bg-emerald-500/10 px-3.5 py-1.5 rounded-xl border border-emerald-500/15 active:scale-[0.97]"
-                        >
-                          <Download size={12} /> Unduh QRIS
-                        </a>
+              {paymentMethod === 'QRIS' ? (
+                <>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="bg-white p-3 rounded-[2rem] border border-border shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
+                      {settings?.qris_image_url ? (
+                        <img src={settings.qris_image_url} alt="QRIS Code" className="w-full h-full object-contain rounded-2xl" />
+                      ) : (
+                        <div className="text-center p-4">
+                          <QrCode size={36} className="text-secondary mx-auto mb-2" />
+                          <p className="text-[9px] font-bold text-secondary">QRIS Admin Belum Diunggah</p>
+                        </div>
                       )}
                     </div>
+                    {settings?.qris_image_url && (
+                      <a 
+                        href={settings.qris_image_url} 
+                        download="qris_pembayaran.jpg"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-455 hover:opacity-85 transition-all bg-emerald-500/10 px-3.5 py-1.5 rounded-xl border border-emerald-500/15 active:scale-[0.97]"
+                      >
+                        <Download size={12} /> Unduh QRIS
+                      </a>
+                    )}
+                  </div>
 
-                    {(() => {
-                      const parseBankInfo = (rekeningStr: string) => {
-                        if (!rekeningStr) return { bank: '-', norek: '-', nama: '-' };
-                        const anPattern = /(?:a\.n\.|a\/n|an)\.?\s*(.+)$/i;
-                        const matchAn = rekeningStr.match(anPattern);
-                        const nama = matchAn ? matchAn[1].trim() : '-';
-                        
-                        const mainPart = matchAn ? rekeningStr.replace(anPattern, '').trim() : rekeningStr;
-                        const parts = mainPart.split(/\s+/);
-                        const bank = parts[0] || '-';
-                        const norek = parts.slice(1).join(' ') || mainPart;
-                        
-                        return { bank, norek, nama: nama !== '-' ? nama : (settings?.nama_komunitas || 'SI Badminton') };
-                      };
+                  {(() => {
+                    const parseBankInfo = (rekeningStr: string) => {
+                      if (!rekeningStr) return { bank: '-', norek: '-', nama: '-' };
+                      const anPattern = /(?:a\.n\.|a\/n|an)\.?\s*(.+)$/i;
+                      const matchAn = rekeningStr.match(anPattern);
+                      const nama = matchAn ? matchAn[1].trim() : '-';
+                      
+                      const mainPart = matchAn ? rekeningStr.replace(anPattern, '').trim() : rekeningStr;
+                      const parts = mainPart.split(/\s+/);
+                      const bank = parts[0] || '-';
+                      const norek = parts.slice(1).join(' ') || mainPart;
+                      
+                      return { bank, norek, nama: nama !== '-' ? nama : (settings?.nama_komunitas || 'SI Badminton') };
+                    };
 
-                      return (
-                        <>
-                          {/* New Payment Flow: Show button initially, show upload proof after clicking it */}
-                          {!hasClickedPaid ? (
-                            <div className="w-full">
-                              <button 
-                                onClick={() => setHasClickedPaid(true)} 
-                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-950/20"
-                              >
-                                <CheckCircle size={14} /> Saya Sudah Bayar
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="w-full space-y-3">
-                                <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
-                                
-                                {!selectedFile ? (
-                                  <>
-                                    <button onClick={triggerFilePicker} className="w-full border border-dashed border-border hover:border-accent/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-background/40 hover:bg-background transition-colors">
-                                      <Upload size={20} className="text-secondary" />
-                                      <span className="text-[10px] font-bold text-primary">Pilih Bukti Transfer Pembayaran</span>
-                                      <span className="text-[8px] text-secondary">Format: JPG, PNG, WEBP (Maks 5MB)</span>
+                    return (
+                      <>
+                        {!hasClickedPaid ? (
+                          <div className="w-full">
+                            <button 
+                              onClick={() => setHasClickedPaid(true)} 
+                              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-950/20"
+                            >
+                              <CheckCircle size={14} /> Saya Sudah Bayar
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-full space-y-3">
+                              <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
+                              
+                              {!selectedFile ? (
+                                <>
+                                  <button onClick={triggerFilePicker} className="w-full border border-dashed border-border hover:border-accent/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-background/40 hover:bg-background transition-colors">
+                                    <Upload size={20} className="text-secondary" />
+                                    <span className="text-[10px] font-bold text-primary">Pilih Bukti Transfer Pembayaran</span>
+                                    <span className="text-[8px] text-secondary">Format: JPG, PNG, WEBP (Maks 5MB)</span>
+                                  </button>
+                                  
+                                  <button 
+                                    onClick={() => {
+                                      setHasClickedPaid(false);
+                                      handleCancelFile();
+                                    }}
+                                    className="w-full py-3 bg-background hover:bg-border/40 text-primary font-bold rounded-2xl border border-border transition-all text-xs"
+                                  >
+                                    Batal
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
+                                    {previewUrl && (
+                                      <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-background flex-shrink-0">
+                                        <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-[10px] font-extrabold text-primary truncate">{selectedFile.name}</p>
+                                      <p className="text-[9px] text-secondary font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                    </div>
+                                    <button onClick={handleCancelFile} disabled={isUploading} className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50">
+                                      <XCircle size={15} />
                                     </button>
-                                    
+                                  </div>
+                                  
+                                  <div className="w-full flex gap-3 mt-3">
                                     <button 
-                                      onClick={() => {
-                                        setHasClickedPaid(false);
-                                        handleCancelFile();
-                                      }}
-                                      className="w-full py-3 bg-background hover:bg-border/40 text-primary font-bold rounded-2xl border border-border transition-all text-xs"
+                                      onClick={handleCancelFile}
+                                      disabled={isUploading}
+                                      className="px-5 py-3.5 bg-background hover:bg-border/40 text-primary font-bold rounded-2xl border border-border transition-all text-xs"
                                     >
                                       Batal
                                     </button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
-                                      {previewUrl && (
-                                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-background flex-shrink-0">
-                                          <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                                        </div>
-                                      )}
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] font-extrabold text-primary truncate">{selectedFile.name}</p>
-                                        <p className="text-[9px] text-secondary font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                                      </div>
-                                      <button onClick={handleCancelFile} disabled={isUploading} className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50">
-                                        <XCircle size={15} />
-                                      </button>
-                                    </div>
                                     
-                                    <div className="w-full flex gap-3 mt-3">
-                                      <button 
-                                        onClick={handleCancelFile}
-                                        disabled={isUploading}
-                                        className="px-5 py-3.5 bg-background hover:bg-border/40 text-primary font-bold rounded-2xl border border-border transition-all text-xs"
-                                      >
-                                        Batal
-                                      </button>
-                                      
-                                      <div className="flex-1">
-                                        {isUploading ? (
-                                          <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
-                                            <RefreshCw size={14} className="animate-spin" /> Mengirim Bukti...
-                                          </button>
-                                        ) : (
-                                          <button onClick={handleUpload} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-950/20">
-                                            <CheckCircle size={14} /> Kirim Bukti Transfer
-                                          </button>
-                                        )}
-                                      </div>
+                                    <div className="flex-grow">
+                                      {isUploading ? (
+                                        <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
+                                          <RefreshCw size={14} className="animate-spin" /> Mengirim Bukti...
+                                        </button>
+                                      ) : (
+                                        <button onClick={handleUpload} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-950/20">
+                                          <CheckCircle size={14} /> Kirim Bukti Transfer
+                                        </button>
+                                      )}
                                     </div>
-                                  </>
-                                )}
-                              </div>
-                            </>
-                          )}
-
-                          {/* Collapsible Bank details */}
-                          {settings && (
-                            <div className="w-full border-t border-border/50 pt-3.5 mt-3.5 space-y-3">
-                              <button
-                                type="button"
-                                onClick={() => setShowBankInfo(!showBankInfo)}
-                                className="w-full flex items-center justify-center gap-1.5 text-[10px] font-black text-secondary hover:text-primary transition-colors py-1"
-                              >
-                                <span>{showBankInfo ? '▲ Sembunyikan Info Rekening' : '▼ Lihat Info Rekening'}</span>
-                              </button>
-                              
-                              {showBankInfo && (
-                                <div className="bg-background/60 rounded-2xl p-4 border border-border/80 space-y-2.5 animate-fadeIn text-xs text-left">
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nama Bank</span>
-                                    <span className="text-primary font-bold">{parseBankInfo(settings.rekening_penerima).bank}</span>
                                   </div>
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nomor Rekening</span>
-                                    <span className="text-primary font-bold select-all">{parseBankInfo(settings.rekening_penerima).norek}</span>
-                                  </div>
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nama Rekening</span>
-                                    <span className="text-primary font-bold">{parseBankInfo(settings.rekening_penerima).nama}</span>
-                                  </div>
-                                </div>
+                                </>
                               )}
                             </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </>
-                ) : (
-                  <>
-                    <div className="w-full text-center py-5 space-y-2 bg-orange-500/5 border border-orange-500/15 rounded-2xl">
-                      <h4 className="text-xs font-black text-orange-600 dark:text-orange-400 uppercase tracking-wider">Pembayaran Tunai</h4>
-                      <p className="text-[10px] font-bold text-secondary px-4 leading-relaxed">
-                        Bayar langsung kepada Bendahara.
-                      </p>
-                    </div>
+                          </>
+                        )}
 
-                    <div className="w-full">
-                      {isUploading ? (
-                        <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
-                          <RefreshCw size={14} className="animate-spin" /> Memproses...
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={() => setShowConfirmCash(true)}
-                          className="w-full bg-orange-600 hover:bg-orange-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-orange-950/20"
-                        >
-                          Tandai Sudah Bayar Cash
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+                        {/* Collapsible Bank details */}
+                        {settings && (
+                          <div className="w-full border-t border-border/50 pt-3.5 mt-3.5 space-y-3">
+                            <button
+                              type="button"
+                              onClick={() => setShowBankInfo(!showBankInfo)}
+                              className="w-full flex items-center justify-center gap-1.5 text-[10px] font-black text-secondary hover:text-primary transition-colors py-1"
+                            >
+                              <span>{showBankInfo ? '▲ Sembunyikan Info Rekening' : '▼ Lihat Info Rekening'}</span>
+                            </button>
+                            
+                            {showBankInfo && (
+                              <div className="bg-background/60 rounded-2xl p-4 border border-border/80 space-y-2.5 animate-fadeIn text-xs text-left">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nama Bank</span>
+                                  <span className="text-primary font-bold">{parseBankInfo(settings.rekening_penerima).bank}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nomor Rekening</span>
+                                  <span className="text-primary font-bold select-all">{parseBankInfo(settings.rekening_penerima).norek}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nama Rekening</span>
+                                  <span className="text-primary font-bold">{parseBankInfo(settings.rekening_penerima).nama}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
+              ) : (
+                <>
+                  <div className="w-full text-center py-5 space-y-2 bg-orange-500/5 border border-orange-500/15 rounded-2xl">
+                    <h4 className="text-xs font-black text-orange-600 dark:text-orange-400 uppercase tracking-wider">Pembayaran Tunai</h4>
+                    <p className="text-[10px] font-bold text-secondary px-4 leading-relaxed">
+                      Bayar langsung kepada Bendahara.
+                    </p>
+                  </div>
+
+                  <div className="w-full">
+                    {isUploading ? (
+                      <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
+                        <RefreshCw size={14} className="animate-spin" /> Memproses...
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => setShowConfirmCash(true)}
+                        className="w-full bg-orange-600 hover:bg-orange-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-orange-950/20"
+                      >
+                        Tandai Sudah Bayar Cash
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Confirmation Modal overlay for CASH */}
       {showConfirmCash && currentPayment && (
@@ -3986,7 +4295,7 @@ function MyBillsMember({
             <div className="bg-background/50 p-4 rounded-2xl border border-border space-y-2.5 text-xs text-primary">
               <div className="flex justify-between">
                 <span className="text-secondary font-medium">Nama:</span> 
-                <span className="font-bold text-primary">{user?.name || 'Anggota'}</span>
+                <span className="font-bold text-primary">{memberRecord?.name || user?.name || 'Anggota'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-secondary font-medium">Nominal:</span> 
@@ -4017,11 +4326,9 @@ function MyBillsMember({
           </div>
         </div>
       )}
-
-    </div>
+    </>
   );
 }
-
 // --- TREASURY (KAS) COMPONENT ---
 function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions, payments }: any) {
   const totalIuranKasTerkumpul = payments
@@ -4104,7 +4411,9 @@ function MembersList({
   changeUserRole, 
   changeUserStatus, 
   deleteMember, 
-  createAccountBySuperadmin 
+  createAccountBySuperadmin,
+  session,
+  profilePhoto
 }: any) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
@@ -4199,14 +4508,18 @@ function MembersList({
           
           return (
             <div key={m.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm ${
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm overflow-hidden flex-shrink-0 ${
                 m.role === 'superadmin'
                   ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
                   : m.role === 'admin'
                     ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                     : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
               }`}>
-                {m.name.charAt(0)}
+                {m.user_id === session?.user?.id && profilePhoto ? (
+                  <img src={profilePhoto} alt="Foto Profil" className="w-full h-full object-cover" />
+                ) : (
+                  getInitials(m.name)
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-extrabold text-xs text-primary truncate flex items-center gap-1.5">
@@ -4422,41 +4735,92 @@ function MembersList({
 }
 
 // --- PROFILE MEMBER COMPONENT ---
-function ProfileMember({ profile, updateProfile }: { profile: Profile; updateProfile: (nama: string, nomor_hp: string) => Promise<void> }) {
+function ProfileMember({ 
+  profile, 
+  updateProfile, 
+  profilePhoto 
+}: { 
+  profile: any; 
+  updateProfile: (nama: string, nomor_hp: string, photo: string | null) => Promise<void>; 
+  profilePhoto: string | null; 
+}) {
   const [nama, setNama] = useState(profile.nama);
   const [nomorHp, setNomorHp] = useState(profile.nomor_hp || '');
+  const [photo, setPhoto] = useState<string | null>(profilePhoto);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setPhoto(profilePhoto);
+  }, [profilePhoto]);
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImage(file);
+        setPhoto(compressed);
+      } catch (err: any) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhoto(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await updateProfile(nama, nomorHp);
+    await updateProfile(nama, nomorHp, photo);
     setIsSubmitting(false);
   };
 
+  const idDosen = profile.email ? (profile.email.match(/dosen(\d{5})@/i)?.[1] || '-') : '-';
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4 bg-card p-5 rounded-3xl border border-border shadow-theme">
-        <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center justify-center font-black text-xl shadow-inner">
-          {profile.nama.charAt(0)}
+    <div className="space-y-6 animate-fadeIn">
+      {/* PROFILE HEADER CARD */}
+      <div className="flex items-center gap-4 bg-card p-5 rounded-3xl border border-border shadow-theme relative overflow-hidden">
+        <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative flex-shrink-0">
+          <div className="w-16 h-16 bg-gradient-to-br from-[#10B981] to-[#059669] text-white rounded-full flex items-center justify-center font-black text-xl shadow-inner border border-border overflow-hidden">
+            {photo ? (
+              <img src={photo} alt="Foto Profil" className="w-full h-full object-cover" />
+            ) : (
+              getInitials(nama)
+            )}
+          </div>
+          <label className="absolute -bottom-1 -right-1 bg-accent hover:bg-accent/90 text-white p-1 rounded-full shadow-lg border border-border cursor-pointer flex items-center justify-center transition-all hover:scale-105 active:scale-95">
+            <Camera size={12} />
+            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+          </label>
         </div>
-        <div>
-          <h3 className="font-black text-base text-primary">{profile.nama}</h3>
-          <p className="text-xs text-secondary font-bold mt-0.5">{profile.email}</p>
-          <span className={`inline-block mt-2 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
-            profile.role === 'superadmin'
-              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-              : profile.role === 'admin'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-          }`}>
-            {profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA'}
-          </span>
+
+        <div className="flex-1 min-w-0">
+          <h3 className="font-black text-base text-primary truncate leading-tight">{nama || 'Anggota Baru'}</h3>
+          <p className="text-xs text-secondary font-bold truncate mt-1 leading-none">{profile.email}</p>
+          <div className="mt-2.5">
+            <span className={`inline-block text-[8px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+              profile.role === 'superadmin'
+                ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
+                : profile.role === 'admin'
+                  ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
+                  : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+            }`}>
+              {profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA'}
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* EDIT PROFILE CARD */}
       <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-4">
-        <h4 className="font-black text-xs uppercase tracking-wider text-secondary">Edit Profil</h4>
+        <h4 className="font-black text-xs uppercase tracking-wider text-secondary flex items-center gap-1.5">
+          <Edit size={14} className="text-accent" />
+          <span>Edit Profil</span>
+        </h4>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Lengkap</label>
@@ -4465,11 +4829,12 @@ function ProfileMember({ profile, updateProfile }: { profile: Profile; updatePro
               required 
               value={nama} 
               onChange={e => setNama(e.target.value)} 
+              placeholder="Masukkan nama lengkap Anda"
               className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
             />
           </div>
           <div>
-            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nomor Handphone</label>
+            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nomor Handphone (Opsional)</label>
             <input 
               type="text" 
               value={nomorHp} 
@@ -4478,10 +4843,23 @@ function ProfileMember({ profile, updateProfile }: { profile: Profile; updatePro
               className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
             />
           </div>
+
+          {photo && (
+            <div className="pt-1.5">
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="w-full flex items-center justify-center gap-1.5 py-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-500 dark:text-red-400 font-extrabold text-[10px] rounded-xl uppercase tracking-wider transition-all"
+              >
+                <Trash2 size={12} /> Hapus Foto Profil
+              </button>
+            </div>
+          )}
+
           <button 
             type="submit" 
             disabled={isSubmitting}
-            className="w-full bg-emerald-600 hover:bg-emerald-505 text-white font-extrabold py-3 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {isSubmitting ? (
               <>
