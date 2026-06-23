@@ -4597,10 +4597,9 @@ function MembersList({
                 />
               </div>
               <div>
-                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Nomor HP</label>
+                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Nomor HP (Opsional)</label>
                 <input 
                   type="text" 
-                  required 
                   value={newPhone} 
                   onChange={e => setNewPhone(e.target.value)} 
                   placeholder="Contoh: 08123456789"
