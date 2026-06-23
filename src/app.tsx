@@ -175,6 +175,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -183,6 +184,13 @@ export default function App() {
       setProfilePhoto(null);
     }
   }, [session]);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      setIsRecoveringPassword(true);
+    }
+  }, []);
   
   // Database states
   const [members, setMembers] = useState<Member[]>([]);
@@ -757,8 +765,11 @@ export default function App() {
     });
 
     // 2. Listen to auth state changes
-    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoveringPassword(true);
+      }
       if (session) {
         setIsLoading(true);
         if (session.user.user_metadata?.password_changed) {
@@ -1800,6 +1811,36 @@ export default function App() {
 
         </div>
       </div>
+    );
+  }
+
+  // --- RESET PASSWORD SCREEN (RECOVERY) ---
+  if (session && isRecoveringPassword) {
+    return (
+      <ChangePasswordScreen
+        session={session}
+        isRecovery={true}
+        onPasswordChanged={async () => {
+          setIsRecoveringPassword(false);
+          setMustChangePassword(false);
+          setIsLoading(true);
+          await supabase.auth.signOut();
+          setSession(null);
+          setProfile(null);
+          setMemberRecord(null);
+          setIsLoading(false);
+          showToast('✅ Password berhasil diperbarui! Silakan masuk kembali.', 'success');
+        }}
+        onCancel={async () => {
+          setIsRecoveringPassword(false);
+          setIsLoading(true);
+          await supabase.auth.signOut();
+          setSession(null);
+          setProfile(null);
+          setMemberRecord(null);
+          setIsLoading(false);
+        }}
+      />
     );
   }
 
@@ -5255,7 +5296,17 @@ function SettingsAdmin({
 }
 
 // --- GANTI PASSWORD SCREEN ---
-function ChangePasswordScreen({ session, onPasswordChanged }: { session: any; onPasswordChanged: () => void }) {
+function ChangePasswordScreen({ 
+  session, 
+  onPasswordChanged, 
+  isRecovery = false, 
+  onCancel 
+}: { 
+  session: any; 
+  onPasswordChanged: () => void; 
+  isRecovery?: boolean; 
+  onCancel?: () => void; 
+}) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -5298,7 +5349,7 @@ function ChangePasswordScreen({ session, onPasswordChanged }: { session: any; on
       return;
     }
 
-    if (newPassword === 'sisteminformasi') {
+    if (!isRecovery && newPassword === 'sisteminformasi') {
       setErrorMsg('Password baru tidak boleh menggunakan password bawaan.');
       return;
     }
@@ -5371,9 +5422,13 @@ function ChangePasswordScreen({ session, onPasswordChanged }: { session: any; on
             
             {/* Card wrapper */}
             <div className="bg-card rounded-[28px] border border-border shadow-theme p-[28px] mt-[28px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
-              <h2 className="text-xl font-[800] text-primary text-center mb-2">Ganti Password</h2>
+              <h2 className="text-xl font-[800] text-primary text-center mb-2">
+                {isRecovery ? 'Buat Password Baru' : 'Ganti Password'}
+              </h2>
               <p className="text-xs text-secondary text-center mb-6 leading-relaxed">
-                Demi keamanan akun, silakan ubah password bawaan Anda sebelum melanjutkan.
+                {isRecovery 
+                  ? 'Silakan masukkan password baru Anda untuk memulihkan akun.' 
+                  : 'Demi keamanan akun, silakan ubah password bawaan Anda sebelum melanjutkan.'}
               </p>
 
               {errorMsg && (
@@ -5464,7 +5519,7 @@ function ChangePasswordScreen({ session, onPasswordChanged }: { session: any; on
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={isSubmitting || strength.score < 2}
+                  disabled={isSubmitting || newPassword.length < 8 || confirmPassword.length < 8}
                   className="w-full h-[52px] bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-[700] rounded-[16px] mt-2 transition-all shadow-[0_6px_20px_rgba(5,150,105,0.15)] active:scale-[0.98] text-[15px] flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {isSubmitting ? (
@@ -5475,21 +5530,29 @@ function ChangePasswordScreen({ session, onPasswordChanged }: { session: any; on
                   ) : (
                     <>
                       <CheckCircle size={18} />
-                      <span>Simpan Password</span>
+                      <span>{isRecovery ? 'Simpan Password Baru' : 'Simpan Password'}</span>
                     </>
                   )}
                 </button>
               </form>
             </div>
 
-            {/* Logout Footer Button */}
+            {/* Logout/Cancel Footer Button */}
             <div className="mt-6 flex justify-center w-full">
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={isRecovery && onCancel ? onCancel : handleLogout}
                 className="py-2 px-4 text-center text-secondary hover:text-red-500 text-xs font-[700] uppercase tracking-wider transition-colors inline-flex items-center gap-1.5"
               >
-                <LogOut size={14} /> Keluar dari Akun
+                {isRecovery ? (
+                  <>
+                    <XCircle size={14} /> Kembali ke Login
+                  </>
+                ) : (
+                  <>
+                    <LogOut size={14} /> Keluar dari Akun
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -5636,7 +5699,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
       });
 
       if (error) throw error;
-      setSuccessMsg('Tautan instruksi reset password telah dikirim ke email Anda.');
+      setSuccessMsg('Tautan reset password telah dikirim');
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || 'Gagal mengirim email reset password.');
