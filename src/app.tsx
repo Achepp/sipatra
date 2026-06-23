@@ -1589,12 +1589,13 @@ function Dashboard({
 
         {/* KPI CARDS GRID */}
         <div className="grid grid-cols-2 gap-3.5">
+          {/* CARD 1: TOTAL ANGGOTA */}
           <div className="bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
             <div className="flex justify-between items-start">
               <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl">
                 <Users size={16} />
               </div>
-              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">TOTAL ANGGOTA</span>
+              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Total Anggota</span>
             </div>
             <div>
               <p className="text-lg font-black text-primary leading-none">{members.filter((m: any) => m.role === 'member').length} Orang</p>
@@ -1602,12 +1603,13 @@ function Dashboard({
             </div>
           </div>
 
+          {/* CARD 2: TOTAL SESI */}
           <div className="bg-purple-500/5 dark:bg-purple-500/10 border border-purple-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
             <div className="flex justify-between items-start">
               <div className="p-2 bg-purple-500/10 text-purple-600 rounded-xl">
                 <Activity size={16} />
               </div>
-              <span className="text-[8px] font-black text-purple-500 uppercase tracking-wider">TOTAL SESI</span>
+              <span className="text-[8px] font-black text-purple-500 uppercase tracking-wider">Total Sesi</span>
             </div>
             <div>
               <p className="text-lg font-black text-primary leading-none">{sessions.length} Sesi</p>
@@ -1615,25 +1617,13 @@ function Dashboard({
             </div>
           </div>
 
-          <div className="bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
-            <div className="flex justify-between items-start">
-              <div className="p-2 bg-blue-500/10 text-blue-600 rounded-xl">
-                <DollarSign size={16} />
-              </div>
-              <span className="text-[8px] font-black text-blue-500 uppercase tracking-wider">KAS BULAN INI</span>
-            </div>
-            <div>
-              <p className="text-lg font-black text-primary leading-none truncate">{formatRp(saldoKas)}</p>
-              <p className="text-[9px] text-red-500 font-bold mt-1.5 flex items-center gap-0.5">↓ 15% dari bulan lalu</p>
-            </div>
-          </div>
-
-          <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
+          {/* CARD 3: TAGIHAN BELUM LUNAS */}
+          <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden col-span-2">
             <div className="flex justify-between items-start">
               <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
                 <Clock size={16} />
               </div>
-              <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider">UNPAID BILLS</span>
+              <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider">Tagihan Belum Lunas</span>
             </div>
             <div>
               <p className="text-lg font-black text-red-505 dark:text-red-405 leading-none truncate">{formatRp(totalUnpaidAmount)}</p>
@@ -1642,27 +1632,12 @@ function Dashboard({
               </p>
             </div>
           </div>
-
-          <div className="bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden col-span-2 sm:col-span-1">
-            <div className="flex justify-between items-start">
-              <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl">
-                <Clock size={16} />
-              </div>
-              <span className="text-[8px] font-black text-orange-550 dark:text-orange-450 uppercase tracking-wider">CASH PENDING</span>
-            </div>
-            <div>
-              <p className="text-lg font-black text-primary leading-none">{pendingCashPayments.length} Sesi</p>
-              <p className="text-[9px] text-secondary font-bold mt-1.5 truncate">
-                Pembayaran Cash Menunggu Verifikasi
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* ADMIN SECTION: PENDING PAYMENTS VERIFICATION */}
         <div className="bg-card rounded-[24px] p-4.5 shadow-theme border border-border space-y-4 transition-all duration-200">
           <div className="flex justify-between items-center">
-            <h3 className="font-black text-xs uppercase tracking-wider text-primary">Menunggu Verifikasi</h3>
+            <h3 className="font-black text-xs uppercase tracking-wider text-primary">Pembayaran QRIS Menunggu Verifikasi</h3>
             <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] px-2.5 py-0.5 rounded-full font-black border border-amber-500/20">
               {pendingPayments.length}
             </span>
@@ -1684,19 +1659,47 @@ function Dashboard({
                         {getInitials(member?.name)}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-extrabold text-xs text-primary truncate">{member?.name || 'Anggota'}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-extrabold text-xs text-primary truncate">{member?.name || 'Anggota'}</p>
+                          <span className="bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500/20 text-[7px] font-black px-1.5 py-0.2 rounded uppercase tracking-wider flex-shrink-0">
+                            QRIS
+                          </span>
+                        </div>
                         <p className="text-[9px] text-secondary font-bold truncate mt-0.5">
                           {session?.nama_sesi || 'Sesi Game'} • {session?.tanggal_main ? formatDate(session.tanggal_main) : ''}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-xs font-black text-amber-600 dark:text-amber-400">{formatRp(p.nominal_tagihan)}</span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-xs font-black text-amber-600 dark:text-amber-400 mr-1">{formatRp(p.nominal_tagihan)}</span>
+                      {p.bukti_transfer && p.bukti_transfer !== 'CASH' && (
+                        <button 
+                          onClick={() => setViewProofUrl(p.bukti_transfer)}
+                          className="px-2 py-1.5 bg-card border border-border/40 hover:bg-background text-primary text-[9px] font-extrabold rounded-xl transition-colors"
+                          title="Lihat Bukti Transfer"
+                        >
+                          Bukti
+                        </button>
+                      )}
                       <button 
-                        onClick={() => setReviewPayment(p)}
-                        className="px-3 py-1.5 border border-accent text-accent hover:bg-accent hover:text-white rounded-xl text-[10px] font-black transition-colors"
+                        onClick={async () => {
+                          await verifyPayment(p.id, 'rejected');
+                          showToast('Pembayaran ditolak.', 'info');
+                        }}
+                        className="p-1 text-red-500 hover:bg-red-500/10 rounded-xl border border-red-500/20 flex items-center justify-center"
+                        title="Tolak Pembayaran"
                       >
-                        Verifikasi
+                        <XCircle size={14} />
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          await verifyPayment(p.id, 'verified');
+                          showToast('Pembayaran berhasil diverifikasi!', 'success');
+                        }}
+                        className="p-1 text-accent hover:bg-emerald-500/10 rounded-xl border border-emerald-500/20 flex items-center justify-center"
+                        title="Verifikasi Pembayaran"
+                      >
+                        <CheckCircle size={14} />
                       </button>
                     </div>
                   </div>
@@ -1707,17 +1710,17 @@ function Dashboard({
                   onClick={() => { setActiveTab('tagihan'); showToast('Tinjau semua pembayaran tertunda di halaman Sesi.', 'info'); }}
                   className="w-full text-center text-[10px] font-black text-accent hover:opacity-80 pt-1 block"
                 >
-                  Lihat semua &gt;
+                  Lihat Semua
                 </button>
               )}
             </div>
           )}
         </div>
- 
+
         {/* ADMIN SECTION: CASH PAYMENTS VERIFICATION */}
         <div className="bg-card rounded-[24px] p-4.5 shadow-theme border border-border space-y-4 transition-all duration-200">
           <div className="flex justify-between items-center">
-            <h3 className="font-black text-xs uppercase tracking-wider text-primary">Verifikasi Pembayaran Cash</h3>
+            <h3 className="font-black text-xs uppercase tracking-wider text-primary">Pembayaran Cash Menunggu Verifikasi</h3>
             <span className="bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] px-2.5 py-0.5 rounded-full font-black border border-orange-500/20">
               {pendingCashPayments.length}
             </span>
@@ -1729,7 +1732,7 @@ function Dashboard({
             </div>
           ) : (
             <div className="space-y-3.5">
-              {pendingCashPayments.map((p: any) => {
+              {pendingCashPayments.slice(0, 3).map((p: any) => {
                 const member = members.find((m: any) => m.id === p.member_id);
                 const session = sessions.find((s: any) => s.id === p.session_id);
                 return (
@@ -1739,38 +1742,53 @@ function Dashboard({
                         {getInitials(member?.name)}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-extrabold text-xs text-primary truncate">{member?.name || 'Anggota'}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-extrabold text-xs text-primary truncate">{member?.name || 'Anggota'}</p>
+                          <span className="bg-emerald-500/10 text-accent border border-emerald-500/20 text-[7px] font-black px-1.5 py-0.2 rounded uppercase tracking-wider flex-shrink-0">
+                            CASH
+                          </span>
+                        </div>
                         <p className="text-[9px] text-secondary font-bold truncate mt-0.5">
                           {session?.nama_sesi || 'Sesi Game'} • {p.tanggal_bayar ? formatDate(p.tanggal_bayar) : ''}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-xs font-black text-orange-600 dark:text-orange-400">{formatRp(p.nominal_tagihan)}</span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-xs font-black text-orange-600 dark:text-orange-400 mr-1">{formatRp(p.nominal_tagihan)}</span>
                       <div className="flex gap-1.5">
                         <button 
                           onClick={async () => {
                             await verifyPayment(p.id, 'rejected');
                             showToast('Pembayaran cash ditolak.', 'info');
                           }}
-                          className="px-2.5 py-1.5 border border-red-500/30 bg-red-500/10 text-red-500 dark:text-red-400 hover:bg-red-500/20 rounded-xl text-[10px] font-black transition-colors"
+                          className="p-1 text-red-500 hover:bg-red-500/10 rounded-xl border border-red-500/20 flex items-center justify-center"
+                          title="Tolak Pembayaran"
                         >
-                          Tolak
+                          <XCircle size={14} />
                         </button>
                         <button 
                           onClick={async () => {
                             await verifyPayment(p.id, 'verified');
                             showToast('Pembayaran cash berhasil diverifikasi!', 'success');
                           }}
-                          className="px-2.5 py-1.5 bg-accent hover:opacity-90 text-white rounded-xl text-[10px] font-black transition-colors shadow-md shadow-emerald-500/10"
+                          className="p-1 text-accent hover:bg-emerald-500/10 rounded-xl border border-emerald-500/20 flex items-center justify-center"
+                          title="Verifikasi Pembayaran"
                         >
-                          Verifikasi
+                          <CheckCircle size={14} />
                         </button>
                       </div>
                     </div>
                   </div>
                 );
               })}
+              {pendingCashPayments.length > 3 && (
+                <button 
+                  onClick={() => { setActiveTab('tagihan'); showToast('Tinjau semua pembayaran tertunda di halaman Sesi.', 'info'); }}
+                  className="w-full text-center text-[10px] font-black text-accent hover:opacity-80 pt-1 block"
+                >
+                  Lihat Semua
+                </button>
+              )}
             </div>
           )}
         </div>
