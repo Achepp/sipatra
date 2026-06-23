@@ -3715,7 +3715,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                         required
                         value={email}
                         onChange={e => setEmail(e.target.value)}
-                        placeholder="08961234567"
+                        placeholder="masukkan email"
                         className="w-full h-full pl-[52px] pr-4 rounded-[18px] bg-card border border-border focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none text-primary placeholder:text-secondary font-[500] text-[15px] transition-all"
                       />
                     </div>
