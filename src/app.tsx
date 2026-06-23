@@ -3902,6 +3902,82 @@ function PaymentModal({
   const [showBankInfo, setShowBankInfo] = useState(false);
   const [hasClickedPaid, setHasClickedPaid] = useState(false);
 
+  const handleDownloadQRIS = async () => {
+    if (!settings?.qris_image_url) return;
+    
+    try {
+      const response = await fetch(settings.qris_image_url);
+      if (!response.ok) throw new Error('Fetch failed');
+      const blob = await response.blob();
+      
+      const sessionNameClean = sessionDetail?.nama_sesi
+        ? sessionDetail.nama_sesi.trim().replace(/\s+/g, '-')
+        : 'Sesi';
+      const filename = `QRIS-${sessionNameClean}.png`;
+      
+      const localUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = localUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(localUrl);
+      
+      setToastMessage('QRIS berhasil diunduh');
+      setTimeout(() => setToastMessage(''), 3000);
+    } catch (err) {
+      console.error('Download QRIS error:', err);
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const sessionNameClean = sessionDetail?.nama_sesi
+                  ? sessionDetail.nama_sesi.trim().replace(/\s+/g, '-')
+                  : 'Sesi';
+                const filename = `QRIS-${sessionNameClean}.png`;
+                
+                const localUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = localUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(localUrl);
+                
+                setToastMessage('QRIS berhasil diunduh');
+                setTimeout(() => setToastMessage(''), 3000);
+              } else {
+                setToastError('Gagal mengunduh QRIS, silakan coba lagi');
+                setTimeout(() => setToastError(''), 3000);
+              }
+            }, 'image/png');
+          } else {
+            setToastError('Gagal mengunduh QRIS, silakan coba lagi');
+            setTimeout(() => setToastError(''), 3000);
+          }
+        };
+        img.onerror = () => {
+          setToastError('Gagal mengunduh QRIS, silakan coba lagi');
+          setTimeout(() => setToastError(''), 3000);
+        };
+        img.src = settings.qris_image_url;
+      } catch (canvasErr) {
+        setToastError('Gagal mengunduh QRIS, silakan coba lagi');
+        setTimeout(() => setToastError(''), 3000);
+      }
+    }
+  };
+
   useEffect(() => {
     if (!currentPayment) {
       setHasClickedPaid(false);
@@ -4157,15 +4233,12 @@ function PaymentModal({
                       )}
                     </div>
                     {settings?.qris_image_url && (
-                      <a 
-                        href={settings.qris_image_url} 
-                        download="qris_pembayaran.jpg"
-                        target="_blank"
-                        rel="noreferrer"
+                      <button 
+                        onClick={handleDownloadQRIS}
                         className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-455 hover:opacity-85 transition-all bg-emerald-500/10 px-3.5 py-1.5 rounded-xl border border-emerald-500/15 active:scale-[0.97]"
                       >
                         <Download size={12} /> Unduh QRIS
-                      </a>
+                      </button>
                     )}
                   </div>
 
@@ -5954,6 +6027,11 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                     Daftar Sekarang →
                   </button>
                 </p>
+                <div className="mt-8 flex flex-col items-center gap-0.5 select-none opacity-65 text-center">
+                  <p className="text-[10px] text-secondary font-[600] tracking-wider">
+                    @2026 SI-PATRA v1.0.0
+                  </p>
+                </div>
               </div>
             </div>
           )}
