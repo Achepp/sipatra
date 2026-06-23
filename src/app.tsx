@@ -6,7 +6,7 @@ import {
   User as UserIcon, Activity, Calendar, MapPin, 
   TrendingUp, PlusCircle, DollarSign, AlertCircle, 
   ChevronDown, Check, RefreshCw, Key, Shield, UserCheck,
-  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit
+  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
@@ -153,6 +153,12 @@ export default function App() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [settings, setSettings] = useState<Pengaturan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Financial config state
+  const [iuranKasConfig, setIuranKasConfig] = useState<number>(() => {
+    const saved = localStorage.getItem('sipatra_iuran_kas');
+    return saved ? parseInt(saved) : 5000;
+  });
 
   // Superadmin & Trash Bin states
   const [softDeletedItems, setSoftDeletedItems] = useState<{ sessions: any[]; payments: any[]; members: any[] }>(() => {
@@ -849,6 +855,32 @@ export default function App() {
   const totalExpense = sessionExpenses.reduce((sum, e) => sum + e.nominal, 0);
   const saldoKas = totalIncome - totalExpense;
 
+  const totalIuranKasTerkumpul = payments
+    .filter(p => p.status_pembayaran === 'verified')
+    .reduce((sum, p) => {
+      const s = sessions.find(s => s.id === p.session_id);
+      if (s) {
+        const biayaSesi = s.biaya_per_orang || 0;
+        return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+      }
+      return sum;
+    }, 0);
+
+  const contributionsThisMonth = payments
+    .filter(p => p.status_pembayaran === 'verified')
+    .reduce((sum, p) => {
+      const s = sessions.find(s => s.id === p.session_id);
+      if (s && s.tanggal_main) {
+        const d = new Date(s.tanggal_main);
+        const now = new Date();
+        if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+          const biayaSesi = s.biaya_per_orang || 0;
+          return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+        }
+      }
+      return sum;
+    }, 0);
+
   const handleLogout = async () => {
     setIsLoading(true);
     await supabase.auth.signOut();
@@ -1149,11 +1181,12 @@ export default function App() {
       }
 
       const costPerPerson = Math.round(totalSessionExpense / sessionAttendees.length);
+      const finalBill = costPerPerson + iuranKasConfig;
 
       const paymentsToInsert = sessionAttendees.map(a => ({
         session_id: sessionId,
         member_id: a.member_id,
-        nominal_tagihan: costPerPerson,
+        nominal_tagihan: finalBill,
         status_pembayaran: 'unpaid'
       }));
 
@@ -1188,7 +1221,7 @@ export default function App() {
       setSuccessModal({
         isOpen: true,
         title: "Tagihan Berhasil Diterbitkan",
-        description: `Setiap anggota dikenakan ${formatRp(costPerPerson)}`,
+        description: `Setiap anggota dikenakan ${formatRp(finalBill)}`,
         onViewDetail: () => {
           setSelectedSessionId(sessionId);
         }
@@ -1815,6 +1848,7 @@ export default function App() {
               setSelectedSessionId={setSelectedSessionId}
               showToast={showToast}
               setShowAddSessionModal={setShowAddSessionModal}
+              contributionsThisMonth={contributionsThisMonth}
             />
           )}
 
@@ -1843,6 +1877,7 @@ export default function App() {
                 deletePayment={deletePayment}
                 deleteAttendanceRecord={deleteAttendanceRecord}
                 setConfirmModal={setConfirmModal}
+                iuranKasConfig={iuranKasConfig}
               />
             ) : (
               <MyBillsMember 
@@ -1865,6 +1900,7 @@ export default function App() {
               totalExpense={totalExpense}
               sessionExpenses={sessionExpenses} 
               sessions={sessions}
+              payments={payments}
             />
           )}
 
@@ -1899,6 +1935,9 @@ export default function App() {
               softDeletedItems={softDeletedItems}
               restoreSoftDeletedItem={restoreSoftDeletedItem}
               executeHardDeleteFromTrash={executeHardDeleteFromTrash}
+              iuranKasConfig={iuranKasConfig}
+              setIuranKasConfig={setIuranKasConfig}
+              showToast={showToast}
             />
           )}
         </main>
@@ -2111,7 +2150,7 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 // --- DASHBOARD COMPONENT ---
 function Dashboard({ 
   user, memberRecord, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
-  isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal
+  isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal, contributionsThisMonth
 }: any) {
   const isAdmin = user.role === 'admin' || user.role === 'superadmin';
   
@@ -2287,7 +2326,7 @@ function Dashboard({
           </div>
 
           {/* CARD 3: TAGIHAN BELUM LUNAS */}
-          <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden col-span-2">
+          <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
             <div className="flex justify-between items-start">
               <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
                 <Clock size={16} />
@@ -2298,6 +2337,22 @@ function Dashboard({
               <p className="text-lg font-black text-red-505 dark:text-red-405 leading-none truncate">{formatRp(totalUnpaidAmount)}</p>
               <p className="text-[9px] text-secondary font-bold mt-1.5 flex items-center gap-1">
                 <Users size={10} /> {uniqueUnpaidMembersCount} Anggota
+              </p>
+            </div>
+          </div>
+
+          {/* CARD 4: KAS BERTAMBAH BULAN INI */}
+          <div className="bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10 p-4 rounded-[20px] flex flex-col justify-between h-28 relative overflow-hidden">
+            <div className="flex justify-between items-start">
+              <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
+                <Wallet size={16} />
+              </div>
+              <span className="text-[8px] font-black text-indigo-500 uppercase tracking-wider">Kas Bertambah Bulan Ini</span>
+            </div>
+            <div>
+              <p className="text-lg font-black text-emerald-450 leading-none">{formatRp(contributionsThisMonth)}</p>
+              <p className="text-[9px] text-secondary font-bold mt-1.5 flex items-center gap-1">
+                <Receipt size={10} /> Iuran Kas bulan ini
               </p>
             </div>
           </div>
@@ -2810,7 +2865,7 @@ function Dashboard({
 function SessionsAdmin({ 
   sessions, members, attendees, sessionExpenses, payments, selectedSessionId, setSelectedSessionId, 
   showAddSessionModal, setShowAddSessionModal, addSession, saveAttendance, addSessionExpense, deleteSessionExpense, generateBillsForSession, verifyPayment, setViewProofUrl,
-  markAsPaidCashDirectly, deleteSession, updateSession, deletePayment, deleteAttendanceRecord, setConfirmModal
+  markAsPaidCashDirectly, deleteSession, updateSession, deletePayment, deleteAttendanceRecord, setConfirmModal, iuranKasConfig
 }: any) {
   const [openMenuSessionId, setOpenMenuSessionId] = useState<number | null>(null);
   const [editingSession, setEditingSession] = useState<any | null>(null);
@@ -3128,16 +3183,42 @@ function SessionsAdmin({
                   <div className="pt-2 border-t border-border">
                     {s.status_tagihan === 'draft' ? (
                       <div className="space-y-3">
-                        <div className="bg-emerald-500/5 border border-emerald-500/15 p-3 rounded-2xl text-xs flex justify-between items-center">
-                          <div>
-                            <p className="text-secondary font-semibold">Simulasi Biaya:</p>
-                            <p className="text-[10px] text-secondary mt-0.5">
-                              {formatRp(totalExps)} / {sAttendees.length} orang
-                            </p>
+                        <div className="bg-emerald-500/5 border border-emerald-500/15 p-4 rounded-2xl text-xs space-y-2.5">
+                          <p className="font-extrabold text-[10px] text-secondary uppercase tracking-wider border-b border-emerald-500/10 pb-1.5">
+                            Perhitungan Tagihan Sesi
+                          </p>
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-secondary">Biaya Sesi:</span>
+                            <span className="text-primary">{formatRp(totalExps)}</span>
                           </div>
-                          <span className="text-sm font-black text-accent">
-                            {sAttendees.length > 0 ? formatRp(Math.round(totalExps / sAttendees.length)) : 'Rp 0'}
-                          </span>
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-secondary">Jumlah Hadir:</span>
+                            <span className="text-primary">{sAttendees.length} orang</span>
+                          </div>
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-secondary">Iuran Kas:</span>
+                            <span className="text-primary">{formatRp(iuranKasConfig)}</span>
+                          </div>
+                          
+                          <div className="border-t border-emerald-500/10 my-2 pt-2 space-y-1.5 text-[10px] font-semibold text-secondary">
+                            <div className="flex justify-between">
+                              <span>Biaya per Orang:</span>
+                              <span className="text-primary">
+                                {sAttendees.length > 0 ? formatRp(Math.round(totalExps / sAttendees.length)) : 'Rp 0'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Total Iuran Kas:</span>
+                              <span className="text-primary">{formatRp(sAttendees.length * iuranKasConfig)}</span>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-emerald-500/20 pt-2 flex justify-between items-center text-xs font-black">
+                            <span className="text-secondary uppercase tracking-wider">Total Tagihan:</span>
+                            <span className="text-emerald-500 text-sm">
+                              {sAttendees.length > 0 ? formatRp(Math.round(totalExps / sAttendees.length) + iuranKasConfig) : 'Rp 0'}
+                            </span>
+                          </div>
                         </div>
                         <button 
                           onClick={() => generateBillsForSession(s.id)}
@@ -3357,6 +3438,14 @@ function MyBillsMember({
   user, sessions, payments, settings, selectedPayment, setSelectedPayment, submitPaymentWithProof, submitCashPayment 
 }: any) {
   
+  const currentPayment = selectedPayment 
+    ? payments.find((p: any) => p.id === selectedPayment.id) 
+    : null;
+
+  const sessionDetail = currentPayment 
+    ? sessions.find((s: any) => s.id === currentPayment.session_id) 
+    : null;
+
   const [toastMessage, setToastMessage] = useState('');
   const [toastError, setToastError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -3366,14 +3455,16 @@ function MyBillsMember({
 
   const [paymentMethod, setPaymentMethod] = useState<'QRIS' | 'CASH'>('QRIS');
   const [showConfirmCash, setShowConfirmCash] = useState(false);
+  
+  const [showBankInfo, setShowBankInfo] = useState(false);
+  const [hasClickedPaid, setHasClickedPaid] = useState(false);
 
-  const currentPayment = selectedPayment 
-    ? payments.find((p: any) => p.id === selectedPayment.id) 
-    : null;
-
-  const sessionDetail = currentPayment 
-    ? sessions.find((s: any) => s.id === currentPayment.session_id) 
-    : null;
+  useEffect(() => {
+    if (!currentPayment) {
+      setHasClickedPaid(false);
+      setShowBankInfo(false);
+    }
+  }, [currentPayment]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3465,6 +3556,8 @@ function MyBillsMember({
     handleCancelFile();
     setPaymentMethod('QRIS');
     setShowConfirmCash(false);
+    setHasClickedPaid(false);
+    setShowBankInfo(false);
   };
 
   const myPayments = user ? payments.filter((p: any) => p.member_id === user.id) : [];
@@ -3530,12 +3623,28 @@ function MyBillsMember({
                   </div>
 
                   <h3 className="font-extrabold text-sm text-primary leading-snug">{session?.nama_sesi}</h3>
-                  <div className="flex items-center justify-between mt-4 text-xs">
+                  
+                  {/* Breakdown details */}
+                  <div className="mt-3.5 space-y-1.5 border-t border-border/40 pt-3 text-[10px] font-semibold text-secondary">
+                    <div className="flex justify-between">
+                      <span>Biaya Sesi:</span>
+                      <span className="text-primary">{formatRp(session?.biaya_per_orang || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Iuran Kas:</span>
+                      <span className="text-primary">{formatRp(Math.max(0, p.nominal_tagihan - (session?.biaya_per_orang || 0)))}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4 text-xs border-t border-border/40 pt-3">
                     <div className="flex items-center gap-1.5 text-secondary font-bold">
                       <Calendar size={13} />
                       <span>{formatDate(session?.tanggal_main || '')}</span>
                     </div>
-                    <div className="font-black text-primary text-base">{formatRp(p.nominal_tagihan)}</div>
+                    <div className="text-right">
+                      <span className="text-[9px] font-bold text-secondary block uppercase tracking-wider">Total Tagihan</span>
+                      <div className="font-black text-primary text-base">{formatRp(p.nominal_tagihan)}</div>
+                    </div>
                   </div>
                 </div>
 
@@ -3622,6 +3731,22 @@ function MyBillsMember({
                   <p className="text-2xl font-black text-emerald-450 tracking-tight">{formatRp(currentPayment.nominal_tagihan)}</p>
                 </div>
 
+                {/* Breakdown Display */}
+                <div className="w-full bg-background border border-border/80 rounded-2xl p-4 text-xs space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-bold">
+                    <span className="text-secondary uppercase tracking-wider">Biaya Sesi</span>
+                    <span className="text-primary">{formatRp(sessionDetail?.biaya_per_orang || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-bold">
+                    <span className="text-secondary uppercase tracking-wider">Iuran Kas</span>
+                    <span className="text-primary">{formatRp(Math.max(0, currentPayment.nominal_tagihan - (sessionDetail?.biaya_per_orang || 0)))}</span>
+                  </div>
+                  <div className="border-t border-border/60 my-2 pt-2 flex justify-between items-center text-[11px] font-black">
+                    <span className="text-secondary uppercase tracking-wider">Total Tagihan</span>
+                    <span className="text-emerald-500 dark:text-emerald-400">{formatRp(currentPayment.nominal_tagihan)}</span>
+                  </div>
+                </div>
+
                 {/* Payment Method Selector */}
                 <div className="w-full space-y-2 border-b border-border/50 pb-4 mb-1">
                   <label className="block text-[10px] font-black text-secondary uppercase tracking-wider text-left">
@@ -3666,74 +3791,158 @@ function MyBillsMember({
 
                 {paymentMethod === 'QRIS' ? (
                   <>
-                    <div className="bg-amber-500/5 border border-amber-500/15 rounded-2xl p-3.5 w-full text-center space-y-1">
-                      <span className="text-[8px] font-black tracking-wider uppercase bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded border border-amber-500/25 inline-block">QRIS STATIS</span>
-                      <p className="text-[10px] font-bold text-amber-400 leading-snug">
-                        Masukkan nominal <span className="font-black text-emerald-450">{formatRp(currentPayment.nominal_tagihan)}</span> saat melakukan scan pembayaran.
-                      </p>
-                    </div>
 
-                    <div className="bg-white p-3 rounded-[2rem] border border-border shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
-                      {settings?.qris_image_url ? (
-                        <img src={settings.qris_image_url} alt="QRIS Code" className="w-full h-full object-contain rounded-2xl" />
-                      ) : (
-                        <div className="text-center p-4">
-                          <QrCode size={36} className="text-secondary mx-auto mb-2" />
-                          <p className="text-[9px] font-bold text-secondary">QRIS Admin Belum Diunggah</p>
-                        </div>
+
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="bg-white p-3 rounded-[2rem] border border-border shadow-inner w-48 h-48 flex items-center justify-center relative overflow-hidden">
+                        {settings?.qris_image_url ? (
+                          <img src={settings.qris_image_url} alt="QRIS Code" className="w-full h-full object-contain rounded-2xl" />
+                        ) : (
+                          <div className="text-center p-4">
+                            <QrCode size={36} className="text-secondary mx-auto mb-2" />
+                            <p className="text-[9px] font-bold text-secondary">QRIS Admin Belum Diunggah</p>
+                          </div>
+                        )}
+                      </div>
+                      {settings?.qris_image_url && (
+                        <a 
+                          href={settings.qris_image_url} 
+                          download="qris_pembayaran.jpg"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-450 hover:opacity-85 transition-all bg-emerald-500/10 px-3.5 py-1.5 rounded-xl border border-emerald-500/15 active:scale-[0.97]"
+                        >
+                          <Download size={12} /> Unduh QRIS
+                        </a>
                       )}
                     </div>
 
-                    <div className="w-full space-y-3">
-                      <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
-                      
-                      {!selectedFile ? (
-                        <button onClick={triggerFilePicker} className="w-full border border-dashed border-border hover:border-accent/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-background/40 hover:bg-background transition-colors">
-                          <Upload size={20} className="text-secondary" />
-                          <span className="text-[10px] font-bold text-primary">Pilih Bukti Transfer Pembayaran</span>
-                          <span className="text-[8px] text-secondary">Format: JPG, PNG, WEBP (Maks 5MB)</span>
-                        </button>
-                      ) : (
-                        <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
-                          {previewUrl && (
-                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-background flex-shrink-0">
-                              <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    {(() => {
+                      const parseBankInfo = (rekeningStr: string) => {
+                        if (!rekeningStr) return { bank: '-', norek: '-', nama: '-' };
+                        const anPattern = /(?:a\.n\.|a\/n|an)\.?\s*(.+)$/i;
+                        const matchAn = rekeningStr.match(anPattern);
+                        const nama = matchAn ? matchAn[1].trim() : '-';
+                        
+                        const mainPart = matchAn ? rekeningStr.replace(anPattern, '').trim() : rekeningStr;
+                        const parts = mainPart.split(/\s+/);
+                        const bank = parts[0] || '-';
+                        const norek = parts.slice(1).join(' ') || mainPart;
+                        
+                        return { bank, norek, nama: nama !== '-' ? nama : (settings?.nama_komunitas || 'SI Badminton') };
+                      };
+
+                      return (
+                        <>
+                          {/* New Payment Flow: Show button initially, show upload proof after clicking it */}
+                          {!hasClickedPaid ? (
+                            <div className="w-full">
+                              <button 
+                                onClick={() => setHasClickedPaid(true)} 
+                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-950/20"
+                              >
+                                <CheckCircle size={14} /> Saya Sudah Bayar
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="w-full space-y-3">
+                                <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
+                                
+                                {!selectedFile ? (
+                                  <>
+                                    <button onClick={triggerFilePicker} className="w-full border border-dashed border-border hover:border-accent/40 rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 bg-background/40 hover:bg-background transition-colors">
+                                      <Upload size={20} className="text-secondary" />
+                                      <span className="text-[10px] font-bold text-primary">Pilih Bukti Transfer Pembayaran</span>
+                                      <span className="text-[8px] text-secondary">Format: JPG, PNG, WEBP (Maks 5MB)</span>
+                                    </button>
+                                    
+                                    <button 
+                                      onClick={() => {
+                                        setHasClickedPaid(false);
+                                        handleCancelFile();
+                                      }}
+                                      className="w-full py-3 bg-background hover:bg-border/40 text-primary font-bold rounded-2xl border border-border transition-all text-xs"
+                                    >
+                                      Batal
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
+                                      {previewUrl && (
+                                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-background flex-shrink-0">
+                                          <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] font-extrabold text-primary truncate">{selectedFile.name}</p>
+                                        <p className="text-[9px] text-secondary font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                      </div>
+                                      <button onClick={handleCancelFile} disabled={isUploading} className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50">
+                                        <XCircle size={15} />
+                                      </button>
+                                    </div>
+                                    
+                                    <div className="w-full flex gap-3 mt-3">
+                                      <button 
+                                        onClick={handleCancelFile}
+                                        disabled={isUploading}
+                                        className="px-5 py-3.5 bg-background hover:bg-border/40 text-primary font-bold rounded-2xl border border-border transition-all text-xs"
+                                      >
+                                        Batal
+                                      </button>
+                                      
+                                      <div className="flex-1">
+                                        {isUploading ? (
+                                          <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
+                                            <RefreshCw size={14} className="animate-spin" /> Mengirim Bukti...
+                                          </button>
+                                        ) : (
+                                          <button onClick={handleUpload} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-950/20">
+                                            <CheckCircle size={14} /> Kirim Bukti Transfer
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Collapsible Bank details */}
+                          {settings && (
+                            <div className="w-full border-t border-border/50 pt-3.5 mt-3.5 space-y-3">
+                              <button
+                                type="button"
+                                onClick={() => setShowBankInfo(!showBankInfo)}
+                                className="w-full flex items-center justify-center gap-1.5 text-[10px] font-black text-secondary hover:text-primary transition-colors py-1"
+                              >
+                                <span>{showBankInfo ? '▲ Sembunyikan Info Rekening' : '▼ Lihat Info Rekening'}</span>
+                              </button>
+                              
+                              {showBankInfo && (
+                                <div className="bg-background/60 rounded-2xl p-4 border border-border/80 space-y-2.5 animate-fadeIn text-xs text-left">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nama Bank</span>
+                                    <span className="text-primary font-bold">{parseBankInfo(settings.rekening_penerima).bank}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nomor Rekening</span>
+                                    <span className="text-primary font-bold select-all">{parseBankInfo(settings.rekening_penerima).norek}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-secondary font-bold uppercase tracking-wider text-[9px]">Nama Rekening</span>
+                                    <span className="text-primary font-bold">{parseBankInfo(settings.rekening_penerima).nama}</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-extrabold text-primary truncate">{selectedFile.name}</p>
-                            <p className="text-[9px] text-secondary font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                          </div>
-                          <button onClick={handleCancelFile} disabled={isUploading} className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0 disabled:opacity-50">
-                            <XCircle size={15} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="w-full">
-                      {isUploading ? (
-                        <button disabled className="w-full bg-background text-secondary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-2 border border-border cursor-not-allowed text-xs">
-                          <RefreshCw size={14} className="animate-spin" /> Mengirim Bukti...
-                        </button>
-                      ) : selectedFile ? (
-                        <button onClick={handleUpload} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98]">
-                          <CheckCircle size={14} /> Kirim Bukti Transfer
-                        </button>
-                      ) : (
-                        <button onClick={triggerFilePicker} className="w-full bg-background hover:bg-border/60 text-primary font-extrabold py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] border border-border">
-                          <Upload size={14} /> {currentPayment.status_pembayaran === 'rejected' ? 'Pilih Bukti Baru' : 'Saya Sudah Bayar'}
-                        </button>
-                      )}
-                    </div>
-
-                    {settings && (
-                      <div className="w-full border-t border-border pt-3.5 text-center space-y-1">
-                        <p className="text-[8px] font-black text-secondary uppercase tracking-widest">Atas Nama Rekening</p>
-                        <p className="text-xs font-black text-primary">{settings.nama_komunitas}</p>
-                        <p className="text-[10px] font-bold text-secondary bg-background py-1 px-3 rounded-lg inline-block border border-border mt-1">{settings.rekening_penerima}</p>
-                      </div>
-                    )}
+                        </>
+                      );
+                    })()}
                   </>
                 ) : (
                   <>
@@ -3814,25 +4023,38 @@ function MyBillsMember({
 }
 
 // --- TREASURY (KAS) COMPONENT ---
-function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions }: any) {
+function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions, payments }: any) {
+  const totalIuranKasTerkumpul = payments
+    ? payments
+        .filter((p: any) => p.status_pembayaran === 'verified')
+        .reduce((sum: number, p: any) => {
+          const s = sessions.find((s: any) => s.id === p.session_id);
+          if (s) {
+            const biayaSesi = s.biaya_per_orang || 0;
+            return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+          }
+          return sum;
+        }, 0)
+    : 0;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
         <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
           <Activity size={100} />
         </div>
-        <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Total Saldo Kas</p>
+        <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Saldo Kas Saat Ini</p>
         <h2 className="text-3xl font-black text-emerald-450 tracking-tight">{formatRp(saldoKas)}</h2>
         
         <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
           <div className="flex-1">
-            <p className="text-secondary text-[9px] font-bold uppercase">Total Tagihan Lunas</p>
-            <p className="font-extrabold text-xs text-primary">{formatRp(totalIncome)}</p>
+            <p className="text-secondary text-[9px] font-bold uppercase">Total Biaya Sesi</p>
+            <p className="font-extrabold text-xs text-primary">{formatRp(totalExpense)}</p>
           </div>
           <div className="w-px bg-border"></div>
           <div className="flex-1">
-            <p className="text-secondary text-[9px] font-bold uppercase">Total Biaya Sesi</p>
-            <p className="font-extrabold text-xs text-primary">{formatRp(totalExpense)}</p>
+            <p className="text-secondary text-[9px] font-bold uppercase">Total Iuran Kas Terkumpul</p>
+            <p className="font-extrabold text-xs text-primary">{formatRp(totalIuranKasTerkumpul)}</p>
           </div>
         </div>
       </div>
@@ -4289,7 +4511,10 @@ function SettingsAdmin({
   isSuperAdmin,
   softDeletedItems,
   restoreSoftDeletedItem,
-  executeHardDeleteFromTrash
+  executeHardDeleteFromTrash,
+  iuranKasConfig,
+  setIuranKasConfig,
+  showToast
 }: any) {
   const [namaKomunitas, setNamaKomunitas] = useState(settings?.nama_komunitas || '');
   const [rekeningPenerima, setRekeningPenerima] = useState(settings?.rekening_penerima || '');
@@ -4297,6 +4522,12 @@ function SettingsAdmin({
   const [qrisPreview, setQrisPreview] = useState<string | null>(settings?.qris_image_url || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTrashTab, setActiveTrashTab] = useState<'session' | 'payment' | 'member'>('session');
+  const [settingsSubTab, setSettingsSubTab] = useState<'komunitas' | 'keuangan'>('komunitas');
+  const [iuranKas, setIuranKas] = useState(iuranKasConfig);
+
+  useEffect(() => {
+    setIuranKas(iuranKasConfig);
+  }, [iuranKasConfig]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -4316,67 +4547,135 @@ function SettingsAdmin({
   return (
     <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-6 animate-fadeIn">
       <div className="space-y-4">
-        <h2 className="text-sm font-black text-primary uppercase tracking-wider mb-2">Pengaturan Komunitas</h2>
+        <div className="flex justify-between items-center mb-4 border-b border-border pb-3">
+          <h2 className="text-sm font-black text-primary uppercase tracking-wider">Pengaturan</h2>
+          <div className="flex gap-1.5 bg-background p-1 rounded-xl border border-border">
+            <button 
+              type="button"
+              onClick={() => setSettingsSubTab('komunitas')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                settingsSubTab === 'komunitas' 
+                  ? 'bg-accent text-white shadow-sm' 
+                  : 'text-secondary hover:text-primary'
+              }`}
+            >
+              Komunitas
+            </button>
+            <button 
+              type="button"
+              onClick={() => setSettingsSubTab('keuangan')}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                settingsSubTab === 'keuangan' 
+                  ? 'bg-accent text-white shadow-sm' 
+                  : 'text-secondary hover:text-primary'
+              }`}
+            >
+              Keuangan
+            </button>
+          </div>
+        </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Komunitas</label>
-            <input 
-              type="text" 
-              required 
-              value={namaKomunitas} 
-              onChange={e => setNamaKomunitas(e.target.value)} 
-              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-            />
-          </div>
-          <div>
-            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Informasi Rekening Penerima</label>
-            <input 
-              type="text" 
-              required 
-              value={rekeningPenerima} 
-              onChange={e => setRekeningPenerima(e.target.value)} 
-              placeholder="Mandiri 1234567890 a.n Bendahara"
-              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-            />
-          </div>
-          <div>
-            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">QRIS Statis (Gambar)</label>
-            
-            <div className="flex flex-col items-center gap-4 p-4 border border-border rounded-2xl bg-background/40">
-              {qrisPreview ? (
-                <img src={qrisPreview} alt="QRIS Preview" className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-border" />
-              ) : (
-                <div className="w-40 h-40 border border-dashed border-border rounded-xl flex items-center justify-center text-secondary text-xs">
-                  Belum ada QRIS
-                </div>
-              )}
-              
-              <label className="px-4 py-2 bg-background hover:bg-border text-[10px] font-black text-primary cursor-pointer border border-border flex items-center gap-1.5 transition-colors">
-                <Upload size={12} /> Pilih Gambar QRIS Baru
-                <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-              </label>
+        {settingsSubTab === 'komunitas' ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Komunitas</label>
+              <input 
+                type="text" 
+                required 
+                value={namaKomunitas} 
+                onChange={e => setNamaKomunitas(e.target.value)} 
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+              />
             </div>
-          </div>
+            <div>
+              <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Informasi Rekening Penerima</label>
+              <input 
+                type="text" 
+                required 
+                value={rekeningPenerima} 
+                onChange={e => setRekeningPenerima(e.target.value)} 
+                placeholder="Mandiri 1234567890 a.n Bendahara"
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">QRIS Statis (Gambar)</label>
+              
+              <div className="flex flex-col items-center gap-4 p-4 border border-border rounded-2xl bg-background/40">
+                {qrisPreview ? (
+                  <img src={qrisPreview} alt="QRIS Preview" className="w-40 h-40 object-contain rounded-xl bg-white p-2 border border-border" />
+                ) : (
+                  <div className="w-40 h-40 border border-dashed border-border rounded-xl flex items-center justify-center text-secondary text-xs">
+                    Belum ada QRIS
+                  </div>
+                )}
+                
+                <label className="px-4 py-2 bg-background hover:bg-border text-[10px] font-black text-primary cursor-pointer border border-border flex items-center gap-1.5 transition-colors">
+                  <Upload size={12} /> Pilih Gambar QRIS Baru
+                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                </label>
+              </div>
+            </div>
 
-          <button 
-            type="submit" 
-            disabled={isSubmitting}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
-          >
-            {isSubmitting ? (
-              <>
-                <RefreshCw size={14} className="animate-spin" />
-                <span>Menyimpan pengaturan...</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle size={14} />
-                <span>Simpan Pengaturan</span>
-              </>
-            )}
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Menyimpan pengaturan...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={14} />
+                  <span>Simpan Pengaturan</span>
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            localStorage.setItem('sipatra_iuran_kas', iuranKas.toString());
+            setIuranKasConfig(iuranKas);
+            if (showToast) showToast('Pengaturan keuangan berhasil disimpan!', 'success');
+          }} className="space-y-4">
+            <div>
+              <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-2.5">
+                Iuran Kas Per Kehadiran
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {[0, 2000, 5000, 10000, 15000].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setIuranKas(val)}
+                    className={`py-3 px-4 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                      iuranKas === val
+                        ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-450 font-black'
+                        : 'border-border bg-background text-secondary hover:bg-background/80 font-bold'
+                    }`}
+                  >
+                    <span className="text-xs">{formatRp(val)}</span>
+                    {val === 5000 && (
+                      <span className="text-[7px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 rounded uppercase font-black">Default</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5"
+            >
+              <CheckCircle size={14} />
+              <span>Simpan Pengaturan Keuangan</span>
+            </button>
+          </form>
+        )}
       </div>
 
       {/* KERANJANG SAMPAH (SUPERADMIN ONLY) */}
