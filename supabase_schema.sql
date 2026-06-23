@@ -108,9 +108,9 @@ INSERT INTO session_expenses (session_id, keterangan, nominal, kategori) VALUES
 (2, 'Beli Kok 1 Slop', 80000, 'Peralatan');
 
 -- Payments Sesi 1 (3 anggota hadir, masing-masing Rp35.000)
--- Budi: pending, Andi: uploaded, Siti: verified
+-- Budi: unpaid, Andi: uploaded, Siti: verified
 INSERT INTO payments (session_id, member_id, nominal_tagihan, status_pembayaran, tanggal_bayar, bukti_transfer) VALUES
-(1, 2, 35000, 'pending', null, null),
+(1, 2, 35000, 'unpaid', null, null),
 (1, 3, 35000, 'uploaded', '2026-06-22T01:00:00Z', 'https://via.placeholder.com/150'),
 (1, 4, 35000, 'verified', '2026-06-22T00:30:00Z', 'https://via.placeholder.com/150');
 

@@ -65,7 +65,7 @@ interface Payment {
   session_id: number;
   member_id: number;
   nominal_tagihan: number;
-  status_pembayaran: 'pending' | 'uploaded' | 'verified' | 'rejected' | 'Menunggu Verifikasi Cash';
+  status_pembayaran: 'pending' | 'uploaded' | 'verified' | 'rejected' | 'Menunggu Verifikasi Cash' | 'unpaid' | 'generated';
   tanggal_bayar: string | null;
   bukti_transfer: string | null;
   created_at: string;
@@ -604,7 +604,7 @@ export default function App() {
         session_id: sessionId,
         member_id: a.member_id,
         nominal_tagihan: costPerPerson,
-        status_pembayaran: 'pending'
+        status_pembayaran: 'unpaid'
       }));
 
       const { error: insertPaymentsError } = await supabase
@@ -1461,7 +1461,7 @@ function Dashboard({
   const myTotalPaidAmount = myPayments.filter((p: any) => p.status_pembayaran === 'verified' || p.status_pembayaran === 'paid' || p.status_pembayaran === 'lunas').reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
 
   // Unpaid payments calculation for KPI card
-  const unpaidPayments = payments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected');
+  const unpaidPayments = payments.filter((p: any) => p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated' || p.status_pembayaran === 'rejected');
   const totalUnpaidAmount = unpaidPayments.reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
   const uniqueUnpaidMembersCount = new Set(unpaidPayments.map((p: any) => p.member_id)).size;
 
@@ -2013,7 +2013,7 @@ function Dashboard({
 
       {/* MEMBER SECTION: MY BILLS SUMMARY & HISTORY */}
       <div className="space-y-4">
-        <h3 className="font-black text-xs uppercase tracking-wider text-primary">Tagihan Belum Dibayar</h3>
+        <h3 className="font-black text-xs uppercase tracking-wider text-primary">Menunggu Verifikasi Pembayaran</h3>
         
         {myActiveBills.length === 0 ? (
           <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[20px] p-5 text-center flex flex-col items-center gap-3">
@@ -2056,11 +2056,11 @@ function Dashboard({
                       </span>
                     ) : (
                       <span className="bg-orange-500/15 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🟡 Menunggu Verifikasi
+                        🟡 Menunggu Verifikasi Bendahara
                       </span>
                     )}
                     
-                    {!isCashPending && (
+                    {(p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'rejected') && (
                       <button 
                         onClick={() => setSelectedPayment(p)}
                         className="px-4 py-1.5 bg-accent hover:opacity-90 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
@@ -2857,7 +2857,7 @@ function MyBillsMember({
                       {isVerified ? '🟢 Lunas' : 
                        isRejected ? '🔴 Ditolak' : 
                        p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' ? '⚪ Belum Bayar' : 
-                       '🟡 Menunggu Verifikasi'}
+                       '🟡 Menunggu Verifikasi Bendahara'}
                     </span>
                   </div>
 
@@ -2871,26 +2871,17 @@ function MyBillsMember({
                   </div>
                 </div>
 
-                <div className="bg-background/30 px-5 py-4 border-t border-border flex justify-between items-center">
-                  <button 
-                    disabled={isVerified || isCashPending}
-                    onClick={() => setSelectedPayment(p)} 
-                    className={`w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] ${
-                      isVerified 
-                        ? 'bg-background text-secondary cursor-not-allowed border border-border' 
-                        : isCashPending
-                        ? 'bg-orange-600/15 text-orange-400 border border-orange-500/20 cursor-not-allowed'
-                        : isUploaded 
-                        ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20' 
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/20'
-                    }`}
-                  >
-                    {isCashPending ? <Wallet size={15} /> : <QrCode size={15} />} 
-                    {isVerified ? 'Pembayaran Selesai' : 
-                     isCashPending ? 'Menunggu Verifikasi Cash' : 
-                     isUploaded ? 'Detail Pembayaran' : 'Bayar Sekarang'}
-                  </button>
-                </div>
+                {(p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'rejected') && (
+                  <div className="bg-background/30 px-5 py-4 border-t border-border flex justify-between items-center">
+                    <button 
+                      onClick={() => setSelectedPayment(p)} 
+                      className="w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/20"
+                    >
+                      <QrCode size={15} />
+                      Bayar Sekarang
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
