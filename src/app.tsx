@@ -4503,7 +4503,13 @@ function MembersList({
       </div>
 
       <div className="space-y-3">
-        {members.map((m: any) => {
+        {[...members].sort((a: any, b: any) => {
+          const roleOrder: any = { superadmin: 1, admin: 2, member: 3 };
+          const orderA = roleOrder[a.role] || 99;
+          const orderB = roleOrder[b.role] || 99;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.name.localeCompare(b.name);
+        }).map((m: any) => {
           const canManage = isSuperAdmin || (isAdmin && m.role === 'member');
           
           return (
