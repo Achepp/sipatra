@@ -2042,17 +2042,21 @@ function Dashboard({
                     <p className="text-sm font-black text-red-505 dark:text-red-404 mt-1">{formatRp(p.nominal_tagihan)}</p>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1.5">
-                    {isCashPending ? (
-                      <span className="bg-orange-500/15 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🟡 Menunggu Verifikasi Cash
+                    {p.status_pembayaran === 'verified' || p.status_pembayaran === 'paid' || p.status_pembayaran === 'lunas' ? (
+                      <span className="bg-emerald-500/15 text-accent border border-emerald-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                        🟢 Lunas
                       </span>
-                    ) : isRejected ? (
+                    ) : p.status_pembayaran === 'rejected' ? (
                       <span className="bg-red-500/15 text-red-500 border border-red-500/35 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
                         🔴 Ditolak
                       </span>
+                    ) : p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' ? (
+                      <span className="bg-background text-secondary border border-border text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                        ⚪ Belum Bayar
+                      </span>
                     ) : (
-                      <span className="bg-blue-500/15 text-blue-500 border border-blue-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🔵 Menunggu Pembayaran QRIS
+                      <span className="bg-orange-500/15 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                        🟡 Menunggu Verifikasi
                       </span>
                     )}
                     
@@ -2070,55 +2074,6 @@ function Dashboard({
             })}
           </div>
         )}
-      </div>
-
-      <div className="bg-card rounded-[24px] p-4.5 shadow-theme border border-border space-y-4 transition-all duration-200">
-        <h3 className="font-black text-xs uppercase tracking-wider text-primary">Status Pembayaran Terakhir</h3>
-        
-        <div className="space-y-3">
-          {myPayments.filter((p: any) => p.status_pembayaran !== 'pending').slice(0, 3).map((p: any) => {
-            const session = sessions.find((s: any) => s.id === p.session_id);
-            const isVerified = p.status_pembayaran === 'verified';
-            const isUploaded = p.status_pembayaran === 'uploaded';
-            const isCashPending = p.status_pembayaran === 'Menunggu Verifikasi Cash';
-            
-            return (
-              <div key={p.id} className="bg-background/50 p-3 rounded-2xl border border-border/30 flex items-center gap-3.5">
-                <div className={`p-2 rounded-xl border ${isVerified ? 'bg-emerald-500/10 text-accent border-emerald-500/20' : isCashPending ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' : isUploaded ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
-                  {isVerified ? <CheckCircle size={16} /> : <Clock size={16} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-xs text-primary truncate">{session?.nama_sesi}</p>
-                  <p className="text-[9px] text-secondary font-bold mt-0.5">{p.tanggal_bayar ? formatDate(p.tanggal_bayar) : '-'}</p>
-                </div>
-                <div className="text-right flex flex-col items-end">
-                  <p className="text-xs font-black text-primary">{formatRp(p.nominal_tagihan)}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    {p.bukti_transfer === 'CASH' ? (
-                      <span className="bg-orange-500/10 text-orange-500 border border-orange-500/20 text-[7px] font-black px-1.5 py-0.2 rounded uppercase tracking-wider">
-                        CASH
-                      </span>
-                    ) : p.bukti_transfer || isUploaded ? (
-                      <span className="bg-emerald-500/10 text-accent border border-emerald-500/20 text-[7px] font-black px-1.5 py-0.2 rounded uppercase tracking-wider">
-                        QRIS
-                      </span>
-                    ) : null}
-                    
-                    {isVerified ? (
-                      <span className="text-[8px] font-black uppercase text-accent">🟢 Lunas</span>
-                    ) : isCashPending ? (
-                      <span className="text-[8px] font-black uppercase text-orange-500 animate-pulse">🟡 Verifikasi</span>
-                    ) : isUploaded ? (
-                      <span className="text-[8px] font-black uppercase text-blue-500 animate-pulse">🔵 Verifikasi</span>
-                    ) : (
-                      <span className="text-[8px] font-black uppercase text-red-500">🔴 Ditolak</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
 
       {/* RECENT SESSIONS VIEW */}
@@ -2894,16 +2849,15 @@ function MyBillsMember({
                     </div>
                     <span className={`text-[8px] font-black px-2.5 py-0.5 rounded uppercase tracking-wider ${
                       isVerified ? 'bg-emerald-500/20 text-emerald-355 border border-emerald-500/30' :
-                      isCashPending ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30 animate-pulse' :
-                      isUploaded ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30 animate-pulse' :
                       isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                      'bg-background text-secondary border border-border'
+                      p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid'
+                        ? 'bg-background text-secondary border border-border'
+                        : 'bg-orange-500/20 text-orange-400 border border-orange-500/30 animate-pulse'
                     }`}>
                       {isVerified ? '🟢 Lunas' : 
-                       isCashPending ? '🟡 Menunggu Verifikasi Cash' : 
-                       isUploaded ? '🔵 Menunggu Verifikasi QRIS' : 
-                       isRejected ? '🔵 Menunggu Pembayaran QRIS' : 
-                       '🔵 Menunggu Pembayaran QRIS'}
+                       isRejected ? '🔴 Ditolak' : 
+                       p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' ? '⚪ Belum Bayar' : 
+                       '🟡 Menunggu Verifikasi'}
                     </span>
                   </div>
 
