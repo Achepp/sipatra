@@ -1455,9 +1455,10 @@ function Dashboard({
   
   // Member specific active bills
   const myPayments = memberRecord ? payments.filter((p: any) => p.member_id === memberRecord.id) : [];
-  const myActiveBills = myPayments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected' || p.status_pembayaran === 'Menunggu Verifikasi Cash');
-  const myPaidCount = myPayments.filter((p: any) => p.status_pembayaran === 'verified').length;
-  const myTotalPaidAmount = myPayments.filter((p: any) => p.status_pembayaran === 'verified').reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
+  const myActiveBills = myPayments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected' || p.status_pembayaran === 'Menunggu Verifikasi Cash' || p.status_pembayaran === 'uploaded' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated');
+  const myPaidCount = myPayments.filter((p: any) => p.status_pembayaran === 'verified' || p.status_pembayaran === 'paid' || p.status_pembayaran === 'lunas').length;
+  const myPendingCount = myPayments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'uploaded' || p.status_pembayaran === 'Menunggu Verifikasi Cash').length;
+  const myTotalPaidAmount = myPayments.filter((p: any) => p.status_pembayaran === 'verified' || p.status_pembayaran === 'paid' || p.status_pembayaran === 'lunas').reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
 
   // Unpaid payments calculation for KPI card
   const unpaidPayments = payments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected');
@@ -1973,26 +1974,37 @@ function Dashboard({
           {formatRp(myTotalPaidAmount)}
         </h2>
 
-        <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-emerald-800 shadow-sm flex-shrink-0">
-              <Calendar size={16} strokeWidth={2.5} />
+        <div className="grid grid-cols-3 gap-2 border-t border-white/10 pt-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-emerald-800 shadow-sm flex-shrink-0">
+              <Calendar size={14} strokeWidth={2.5} />
             </div>
-            <div>
-              <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">SESI DI IKUTI</p>
-              <p className="font-extrabold text-xs text-white mt-1">
+            <div className="min-w-0">
+              <p className="text-emerald-200 text-[8px] font-black uppercase tracking-wider leading-none truncate">Sesi Diikuti</p>
+              <p className="font-extrabold text-[11px] text-white mt-1">
                 {myPayments.length} Game
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-accent shadow-sm flex-shrink-0">
-              <CheckCircle size={16} strokeWidth={2.5} />
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-accent shadow-sm flex-shrink-0">
+              <CheckCircle size={14} strokeWidth={2.5} />
             </div>
-            <div>
-              <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">STATUS LUNAS</p>
-              <p className="font-extrabold text-xs text-white mt-1">
+            <div className="min-w-0">
+              <p className="text-emerald-200 text-[8px] font-black uppercase tracking-wider leading-none truncate">Lunas</p>
+              <p className="font-extrabold text-[11px] text-white mt-1">
                 {myPaidCount} Sesi
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-amber-500 shadow-sm flex-shrink-0">
+              <Clock size={14} strokeWidth={2.5} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-emerald-200 text-[8px] font-black uppercase tracking-wider leading-none truncate">Menunggu Verifikasi</p>
+              <p className="font-extrabold text-[11px] text-white mt-1">
+                {myPendingCount} Sesi
               </p>
             </div>
           </div>
