@@ -5287,7 +5287,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
         </div>
       )}
 
-      {/* SUB TABS NAVIGATION */}
+      {/* SUB TABS NAVIGATION — primary, full width */}
       {isAdmin && (
         <div className="flex bg-card p-1 rounded-2xl border border-border shadow-inner">
           <button
@@ -5316,33 +5316,42 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
       {/* DEFAULT HISTORI KAS VIEW */}
       {(subTab === 'histori' || !isAdmin) && (
         <>
-          {/* Sub-tab navigation for Kas Type */}
+          {/* Secondary segmented control — centered, 75% width, iOS-style sliding pill */}
           {isAdmin && (
-            <div className="flex gap-2 p-1 bg-card rounded-xl border border-border/80 shadow-inner mb-4 w-fit">
-              <button
-                onClick={() => setKasType('organisasi')}
-                className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                  kasType === 'organisasi'
-                    ? 'bg-accent text-white shadow-theme'
-                    : 'text-secondary hover:text-primary'
-                }`}
+            <div className="flex justify-center mt-4">
+              <div
+                className="relative flex bg-card border border-border/80 rounded-2xl p-1 shadow-inner"
+                style={{ width: '75%' }}
               >
-                Kas Organisasi
-              </button>
-              <button
-                onClick={() => setKasType('sesi')}
-                className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                  kasType === 'sesi'
-                    ? 'bg-accent text-white shadow-theme'
-                    : 'text-secondary hover:text-primary'
-                }`}
-              >
-                Dana Sesi
-              </button>
+                {/* Animated sliding pill behind the buttons */}
+                <div
+                  className="absolute top-1 bottom-1 rounded-xl bg-accent shadow-theme transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                  style={{
+                    width: 'calc(50% - 4px)',
+                    transform: kasType === 'sesi' ? 'translateX(calc(100% + 4px))' : 'translateX(0)',
+                  }}
+                />
+                <button
+                  onClick={() => setKasType('organisasi')}
+                  className={`relative z-10 flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors duration-200 ${
+                    kasType === 'organisasi' ? 'text-white' : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Kas Organisasi
+                </button>
+                <button
+                  onClick={() => setKasType('sesi')}
+                  className={`relative z-10 flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors duration-200 ${
+                    kasType === 'sesi' ? 'text-white' : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  Dana Sesi
+                </button>
+              </div>
             </div>
           )}
 
-          {kasType === 'organisasi' ? (
+          <div className="mt-5">{kasType === 'organisasi' ? (
             <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
                 <Wallet size={100} />
@@ -5385,6 +5394,8 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
               </div>
             </div>
           )}
+
+          </div>
 
           <div className="space-y-4">
             <h2 className="text-sm font-black text-primary uppercase tracking-wider">
