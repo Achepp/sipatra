@@ -947,36 +947,73 @@ export default function App() {
     }
   };
 
-  // Kas calculations
-  const totalIncome = payments.filter(p => p.status_pembayaran === 'verified').reduce((sum, p) => sum + p.nominal_tagihan, 0);
-  const totalExpense = sessionExpenses.reduce((sum, e) => sum + e.nominal, 0);
+  // Kas and Session calculations (Separated Accounting Model)
+  const totalIncome = React.useMemo(() => {
+    return payments
+      ? payments
+          .filter((p: any) => p.status_pembayaran === 'verified')
+          .reduce((sum: number, p: any) => {
+            const s = sessions.find((x: any) => x.id === p.session_id);
+            if (s) {
+              const biayaSesi = s.biaya_per_orang || 0;
+              return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+            }
+            return sum;
+          }, 0)
+      : 0;
+  }, [payments, sessions]);
+
+  const totalExpense = React.useMemo(() => {
+    return sessionExpenses
+      ? sessionExpenses
+          .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
+          .reduce((sum: number, e: any) => sum + e.nominal, 0)
+      : 0;
+  }, [sessionExpenses]);
+
   const saldoKas = totalIncome - totalExpense;
 
-  const totalIuranKasTerkumpul = payments
-    .filter(p => p.status_pembayaran === 'verified')
-    .reduce((sum, p) => {
-      const s = sessions.find(s => s.id === p.session_id);
-      if (s) {
-        const biayaSesi = s.biaya_per_orang || 0;
-        return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
-      }
-      return sum;
-    }, 0);
+  const totalIuranKasTerkumpul = totalIncome;
 
-  const contributionsThisMonth = payments
-    .filter(p => p.status_pembayaran === 'verified')
-    .reduce((sum, p) => {
-      const s = sessions.find(s => s.id === p.session_id);
-      if (s && s.tanggal_main) {
-        const d = new Date(s.tanggal_main);
-        const now = new Date();
-        if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
-          const biayaSesi = s.biaya_per_orang || 0;
-          return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
-        }
-      }
-      return sum;
-    }, 0);
+  const totalSessionIncome = React.useMemo(() => {
+    return payments
+      ? payments
+          .filter((p: any) => p.status_pembayaran === 'verified')
+          .reduce((sum: number, p: any) => {
+            const s = sessions.find((x: any) => x.id === p.session_id);
+            return sum + (s ? s.biaya_per_orang || 0 : 0);
+          }, 0)
+      : 0;
+  }, [payments, sessions]);
+
+  const totalSessionExpense = React.useMemo(() => {
+    return sessionExpenses
+      ? sessionExpenses
+          .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
+          .reduce((sum: number, e: any) => sum + e.nominal, 0)
+      : 0;
+  }, [sessionExpenses]);
+
+  const sessionBalance = totalSessionIncome - totalSessionExpense;
+
+  const contributionsThisMonth = React.useMemo(() => {
+    return payments
+      ? payments
+          .filter((p: any) => p.status_pembayaran === 'verified')
+          .reduce((sum: number, p: any) => {
+            const s = sessions.find((x: any) => x.id === p.session_id);
+            if (s && s.tanggal_main) {
+              const d = new Date(s.tanggal_main);
+              const now = new Date();
+              if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+                const biayaSesi = s.biaya_per_orang || 0;
+                return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+              }
+            }
+            return sum;
+          }, 0)
+      : 0;
+  }, [payments, sessions]);
 
   const handleLogout = async () => {
     setIsLoading(true);
@@ -1270,7 +1307,7 @@ export default function App() {
         return;
       }
       
-      const sessionExps = sessionExpenses.filter(e => e.session_id === sessionId);
+      const sessionExps = sessionExpenses.filter(e => e.session_id === sessionId && e.kategori !== 'Pengeluaran Organisasi');
       const totalSessionExpense = sessionExps.reduce((sum, e) => sum + e.nominal, 0);
       if (totalSessionExpense <= 0) {
         showToast('Total pengeluaran sesi adalah Rp 0. Tambahkan pengeluaran sesi terlebih dahulu.', 'error');
@@ -2340,6 +2377,28 @@ function Dashboard({
   readNotificationIds, markNotificationsRead, unreadCount, memberUnreadBills
 }: any) {
   const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+
+  // 5. Session Financial Summary calculations inside Dashboard
+  const totalSessionIncome = React.useMemo(() => {
+    return payments
+      ? payments
+          .filter((p: any) => p.status_pembayaran === 'verified')
+          .reduce((sum: number, p: any) => {
+            const s = sessions.find((x: any) => x.id === p.session_id);
+            return sum + (s ? s.biaya_per_orang || 0 : 0);
+          }, 0)
+      : 0;
+  }, [payments, sessions]);
+
+  const totalSessionExpense = React.useMemo(() => {
+    return sessionExpenses
+      ? sessionExpenses
+          .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
+          .reduce((sum: number, e: any) => sum + e.nominal, 0)
+      : 0;
+  }, [sessionExpenses]);
+
+  const sessionBalance = totalSessionIncome - totalSessionExpense;
   
   // Pending payments (uploaded state)
   const pendingPayments = payments.filter((p: any) => p.status_pembayaran === 'uploaded');
@@ -2408,7 +2467,7 @@ function Dashboard({
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2 text-emerald-100">
               <Wallet size={16} strokeWidth={2.2} />
-              <span className="text-[10px] font-black uppercase tracking-wider">TOTAL SALDO KAS</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">KAS ORGANISASI</span>
             </div>
             <button 
               onClick={() => setActiveTab('kas')}
@@ -2428,7 +2487,7 @@ function Dashboard({
                 <TrendingUp size={16} strokeWidth={2.5} />
               </div>
               <div>
-                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">TOTAL PEMASUKAN</p>
+                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">PEMASUKAN IURAN KAS</p>
                 <p className="font-extrabold text-xs text-white mt-1">
                   {formatRp(totalIncome)}
                 </p>
@@ -2439,9 +2498,62 @@ function Dashboard({
                 <TrendingUp size={16} strokeWidth={2.5} className="transform rotate-180" />
               </div>
               <div>
-                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">TOTAL PENGELUARAN</p>
+                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">PENGELUARAN ORGANISASI</p>
                 <p className="font-extrabold text-xs text-white mt-1">
                   {formatRp(totalExpense)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SESSION OPERATIONAL FUNDS CARD */}
+        <div className="bg-gradient-to-br from-[#0B1530] to-[#1D4ED8] rounded-[24px] p-6 text-white shadow-xl relative overflow-hidden">
+          {/* Watermark coins or similar */}
+          <div className="absolute bottom-0 right-0 w-36 h-36 opacity-[0.10] pointer-events-none transform translate-x-4 translate-y-4">
+            <svg viewBox="0 0 100 100" fill="currentColor" className="w-full h-full text-white">
+              <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="2" fill="none" />
+              <path d="M 50 20 L 50 80 M 35 35 L 65 35 M 30 50 L 70 50 M 35 65 L 65 65" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </div>
+          
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2 text-blue-100">
+              <Activity size={16} strokeWidth={2.2} />
+              <span className="text-[10px] font-black uppercase tracking-wider">DANA OPERASIONAL SESI</span>
+            </div>
+            <span className="px-3 py-1 bg-white/10 border border-white/15 rounded-full text-[9px] font-black uppercase text-blue-100">
+              Game Operasional
+            </span>
+          </div>
+
+          <h2 className={`text-4xl font-[900] tracking-tight mb-7 ${sessionBalance < 0 ? 'text-red-300' : 'text-white'}`}>
+            {sessionBalance < 0 ? '-' : ''}{formatRp(Math.abs(sessionBalance))}
+            <span className="text-[10px] font-extrabold uppercase text-blue-200 ml-2">
+              ({sessionBalance >= 0 ? 'Surplus Sesi' : 'Defisit Sesi'})
+            </span>
+          </h2>
+
+          <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-blue-800 shadow-sm flex-shrink-0">
+                <TrendingUp size={16} strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="text-blue-200 text-[9px] font-black uppercase tracking-wider leading-none">PENDAPATAN SESI</p>
+                <p className="font-extrabold text-xs text-white mt-1">
+                  {formatRp(totalSessionIncome)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-red-500 shadow-sm flex-shrink-0">
+                <TrendingUp size={16} strokeWidth={2.5} className="transform rotate-180" />
+              </div>
+              <div>
+                <p className="text-blue-200 text-[9px] font-black uppercase tracking-wider leading-none">PENGELUARAN SESI</p>
+                <p className="font-extrabold text-xs text-white mt-1">
+                  {formatRp(totalSessionExpense)}
                 </p>
               </div>
             </div>
@@ -3460,6 +3572,7 @@ function SessionsAdmin({
                             <option value="Sewa Lapangan">Sewa Lapangan</option>
                             <option value="Peralatan">Peralatan (Kok, dll)</option>
                             <option value="Konsumsi">Konsumsi</option>
+                            <option value="Pengeluaran Organisasi">Pengeluaran Organisasi</option>
                             <option value="Lainnya">Lainnya</option>
                           </select>
                           <button 
@@ -4522,6 +4635,7 @@ function PaymentModal({
 // --- TREASURY (KAS) COMPONENT ---
 function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions, payments, members, isAdmin }: any) {
   const [subTab, setSubTab] = useState('histori'); // 'histori' | 'laporan'
+  const [kasType, setKasType] = useState('organisasi'); // 'organisasi' | 'sesi'
   
   // Date filters
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
@@ -4552,22 +4666,75 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
     return Array.from(years).sort((a, b) => b - a);
   }, [sessions]);
 
-  const totalIuranKasTerkumpul = React.useMemo(() => {
+  // Calculations for Session Operational Funds inside Treasury
+  const totalSessionIncome = React.useMemo(() => {
     return payments
       ? payments
           .filter((p: any) => p.status_pembayaran === 'verified')
           .reduce((sum: number, p: any) => {
-            const s = sessions.find((s: any) => s.id === p.session_id);
-            if (s) {
-              const biayaSesi = s.biaya_per_orang || 0;
-              return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
-            }
-            return sum;
+            const s = sessions.find((x: any) => x.id === p.session_id);
+            return sum + (s ? s.biaya_per_orang || 0 : 0);
           }, 0)
       : 0;
   }, [payments, sessions]);
 
-  // Calculations for selected period
+  const totalSessionExpense = React.useMemo(() => {
+    return sessionExpenses
+      ? sessionExpenses
+          .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
+          .reduce((sum: number, e: any) => sum + e.nominal, 0)
+      : 0;
+  }, [sessionExpenses]);
+
+  const sessionBalance = totalSessionIncome - totalSessionExpense;
+
+  const orgLedger = React.useMemo(() => {
+    const events: any[] = [];
+    
+    // Inflows
+    if (payments && sessions) {
+      payments.forEach((p: any) => {
+        if (p.status_pembayaran !== 'verified') return;
+        const s = sessions.find((x: any) => x.id === p.session_id);
+        if (s) {
+          const biayaSesi = s.biaya_per_orang || 0;
+          const iuran = Math.max(0, p.nominal_tagihan - biayaSesi);
+          if (iuran > 0) {
+            events.push({
+              id: `p-${p.id}`,
+              type: 'inflow',
+              tanggal: s.tanggal_main,
+              keterangan: `Iuran Kas - ${s.nama_sesi}`,
+              nominal: iuran,
+              sub: `Dari Tagihan Member`
+            });
+          }
+        }
+      });
+    }
+
+    // Outflows
+    if (sessionExpenses && sessions) {
+      sessionExpenses.forEach((e: any) => {
+        if (e.kategori !== 'Pengeluaran Organisasi') return;
+        const s = sessions.find((x: any) => x.id === e.session_id);
+        events.push({
+          id: `e-${e.id}`,
+          type: 'outflow',
+          tanggal: s ? s.tanggal_main : e.created_at.split('T')[0],
+          keterangan: e.keterangan,
+          nominal: e.nominal,
+          sub: e.kategori
+        });
+      });
+    }
+
+    return events.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+  }, [payments, sessions, sessionExpenses]);
+
+  const totalIuranKasTerkumpul = totalIncome;
+
+  // Calculations for selected period (Separated Accounting Model)
   const reportData = React.useMemo(() => {
     if (!sessions || !payments || !sessionExpenses) {
       return {
@@ -4578,7 +4745,10 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
         sumberKasMasuk: [],
         pengeluaranKas: [],
         ledger: [],
-        statistics: { jumlahSesi: 0, jumlahAnggotaAktif: 0, totalKehadiran: 0, totalIuranKas: 0 }
+        statistics: { jumlahSesi: 0, jumlahAnggotaAktif: 0, totalKehadiran: 0, totalIuranKas: 0 },
+        sessionIncome: 0,
+        sessionExpense: 0,
+        sessionBalance: 0
       };
     }
 
@@ -4634,11 +4804,15 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
     };
 
     const iuranBefore = calculateIuran(paymentsBefore);
-    const costBefore = expensesBefore.reduce((sum, e) => sum + e.nominal, 0);
+    const costBefore = expensesBefore
+      .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
+      .reduce((sum, e) => sum + e.nominal, 0);
     const saldoAwal = iuranBefore - costBefore;
 
     const kasMasuk = calculateIuran(paymentsMonth);
-    const kasKeluar = expensesMonth.reduce((sum, e) => sum + e.nominal, 0);
+    const kasKeluar = expensesMonth
+      .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
+      .reduce((sum, e) => sum + e.nominal, 0);
     const saldoAkhir = saldoAwal + kasMasuk - kasKeluar;
 
     const sumberKasMasuk = sessionsMonth.map((s: any) => {
@@ -4655,16 +4829,18 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
       };
     }).sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
 
-    const pengeluaranKas = expensesMonth.map((e: any) => {
-      const s = sessionsMonth.find(x => x.id === e.session_id);
-      return {
-        id: e.id,
-        tanggal: s ? s.tanggal_main : '',
-        keterangan: e.keterangan,
-        kategori: e.kategori,
-        nominal: e.nominal
-      };
-    }).sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
+    const pengeluaranKas = expensesMonth
+      .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
+      .map((e: any) => {
+        const s = sessionsMonth.find(x => x.id === e.session_id);
+        return {
+          id: e.id,
+          tanggal: s ? s.tanggal_main : '',
+          keterangan: e.keterangan,
+          kategori: e.kategori,
+          nominal: e.nominal
+        };
+      }).sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
 
     const ledgerEvents: any[] = [];
     sumberKasMasuk.forEach(s => {
@@ -4716,6 +4892,16 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
     const totalKehadiran = payments.filter((p: any) => sessionMonthIds.has(p.session_id)).length;
     const totalIuranKas = kasMasuk;
 
+    // Monthly Session Finances (Operasional Sesi)
+    const sessionIncomeMonth = paymentsMonth.reduce((sum, p) => {
+      const s = sessionsMonth.find(x => x.id === p.session_id);
+      return sum + (s ? s.biaya_per_orang || 0 : 0);
+    }, 0);
+
+    const sessionExpenseMonth = expensesMonth
+      .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
+      .reduce((sum, e) => sum + e.nominal, 0);
+
     return {
       saldoAwal,
       kasMasuk,
@@ -4729,7 +4915,10 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
         jumlahAnggotaAktif,
         totalKehadiran,
         totalIuranKas
-      }
+      },
+      sessionIncome: sessionIncomeMonth,
+      sessionExpense: sessionExpenseMonth,
+      sessionBalance: sessionIncomeMonth - sessionExpenseMonth
     };
   }, [sessions, sessionExpenses, payments, selectedMonth, selectedYear, members]);
 
@@ -4903,56 +5092,145 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
       {/* DEFAULT HISTORI KAS VIEW */}
       {(subTab === 'histori' || !isAdmin) && (
         <>
-          <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
-              <Activity size={100} />
+          {/* Sub-tab navigation for Kas Type */}
+          {isAdmin && (
+            <div className="flex gap-2 p-1 bg-card rounded-xl border border-border/80 shadow-inner mb-4 w-fit">
+              <button
+                onClick={() => setKasType('organisasi')}
+                className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                  kasType === 'organisasi'
+                    ? 'bg-accent text-white shadow-theme'
+                    : 'text-secondary hover:text-primary'
+                }`}
+              >
+                Kas Organisasi
+              </button>
+              <button
+                onClick={() => setKasType('sesi')}
+                className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                  kasType === 'sesi'
+                    ? 'bg-accent text-white shadow-theme'
+                    : 'text-secondary hover:text-primary'
+                }`}
+              >
+                Dana Sesi
+              </button>
             </div>
-            <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Saldo Kas Saat Ini</p>
-            <h2 className="text-3xl font-black text-emerald-450 tracking-tight">{formatRp(saldoKas)}</h2>
-            
-            <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
-              <div className="flex-1">
-                <p className="text-secondary text-[9px] font-bold uppercase">Total Biaya Sesi</p>
-                <p className="font-extrabold text-xs text-primary">{formatRp(totalExpense)}</p>
+          )}
+
+          {kasType === 'organisasi' ? (
+            <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
+                <Wallet size={100} />
               </div>
-              <div className="w-px bg-border"></div>
-              <div className="flex-1">
-                <p className="text-secondary text-[9px] font-bold uppercase">Total Iuran Kas Terkumpul</p>
-                <p className="font-extrabold text-xs text-primary">{formatRp(totalIuranKasTerkumpul)}</p>
+              <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Saldo Kas Organisasi</p>
+              <h2 className="text-3xl font-black text-emerald-450 tracking-tight">{formatRp(saldoKas)}</h2>
+              
+              <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
+                <div className="flex-1">
+                  <p className="text-secondary text-[9px] font-bold uppercase">Total Iuran Kas Terkumpul</p>
+                  <p className="font-extrabold text-xs text-primary">{formatRp(totalIncome)}</p>
+                </div>
+                <div className="w-px bg-border"></div>
+                <div className="flex-1">
+                  <p className="text-secondary text-[9px] font-bold uppercase">Total Pengeluaran Organisasi</p>
+                  <p className="font-extrabold text-xs text-primary">{formatRp(totalExpense)}</p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
+                <Activity size={100} />
+              </div>
+              <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Surplus/Defisit Dana Sesi</p>
+              <h2 className={`text-3xl font-black tracking-tight ${sessionBalance < 0 ? 'text-red-400' : 'text-emerald-450'}`}>
+                {sessionBalance < 0 ? '-' : ''}{formatRp(Math.abs(sessionBalance))}
+              </h2>
+              
+              <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
+                <div className="flex-1">
+                  <p className="text-secondary text-[9px] font-bold uppercase">Total Pendapatan Sesi</p>
+                  <p className="font-extrabold text-xs text-primary">{formatRp(totalSessionIncome)}</p>
+                </div>
+                <div className="w-px bg-border"></div>
+                <div className="flex-1">
+                  <p className="text-secondary text-[9px] font-bold uppercase">Total Pengeluaran Sesi</p>
+                  <p className="font-extrabold text-xs text-primary">{formatRp(totalSessionExpense)}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4">
-            <h2 className="text-sm font-black text-primary uppercase tracking-wider">Histori Biaya Sesi</h2>
+            <h2 className="text-sm font-black text-primary uppercase tracking-wider">
+              {kasType === 'organisasi' ? 'Histori Transaksi Kas' : 'Histori Biaya Sesi'}
+            </h2>
             
-            {sessionExpenses.length === 0 ? (
-              <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
-                Belum ada pengeluaran kas dicatat.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {[...sessionExpenses].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((exp: any) => {
-                  const session = sessions.find((s: any) => s.id === exp.session_id);
-                  return (
-                    <div key={exp.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all">
-                      <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center flex-shrink-0">
-                        <Wallet size={16} />
+            {kasType === 'organisasi' ? (
+              orgLedger.length === 0 ? (
+                <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
+                  Belum ada transaksi kas organisasi.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {orgLedger.map((evt: any) => (
+                    <div key={evt.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        evt.type === 'inflow' 
+                          ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                          : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                      }`}>
+                        {evt.type === 'inflow' ? <TrendingUp size={16} strokeWidth={2.2} /> : <Wallet size={16} />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-extrabold text-xs text-primary truncate">{exp.keterangan}</p>
+                        <p className="font-extrabold text-xs text-primary truncate">{evt.keterangan}</p>
                         <div className="flex items-center gap-2 mt-1 text-[9px] text-secondary font-bold">
-                          <span className="bg-background text-secondary px-1.5 py-0.5 rounded">{exp.kategori}</span>
-                          <span>{session?.nama_sesi || 'Sesi Game'}</span>
+                          <span className="bg-background text-secondary px-1.5 py-0.5 rounded">{evt.sub}</span>
+                          <span>{formatDate(evt.tanggal)}</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs font-black text-red-400">-{formatRp(exp.nominal)}</p>
+                        <p className={`text-xs font-black ${evt.type === 'inflow' ? 'text-emerald-500' : 'text-red-400'}`}>
+                          {evt.type === 'inflow' ? '+' : '-'}{formatRp(evt.nominal)}
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              sessionExpenses.filter((e: any) => e.kategori !== 'Pengeluaran Organisasi').length === 0 ? (
+                <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
+                  Belum ada pengeluaran sesi dicatat.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {[...sessionExpenses]
+                    .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
+                    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map((exp: any) => {
+                      const session = sessions.find((s: any) => s.id === exp.session_id);
+                      return (
+                        <div key={exp.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all">
+                          <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                            <Wallet size={16} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-extrabold text-xs text-primary truncate">{exp.keterangan}</p>
+                            <div className="flex items-center gap-2 mt-1 text-[9px] text-secondary font-bold">
+                              <span className="bg-background text-secondary px-1.5 py-0.5 rounded">{exp.kategori}</span>
+                              <span>{session?.nama_sesi || 'Sesi Game'}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-black text-red-400">-{formatRp(exp.nominal)}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )
             )}
           </div>
         </>
@@ -5021,22 +5299,50 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
           ) : (
             <>
               {/* RINGKASAN KEUANGAN */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
-                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Saldo Awal</p>
-                  <p className="text-base font-black text-primary mt-1">{formatRp(reportData.saldoAwal)}</p>
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-primary uppercase tracking-wider">Kas Organisasi</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Saldo Awal</p>
+                    <p className="text-base font-black text-primary mt-1">
+                      {reportData.saldoAwal < 0 ? '-' : ''}{formatRp(Math.abs(reportData.saldoAwal))}
+                    </p>
+                  </div>
+                  <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Kas Masuk</p>
+                    <p className="text-base font-black text-accent mt-1">+{formatRp(Math.abs(reportData.kasMasuk))}</p>
+                  </div>
+                  <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Kas Keluar</p>
+                    <p className="text-base font-black text-red-450 mt-1">-{formatRp(Math.abs(reportData.kasKeluar))}</p>
+                  </div>
+                  <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Saldo Akhir</p>
+                    <p className="text-base font-black text-primary mt-1">
+                      {reportData.saldoAkhir < 0 ? '-' : ''}{formatRp(Math.abs(reportData.saldoAkhir))}
+                    </p>
+                  </div>
                 </div>
-                <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
-                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Kas Masuk</p>
-                  <p className="text-base font-black text-accent mt-1">+{formatRp(reportData.kasMasuk)}</p>
-                </div>
-                <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
-                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Kas Keluar</p>
-                  <p className="text-base font-black text-red-400 mt-1">-{formatRp(reportData.kasKeluar)}</p>
-                </div>
-                <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
-                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Saldo Akhir</p>
-                  <p className="text-base font-black text-primary mt-1">{formatRp(reportData.saldoAkhir)}</p>
+              </div>
+
+              {/* RINGKASAN KEUANGAN OPERASIONAL SESI */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-primary uppercase tracking-wider">Keuangan Operasional Sesi</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Pendapatan Sesi</p>
+                    <p className="text-sm font-black text-emerald-450 mt-1">+{formatRp(Math.abs(reportData.sessionIncome))}</p>
+                  </div>
+                  <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Pengeluaran Sesi</p>
+                    <p className="text-sm font-black text-red-450 mt-1">-{formatRp(Math.abs(reportData.sessionExpense))}</p>
+                  </div>
+                  <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Surplus/Defisit</p>
+                    <p className={`text-sm font-black mt-1 ${reportData.sessionBalance < 0 ? 'text-red-455' : 'text-primary'}`}>
+                      {reportData.sessionBalance < 0 ? '-' : ''}{formatRp(Math.abs(reportData.sessionBalance))}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -5215,7 +5521,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
             <>
               {/* RINGKASAN KEUANGAN */}
               <div className="mb-6" style={{ pageBreakInside: 'avoid' }}>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3 border-l-4 border-slate-800 pl-2">Ringkasan Keuangan</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3 border-l-4 border-slate-800 pl-2">Ringkasan Keuangan Kas Organisasi</h3>
                 <div className="grid grid-cols-4 gap-4">
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                     <p className="text-[9px] font-bold text-slate-500 uppercase">Saldo Awal</p>
@@ -5231,7 +5537,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
                   </div>
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                     <p className="text-[9px] font-bold text-slate-500 uppercase">Kas Keluar</p>
-                    <p className="text-sm font-black text-red-600 mt-1 whitespace-nowrap">
+                    <p className="text-sm font-black text-red-650 mt-1 whitespace-nowrap">
                       -{formatRp(Math.abs(reportData.kasKeluar))}
                     </p>
                   </div>
@@ -5239,6 +5545,31 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
                     <p className="text-[9px] font-bold text-slate-500 uppercase">Saldo Akhir</p>
                     <p className="text-sm font-black text-slate-800 mt-1 whitespace-nowrap">
                       {reportData.saldoAkhir < 0 ? '-' : ''}{formatRp(Math.abs(reportData.saldoAkhir))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* RINGKASAN KEUANGAN SESI */}
+              <div className="mb-6" style={{ pageBreakInside: 'avoid' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3 border-l-4 border-slate-800 pl-2">Keuangan Operasional Sesi</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Total Pendapatan Sesi</p>
+                    <p className="text-sm font-black text-emerald-600 mt-1 whitespace-nowrap">
+                      +{formatRp(Math.abs(reportData.sessionIncome))}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Total Pengeluaran Sesi</p>
+                    <p className="text-sm font-black text-red-650 mt-1 whitespace-nowrap">
+                      -{formatRp(Math.abs(reportData.sessionExpense))}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Surplus / Defisit Sesi</p>
+                    <p className={`text-sm font-black mt-1 whitespace-nowrap ${reportData.sessionBalance < 0 ? 'text-red-650' : 'text-slate-800'}`}>
+                      {reportData.sessionBalance < 0 ? '-' : ''}{formatRp(Math.abs(reportData.sessionBalance))}
                     </p>
                   </div>
                 </div>
