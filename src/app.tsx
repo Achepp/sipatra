@@ -79,6 +79,14 @@ interface Pengaturan {
   rekening_penerima: string;
 }
 
+interface BillingNotification {
+  paymentId: number;
+  sessionId: number;
+  sessionName: string;
+  amount: number;
+  createdAt: string;
+}
+
 // --- UTILITIES ---
 const formatRp = (num: number) => {
   return new Intl.NumberFormat('id-ID', {
@@ -206,6 +214,25 @@ export default function App() {
     const saved = localStorage.getItem('sipatra_iuran_kas');
     return saved ? parseInt(saved) : 5000;
   });
+
+  // Notification read-state (localStorage-backed, no DB needed)
+  const [readNotificationIds, setReadNotificationIds] = useState<Set<number>>(() => {
+    try {
+      const saved = localStorage.getItem('sipatra_read_notifications');
+      return saved ? new Set<number>(JSON.parse(saved)) : new Set<number>();
+    } catch {
+      return new Set<number>();
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sipatra_read_notifications', JSON.stringify([...readNotificationIds]));
+  }, [readNotificationIds]);
+
+  const markNotificationsRead = (ids: number[]) => {
+    if (ids.length === 0) return;
+    setReadNotificationIds(prev => new Set([...prev, ...ids]));
+  };
 
   // Superadmin & Trash Bin states
   const [softDeletedItems, setSoftDeletedItems] = useState<{ sessions: any[]; payments: any[]; members: any[] }>(() => {
@@ -889,6 +916,26 @@ export default function App() {
       }
     }
   }, [activeTab, profile]);
+
+  // Auto mark-as-read when member opens Tagihan Saya (must be before early returns)
+  useEffect(() => {
+    if (
+      activeTab === 'tagihan' &&
+      profile &&
+      profile.role !== 'admin' &&
+      profile.role !== 'superadmin' &&
+      memberRecord
+    ) {
+      const ids = payments
+        .filter((p: Payment) =>
+          p.member_id === memberRecord.id &&
+          (p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated')
+        )
+        .map((p: Payment) => p.id);
+      markNotificationsRead(ids);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const handleInstallPWA = async () => {
     if (!deferredPrompt) return;
@@ -1868,6 +1915,16 @@ export default function App() {
   const isSuperAdmin = profile.role === 'superadmin';
   const isAdmin = profile.role === 'superadmin' || profile.role === 'admin';
 
+  // Compute unread billing notifications for member
+  const memberUnreadBills = !isAdmin && memberRecord
+    ? payments.filter((p: Payment) =>
+        p.member_id === memberRecord.id &&
+        (p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated') &&
+        !readNotificationIds.has(p.id)
+      )
+    : [];
+  const unreadCount = memberUnreadBills.length;
+
   return (
     <div className="min-h-screen bg-background flex justify-center text-primary font-sans transition-all duration-200">
       <div className="w-full max-w-md bg-card min-h-screen shadow-theme relative pb-28 flex flex-col border-x border-border transition-all duration-200">
@@ -1947,6 +2004,10 @@ export default function App() {
               contributionsThisMonth={contributionsThisMonth}
               profilePhoto={profilePhoto}
               session={session}
+              readNotificationIds={readNotificationIds}
+              markNotificationsRead={markNotificationsRead}
+              unreadCount={unreadCount}
+              memberUnreadBills={memberUnreadBills}
             />
           )}
 
@@ -1999,6 +2060,8 @@ export default function App() {
               sessionExpenses={sessionExpenses} 
               sessions={sessions}
               payments={payments}
+              members={members}
+              isAdmin={isAdmin}
             />
           )}
 
@@ -2045,8 +2108,8 @@ export default function App() {
 
         {/* BOTTOM FLOATING NAVIGATION */}
         <nav className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-card border border-border rounded-[24px] shadow-theme flex justify-around p-2.5 z-30 transition-all duration-200">
-          <NavItem icon={<Home size={20} />} label="Beranda" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-          <NavItem icon={<Calendar size={20} />} label={isAdmin ? 'Sesi' : 'Tagihan Saya'} active={activeTab === 'tagihan'} onClick={() => setActiveTab('tagihan')} />
+          <NavItem icon={<Home size={20} />} label="Beranda" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} badge={!isAdmin ? unreadCount : 0} />
+          <NavItem icon={<Calendar size={20} />} label={isAdmin ? 'Sesi' : 'Tagihan Saya'} active={activeTab === 'tagihan'} onClick={() => setActiveTab('tagihan')} badge={!isAdmin ? unreadCount : 0} />
           <NavItem icon={<Wallet size={20} />} label={isAdmin ? 'Laporan' : 'Kas'} active={activeTab === 'kas'} onClick={() => setActiveTab('kas')} />
           {isAdmin ? (
             <>
@@ -2244,7 +2307,7 @@ export default function App() {
 }
 
 // --- SUB-COMPONENTS ---
-function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+function NavItem({ icon, label, active, onClick, badge = 0 }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: number }) {
   return (
     <button 
       onClick={onClick} 
@@ -2254,7 +2317,14 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
           : 'text-secondary hover:text-primary'
       }`}
     >
-      <div className="mb-0.5">{icon}</div>
+      <div className="mb-0.5 relative">
+        {icon}
+        {badge > 0 && (
+          <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-0.5 shadow-sm animate-fadeIn">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
+      </div>
       <span className="text-[10px] tracking-tight">{label}</span>
       {active && (
         <div className="absolute bottom-0 left-1/4 right-1/4 h-[3px] bg-accent rounded-full animate-fadeIn" />
@@ -2266,7 +2336,8 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 // --- DASHBOARD COMPONENT ---
 function Dashboard({ 
   user, memberRecord, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
-  isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal, contributionsThisMonth, profilePhoto, session: authSession
+  isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal, contributionsThisMonth, profilePhoto, session: authSession,
+  readNotificationIds, markNotificationsRead, unreadCount, memberUnreadBills
 }: any) {
   const isAdmin = user.role === 'admin' || user.role === 'superadmin';
   
@@ -2899,11 +2970,15 @@ function Dashboard({
                       </span>
                     ) : p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' ? (
                       <span className="bg-background text-secondary border border-border text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        ⚪ Belum Bayar
+                        🔴 Belum Bayar
+                      </span>
+                    ) : p.status_pembayaran === 'Menunggu Verifikasi Cash' ? (
+                      <span className="bg-orange-500/15 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                        🟠 Menunggu Konfirmasi
                       </span>
                     ) : (
                       <span className="bg-orange-500/15 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🟡 Menunggu Verifikasi Bendahara
+                        🟡 Menunggu Verifikasi
                       </span>
                     )}
                     
@@ -3826,8 +3901,9 @@ function MyBillsMember({
                     }`}>
                       {isVerified ? '🟢 Lunas' : 
                        isRejected ? '🔴 Ditolak' : 
-                       p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' ? '⚪ Belum Bayar' : 
-                       '🟡 Menunggu Verifikasi Bendahara'}
+                       p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' ? '🔴 Belum Bayar' : 
+                       p.status_pembayaran === 'Menunggu Verifikasi Cash' ? '🟠 Menunggu Konfirmasi' :
+                       '🟡 Menunggu Verifikasi'}
                     </span>
                   </div>
 
@@ -4444,73 +4520,886 @@ function PaymentModal({
   );
 }
 // --- TREASURY (KAS) COMPONENT ---
-function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions, payments }: any) {
-  const totalIuranKasTerkumpul = payments
-    ? payments
-        .filter((p: any) => p.status_pembayaran === 'verified')
-        .reduce((sum: number, p: any) => {
-          const s = sessions.find((s: any) => s.id === p.session_id);
-          if (s) {
-            const biayaSesi = s.biaya_per_orang || 0;
-            return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions, payments, members, isAdmin }: any) {
+  const [subTab, setSubTab] = useState('histori'); // 'histori' | 'laporan'
+  
+  // Date filters
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // PDF loading states
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [pdfLoadingMessage, setPdfLoadingMessage] = useState('');
+
+  const monthNames = React.useMemo(() => [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ], []);
+
+  const availableYears = React.useMemo(() => {
+    const years = new Set<number>();
+    years.add(new Date().getFullYear());
+    if (sessions) {
+      sessions.forEach((s: any) => {
+        if (s.tanggal_main) {
+          const year = parseInt(s.tanggal_main.split('-')[0]);
+          if (!isNaN(year)) {
+            years.add(year);
           }
-          return sum;
-        }, 0)
-    : 0;
+        }
+      });
+    }
+    return Array.from(years).sort((a, b) => b - a);
+  }, [sessions]);
+
+  const totalIuranKasTerkumpul = React.useMemo(() => {
+    return payments
+      ? payments
+          .filter((p: any) => p.status_pembayaran === 'verified')
+          .reduce((sum: number, p: any) => {
+            const s = sessions.find((s: any) => s.id === p.session_id);
+            if (s) {
+              const biayaSesi = s.biaya_per_orang || 0;
+              return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+            }
+            return sum;
+          }, 0)
+      : 0;
+  }, [payments, sessions]);
+
+  // Calculations for selected period
+  const reportData = React.useMemo(() => {
+    if (!sessions || !payments || !sessionExpenses) {
+      return {
+        saldoAwal: 0,
+        kasMasuk: 0,
+        kasKeluar: 0,
+        saldoAkhir: 0,
+        sumberKasMasuk: [],
+        pengeluaranKas: [],
+        ledger: [],
+        statistics: { jumlahSesi: 0, jumlahAnggotaAktif: 0, totalKehadiran: 0, totalIuranKas: 0 }
+      };
+    }
+
+    const sessionsBefore: any[] = [];
+    const sessionsMonth: any[] = [];
+    const expensesBefore: any[] = [];
+    const expensesMonth: any[] = [];
+    const paymentsBefore: any[] = [];
+    const paymentsMonth: any[] = [];
+
+    sessions.forEach((s: any) => {
+      if (!s.tanggal_main) return;
+      const [yStr, mStr] = s.tanggal_main.split('-');
+      const y = parseInt(yStr);
+      const m = parseInt(mStr) - 1; // 0-indexed
+
+      if (y < selectedYear || (y === selectedYear && m < selectedMonth)) {
+        sessionsBefore.push(s);
+      } else if (y === selectedYear && m === selectedMonth) {
+        sessionsMonth.push(s);
+      }
+    });
+
+    const sessionBeforeIds = new Set(sessionsBefore.map(s => s.id));
+    const sessionMonthIds = new Set(sessionsMonth.map(s => s.id));
+
+    sessionExpenses.forEach((e: any) => {
+      if (sessionBeforeIds.has(e.session_id)) {
+        expensesBefore.push(e);
+      } else if (sessionMonthIds.has(e.session_id)) {
+        expensesMonth.push(e);
+      }
+    });
+
+    payments.forEach((p: any) => {
+      if (p.status_pembayaran !== 'verified') return;
+      if (sessionBeforeIds.has(p.session_id)) {
+        paymentsBefore.push(p);
+      } else if (sessionMonthIds.has(p.session_id)) {
+        paymentsMonth.push(p);
+      }
+    });
+
+    const calculateIuran = (pList: any[]) => {
+      return pList.reduce((sum: number, p: any) => {
+        const s = sessions.find((x: any) => x.id === p.session_id);
+        if (s) {
+          const biayaSesi = s.biaya_per_orang || 0;
+          return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+        }
+        return sum;
+      }, 0);
+    };
+
+    const iuranBefore = calculateIuran(paymentsBefore);
+    const costBefore = expensesBefore.reduce((sum, e) => sum + e.nominal, 0);
+    const saldoAwal = iuranBefore - costBefore;
+
+    const kasMasuk = calculateIuran(paymentsMonth);
+    const kasKeluar = expensesMonth.reduce((sum, e) => sum + e.nominal, 0);
+    const saldoAkhir = saldoAwal + kasMasuk - kasKeluar;
+
+    const sumberKasMasuk = sessionsMonth.map((s: any) => {
+      const sessionPayments = payments.filter((p: any) => p.session_id === s.id && p.status_pembayaran === 'verified');
+      const totalSessionIuran = sessionPayments.reduce((sum: number, p: any) => {
+        const biayaSesi = s.biaya_per_orang || 0;
+        return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+      }, 0);
+      return {
+        id: s.id,
+        tanggal: s.tanggal_main,
+        nama: s.nama_sesi,
+        jumlah: totalSessionIuran
+      };
+    }).sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
+
+    const pengeluaranKas = expensesMonth.map((e: any) => {
+      const s = sessionsMonth.find(x => x.id === e.session_id);
+      return {
+        id: e.id,
+        tanggal: s ? s.tanggal_main : '',
+        keterangan: e.keterangan,
+        kategori: e.kategori,
+        nominal: e.nominal
+      };
+    }).sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
+
+    const ledgerEvents: any[] = [];
+    sumberKasMasuk.forEach(s => {
+      if (s.jumlah > 0) {
+        ledgerEvents.push({
+          type: 'masuk',
+          tanggal: s.tanggal,
+          keterangan: `Iuran Kas ${s.nama}`,
+          masuk: s.jumlah,
+          keluar: 0
+        });
+      }
+    });
+
+    pengeluaranKas.forEach(e => {
+      ledgerEvents.push({
+        type: 'keluar',
+        tanggal: e.tanggal,
+        keterangan: e.keterangan,
+        masuk: 0,
+        keluar: e.nominal
+      });
+    });
+
+    ledgerEvents.sort((a, b) => {
+      const dateDiff = new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      if (a.type !== b.type) {
+        return a.type === 'masuk' ? -1 : 1;
+      }
+      return 0;
+    });
+
+    let currentBalance = saldoAwal;
+    const ledger = ledgerEvents.map(event => {
+      if (event.type === 'masuk') {
+        currentBalance += event.masuk;
+      } else {
+        currentBalance -= event.keluar;
+      }
+      return {
+        ...event,
+        saldo: currentBalance
+      };
+    });
+
+    const jumlahSesi = sessionsMonth.length;
+    const jumlahAnggotaAktif = members ? members.filter((m: any) => m.status === 'aktif').length : 0;
+    const totalKehadiran = payments.filter((p: any) => sessionMonthIds.has(p.session_id)).length;
+    const totalIuranKas = kasMasuk;
+
+    return {
+      saldoAwal,
+      kasMasuk,
+      kasKeluar,
+      saldoAkhir,
+      sumberKasMasuk,
+      pengeluaranKas,
+      ledger,
+      statistics: {
+        jumlahSesi,
+        jumlahAnggotaAktif,
+        totalKehadiran,
+        totalIuranKas
+      }
+    };
+  }, [sessions, sessionExpenses, payments, selectedMonth, selectedYear, members]);
+
+  // Format dates for period display
+  const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  const monthName = monthNames[selectedMonth];
+  const periodStr = `01 ${monthName} ${selectedYear} - ${lastDay} ${monthName} ${selectedYear}`;
+  
+  const formatToday = () => {
+    const today = new Date();
+    const d = today.getDate();
+    const m = monthNames[today.getMonth()];
+    const y = today.getFullYear();
+    return `${d} ${m} ${y}`;
+  };
+
+  const handleExportPDF = () => {
+    // 6. If no data is available, do not generate PDF
+    if (reportData.statistics.jumlahSesi === 0 && reportData.pengeluaranKas.length === 0) {
+      alert('Tidak ada data pada periode yang dipilih.');
+      return;
+    }
+
+    // 8. Add loading state
+    setIsGeneratingPDF(true);
+    setPdfLoadingMessage('Menyiapkan laporan PDF...');
+
+    // 7. Wait for React rendering completion before generating PDF
+    setTimeout(() => {
+      const element = document.getElementById('report-content');
+      const wrapper = document.getElementById('report-wrapper');
+      
+      // 5. Add debugging logs
+      console.log('Export PDF');
+      console.log('Element:', element);
+      console.log('Report Data:', reportData);
+      console.log('Summary Data:', {
+        saldoAwal: reportData.saldoAwal,
+        kasMasuk: reportData.kasMasuk,
+        kasKeluar: reportData.kasKeluar,
+        saldoAkhir: reportData.saldoAkhir
+      });
+      console.log('Transactions (Ledger):', reportData.ledger);
+      console.log('Expenses:', reportData.pengeluaranKas);
+
+      // 1. Verify that the HTML report container exists and has content
+      if (!element) {
+        alert('Gagal mengekspor: Kontainer laporan tidak ditemukan.');
+        setIsGeneratingPDF(false);
+        return;
+      }
+
+      if (!element.innerHTML || element.innerHTML.trim() === '') {
+        alert('Gagal mengekspor: Kontainer laporan kosong.');
+        setIsGeneratingPDF(false);
+        return;
+      }
+
+      // Temporarily bring the wrapper into layout flow (fixed positioning at 0, 0)
+      // to avoid html2canvas negative offset empty page bug, keeping it hidden
+      // behind the z-[10000] loading overlay.
+      if (wrapper) {
+        wrapper.style.position = 'fixed';
+        wrapper.style.left = '0px';
+        wrapper.style.top = '0px';
+        wrapper.style.zIndex = '9990';
+      }
+
+      const oldTitle = document.title;
+      const filename = `Laporan-Kas-${monthName}-${selectedYear}.pdf`;
+      document.title = filename.replace('.pdf', '');
+
+      const opt = {
+        margin:       0, // Use 0 margin to let HTML padding act as print margins
+        filename:     filename,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+      };
+
+      if (typeof (window as any).html2pdf === 'function') {
+        (window as any).html2pdf().set(opt).from(element).toPdf().get('pdf').then((pdf: any) => {
+          const totalPages = pdf.internal.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.setTextColor(148, 163, 184); // slate-400
+            
+            // Draw "Page X of Y" at the bottom right corner (198mm, 288mm)
+            pdf.text(
+              `Page ${i} of ${totalPages}`,
+              198,
+              288,
+              { align: 'right' }
+            );
+          }
+        }).save().then(() => {
+          // Restore wrapper positioning
+          if (wrapper) {
+            wrapper.style.position = 'absolute';
+            wrapper.style.left = '-9999px';
+            wrapper.style.top = '-9999px';
+            wrapper.style.zIndex = '';
+          }
+          document.title = oldTitle;
+          setIsGeneratingPDF(false);
+        }).catch((err: any) => {
+          console.error('Error exporting PDF:', err);
+          // Restore wrapper positioning on error
+          if (wrapper) {
+            wrapper.style.position = 'absolute';
+            wrapper.style.left = '-9999px';
+            wrapper.style.top = '-9999px';
+            wrapper.style.zIndex = '';
+          }
+          document.title = oldTitle;
+          setIsGeneratingPDF(false);
+        });
+      } else {
+        alert('Gagal memuat library PDF. Harap pastikan koneksi internet Anda aktif untuk memuat library PDF.');
+        // Restore wrapper positioning
+        if (wrapper) {
+          wrapper.style.position = 'absolute';
+          wrapper.style.left = '-9999px';
+          wrapper.style.top = '-9999px';
+          wrapper.style.zIndex = '';
+        }
+        document.title = oldTitle;
+        setIsGeneratingPDF(false);
+      }
+    }, 800); // 800ms delay to guarantee React render cycle completes and DOM is stable
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
-          <Activity size={100} />
+      {/* LOADING OVERLAY FOR PDF GENERATION */}
+      {isGeneratingPDF && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[10000] flex flex-col items-center justify-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-t-accent border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+          <p className="text-sm font-black text-primary tracking-wide animate-pulse">{pdfLoadingMessage}</p>
         </div>
-        <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Saldo Kas Saat Ini</p>
-        <h2 className="text-3xl font-black text-emerald-450 tracking-tight">{formatRp(saldoKas)}</h2>
-        
-        <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
-          <div className="flex-1">
-            <p className="text-secondary text-[9px] font-bold uppercase">Total Biaya Sesi</p>
-            <p className="font-extrabold text-xs text-primary">{formatRp(totalExpense)}</p>
-          </div>
-          <div className="w-px bg-border"></div>
-          <div className="flex-1">
-            <p className="text-secondary text-[9px] font-bold uppercase">Total Iuran Kas Terkumpul</p>
-            <p className="font-extrabold text-xs text-primary">{formatRp(totalIuranKasTerkumpul)}</p>
-          </div>
-        </div>
-      </div>
+      )}
 
-      <div className="space-y-4">
-        <h2 className="text-sm font-black text-primary uppercase tracking-wider">Histori Biaya Sesi</h2>
-        
-        {sessionExpenses.length === 0 ? (
-          <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
-            Belum ada pengeluaran kas dicatat.
+      {/* SUB TABS NAVIGATION */}
+      {isAdmin && (
+        <div className="flex bg-card p-1 rounded-2xl border border-border shadow-inner">
+          <button
+            onClick={() => setSubTab('histori')}
+            className={`flex-grow py-2 px-3 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-200 ${
+              subTab === 'histori'
+                ? 'bg-accent text-white shadow-theme'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            Histori Kas
+          </button>
+          <button
+            onClick={() => setSubTab('laporan')}
+            className={`flex-grow py-2 px-3 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-200 ${
+              subTab === 'laporan'
+                ? 'bg-accent text-white shadow-theme'
+                : 'text-secondary hover:text-primary'
+            }`}
+          >
+            Laporan Bulanan
+          </button>
+        </div>
+      )}
+
+      {/* DEFAULT HISTORI KAS VIEW */}
+      {(subTab === 'histori' || !isAdmin) && (
+        <>
+          <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
+              <Activity size={100} />
+            </div>
+            <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Saldo Kas Saat Ini</p>
+            <h2 className="text-3xl font-black text-emerald-450 tracking-tight">{formatRp(saldoKas)}</h2>
+            
+            <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
+              <div className="flex-1">
+                <p className="text-secondary text-[9px] font-bold uppercase">Total Biaya Sesi</p>
+                <p className="font-extrabold text-xs text-primary">{formatRp(totalExpense)}</p>
+              </div>
+              <div className="w-px bg-border"></div>
+              <div className="flex-1">
+                <p className="text-secondary text-[9px] font-bold uppercase">Total Iuran Kas Terkumpul</p>
+                <p className="font-extrabold text-xs text-primary">{formatRp(totalIuranKasTerkumpul)}</p>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {[...sessionExpenses].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((exp: any) => {
-              const session = sessions.find((s: any) => s.id === exp.session_id);
-              return (
-                <div key={exp.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme">
-                  <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center flex-shrink-0">
-                    <Wallet size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-extrabold text-xs text-primary truncate">{exp.keterangan}</p>
-                    <div className="flex items-center gap-2 mt-1 text-[9px] text-secondary font-bold">
-                      <span className="bg-background text-secondary px-1.5 py-0.5 rounded">{exp.kategori}</span>
-                      <span>{session?.nama_sesi || 'Sesi Game'}</span>
+
+          <div className="space-y-4">
+            <h2 className="text-sm font-black text-primary uppercase tracking-wider">Histori Biaya Sesi</h2>
+            
+            {sessionExpenses.length === 0 ? (
+              <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
+                Belum ada pengeluaran kas dicatat.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {[...sessionExpenses].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((exp: any) => {
+                  const session = sessions.find((s: any) => s.id === exp.session_id);
+                  return (
+                    <div key={exp.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all">
+                      <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                        <Wallet size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-extrabold text-xs text-primary truncate">{exp.keterangan}</p>
+                        <div className="flex items-center gap-2 mt-1 text-[9px] text-secondary font-bold">
+                          <span className="bg-background text-secondary px-1.5 py-0.5 rounded">{exp.kategori}</span>
+                          <span>{session?.nama_sesi || 'Sesi Game'}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-black text-red-400">-{formatRp(exp.nominal)}</p>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* LAPORAN BULANAN VIEW */}
+      {isAdmin && subTab === 'laporan' && (
+        <div className="space-y-6">
+          {/* FILTER CARD */}
+          <div className="bg-card rounded-[2rem] p-5 border border-border shadow-theme">
+            <h3 className="text-xs font-black text-primary uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <Calendar size={14} /> Filter Periode Laporan
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-secondary uppercase tracking-wider block">Bulan</label>
+                <div className="relative">
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-primary font-bold appearance-none cursor-pointer focus:outline-none focus:border-accent"
+                  >
+                    {monthNames.map((name, idx) => (
+                      <option key={idx} value={idx}>{name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" size={14} />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-secondary uppercase tracking-wider block">Tahun</label>
+                <div className="relative">
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-primary font-bold appearance-none cursor-pointer focus:outline-none focus:border-accent"
+                  >
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" size={14} />
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleExportPDF}
+              disabled={reportData.statistics.jumlahSesi === 0 && reportData.pengeluaranKas.length === 0}
+              className={`w-full mt-5 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all text-xs active:scale-[0.98] ${
+                reportData.statistics.jumlahSesi === 0 && reportData.pengeluaranKas.length === 0
+                  ? 'bg-border text-secondary cursor-not-allowed opacity-50'
+                  : 'bg-accent hover:opacity-90 text-white shadow-md shadow-emerald-950/20'
+              }`}
+            >
+              <Download size={15} /> Export PDF
+            </button>
+          </div>
+
+          {/* 6. If no data is available, show "Tidak ada data..." */}
+          {reportData.statistics.jumlahSesi === 0 && reportData.pengeluaranKas.length === 0 ? (
+            <div className="bg-card rounded-[2rem] p-8 text-center border border-border shadow-theme">
+              <p className="text-secondary text-sm font-bold">Tidak ada data pada periode yang dipilih.</p>
+            </div>
+          ) : (
+            <>
+              {/* RINGKASAN KEUANGAN */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Saldo Awal</p>
+                  <p className="text-base font-black text-primary mt-1">{formatRp(reportData.saldoAwal)}</p>
+                </div>
+                <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Kas Masuk</p>
+                  <p className="text-base font-black text-accent mt-1">+{formatRp(reportData.kasMasuk)}</p>
+                </div>
+                <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Kas Keluar</p>
+                  <p className="text-base font-black text-red-400 mt-1">-{formatRp(reportData.kasKeluar)}</p>
+                </div>
+                <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
+                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Saldo Akhir</p>
+                  <p className="text-base font-black text-primary mt-1">{formatRp(reportData.saldoAkhir)}</p>
+                </div>
+              </div>
+
+              {/* STATISTIK */}
+              <div className="bg-card rounded-[2rem] p-5 border border-border shadow-theme">
+                <h3 className="text-xs font-black text-primary uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Activity size={14} /> Statistik Periode Ini
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="bg-background rounded-xl p-3 border border-border/40">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Jumlah Sesi</p>
+                    <p className="text-lg font-black text-primary mt-1">{reportData.statistics.jumlahSesi}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs font-black text-red-400">-{formatRp(exp.nominal)}</p>
+                  <div className="bg-background rounded-xl p-3 border border-border/40">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Anggota Aktif</p>
+                    <p className="text-lg font-black text-primary mt-1">{reportData.statistics.jumlahAnggotaAktif}</p>
+                  </div>
+                  <div className="bg-background rounded-xl p-3 border border-border/40">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Total Kehadiran</p>
+                    <p className="text-lg font-black text-primary mt-1">{reportData.statistics.totalKehadiran}</p>
+                  </div>
+                  <div className="bg-background rounded-xl p-3 border border-border/40">
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Total Iuran Kas</p>
+                    <p className="text-lg font-black text-primary mt-1">{formatRp(reportData.statistics.totalIuranKas)}</p>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+
+              {/* TABEL PREVIEW */}
+              <div className="space-y-6">
+                {/* SUMBER KAS MASUK */}
+                <div className="bg-card rounded-[2rem] p-5 border border-border shadow-theme space-y-3">
+                  <h3 className="text-xs font-black text-primary uppercase tracking-wider flex items-center gap-1.5">
+                    <TrendingUp size={14} className="text-accent" /> Sumber Kas Masuk
+                  </h3>
+                  <div className="overflow-x-auto rounded-xl border border-border/60">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-background border-b border-border text-secondary font-bold text-[9px] uppercase tracking-wider">
+                          <th className="p-3">Tanggal</th>
+                          <th className="p-3">Sesi</th>
+                          <th className="p-3 text-right">Jumlah</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.sumberKasMasuk.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="p-4 text-center text-secondary">Tidak ada kas masuk periode ini.</td>
+                          </tr>
+                        ) : (
+                          reportData.sumberKasMasuk.map((s: any) => (
+                            <tr key={s.id} className="border-b border-border/40 hover:bg-background/40">
+                              <td className="p-3 text-secondary font-bold whitespace-nowrap">{formatDate(s.tanggal)}</td>
+                              <td className="p-3 text-primary font-extrabold">{s.nama}</td>
+                              <td className="p-3 text-right font-black text-accent">+{formatRp(s.jumlah)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* PENGELUARAN KAS */}
+                <div className="bg-card rounded-[2rem] p-5 border border-border shadow-theme space-y-3">
+                  <h3 className="text-xs font-black text-primary uppercase tracking-wider flex items-center gap-1.5">
+                    <Wallet size={14} className="text-red-400" /> Pengeluaran Kas
+                  </h3>
+                  <div className="overflow-x-auto rounded-xl border border-border/60">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-background border-b border-border text-secondary font-bold text-[9px] uppercase tracking-wider">
+                          <th className="p-3">Tanggal</th>
+                          <th className="p-3">Keterangan</th>
+                          <th className="p-3">Kategori</th>
+                          <th className="p-3 text-right">Nominal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.pengeluaranKas.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="p-4 text-center text-secondary">Tidak ada pengeluaran periode ini.</td>
+                          </tr>
+                        ) : (
+                          reportData.pengeluaranKas.map((e: any) => (
+                            <tr key={e.id} className="border-b border-border/40 hover:bg-background/40">
+                              <td className="p-3 text-secondary font-bold whitespace-nowrap">{formatDate(e.tanggal)}</td>
+                              <td className="p-3 text-primary font-extrabold">{e.keterangan}</td>
+                              <td className="p-3 text-secondary"><span className="bg-background px-2 py-0.5 rounded text-[10px] font-bold border border-border/50">{e.kategori}</span></td>
+                              <td className="p-3 text-right font-black text-red-450">-{formatRp(e.nominal)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* SALDO BERJALAN LEDGER */}
+                <div className="bg-card rounded-[2rem] p-5 border border-border shadow-theme space-y-3">
+                  <h3 className="text-xs font-black text-primary uppercase tracking-wider flex items-center gap-1.5">
+                    <Activity size={14} className="text-blue-400" /> Saldo Berjalan (Ledger)
+                  </h3>
+                  <div className="overflow-x-auto rounded-xl border border-border/60">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-background border-b border-border text-secondary font-bold text-[9px] uppercase tracking-wider">
+                          <th className="p-3">Tanggal</th>
+                          <th className="p-3">Keterangan</th>
+                          <th className="p-3 text-right">Masuk</th>
+                          <th className="p-3 text-right">Keluar</th>
+                          <th className="p-3 text-right">Saldo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-border/40 bg-background/20 text-secondary italic font-semibold">
+                          <td className="p-3">-</td>
+                          <td className="p-3">Saldo Awal Periode</td>
+                          <td className="p-3 text-right">-</td>
+                          <td className="p-3 text-right">-</td>
+                          <td className="p-3 text-right text-primary font-black">{formatRp(reportData.saldoAwal)}</td>
+                        </tr>
+                        {reportData.ledger.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-4 text-center text-secondary">Tidak ada transaksi tercatat periode ini.</td>
+                          </tr>
+                        ) : (
+                          reportData.ledger.map((row: any, idx: number) => (
+                            <tr key={idx} className="border-b border-border/40 hover:bg-background/40">
+                              <td className="p-3 text-secondary font-bold whitespace-nowrap">{formatDate(row.tanggal)}</td>
+                              <td className="p-3 text-primary font-extrabold">{row.keterangan}</td>
+                              <td className={`p-3 text-right font-black ${row.masuk > 0 ? 'text-accent' : 'text-secondary/40'}`}>
+                                {row.masuk > 0 ? `+${formatRp(row.masuk)}` : '-'}
+                              </td>
+                              <td className={`p-3 text-right font-black ${row.keluar > 0 ? 'text-red-455' : 'text-secondary/40'}`}>
+                                {row.keluar > 0 ? `-${formatRp(row.keluar)}` : '-'}
+                              </td>
+                              <td className="p-3 text-right text-primary font-black">{formatRp(row.saldo)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 3. & 4. DEDICATED HIDDEN CONTAINER FOR PDF EXPORT POSITIONED OFF-SCREEN */}
+      <div id="report-wrapper" style={{ position: 'absolute', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
+        <div id="report-content" className="bg-white text-slate-800 p-12 w-[794px] font-sans" style={{ boxSizing: 'border-box', minHeight: '1123px' }}>
+          
+          {/* HEADER */}
+          <div className="border-b-2 border-slate-800 pb-4 mb-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight whitespace-nowrap">SI-PATRA</h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider whitespace-nowrap">Sistem Informasi Badminton & Kas</p>
+              </div>
+              <div className="text-right pl-4">
+                <h1 className="text-xl font-bold text-slate-900 whitespace-nowrap">Laporan Kas Bulanan</h1>
+                <p className="text-xs font-bold text-slate-600 mt-1 whitespace-nowrap">Periode: {periodStr}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5 whitespace-nowrap">Tanggal Cetak: {formatToday()}</p>
+              </div>
+            </div>
           </div>
-        )}
+
+          {reportData.statistics.jumlahSesi === 0 && reportData.pengeluaranKas.length === 0 ? (
+            <div className="p-8 text-center border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm font-bold my-10">
+              Tidak ada data pada periode yang dipilih.
+            </div>
+          ) : (
+            <>
+              {/* RINGKASAN KEUANGAN */}
+              <div className="mb-6" style={{ pageBreakInside: 'avoid' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3 border-l-4 border-slate-800 pl-2">Ringkasan Keuangan</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Saldo Awal</p>
+                    <p className="text-sm font-black text-slate-800 mt-1 whitespace-nowrap">
+                      {reportData.saldoAwal < 0 ? '-' : ''}{formatRp(Math.abs(reportData.saldoAwal))}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Kas Masuk</p>
+                    <p className="text-sm font-black text-emerald-600 mt-1 whitespace-nowrap">
+                      +{formatRp(Math.abs(reportData.kasMasuk))}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Kas Keluar</p>
+                    <p className="text-sm font-black text-red-600 mt-1 whitespace-nowrap">
+                      -{formatRp(Math.abs(reportData.kasKeluar))}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Saldo Akhir</p>
+                    <p className="text-sm font-black text-slate-800 mt-1 whitespace-nowrap">
+                      {reportData.saldoAkhir < 0 ? '-' : ''}{formatRp(Math.abs(reportData.saldoAkhir))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* STATISTIK */}
+              <div className="mb-6" style={{ pageBreakInside: 'avoid' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3 border-l-4 border-slate-800 pl-2">Statistik Sesi & Kas</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="border border-slate-200 rounded-xl p-3 text-center">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Jumlah Sesi</p>
+                    <p className="text-base font-black text-slate-800 mt-0.5">{reportData.statistics.jumlahSesi}</p>
+                  </div>
+                  <div className="border border-slate-200 rounded-xl p-3 text-center">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Anggota Aktif</p>
+                    <p className="text-base font-black text-slate-800 mt-0.5">{reportData.statistics.jumlahAnggotaAktif}</p>
+                  </div>
+                  <div className="border border-slate-200 rounded-xl p-3 text-center">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Total Kehadiran</p>
+                    <p className="text-base font-black text-slate-800 mt-0.5">{reportData.statistics.totalKehadiran}</p>
+                  </div>
+                  <div className="border border-slate-200 rounded-xl p-3 text-center">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Total Iuran Kas</p>
+                    <p className="text-base font-black text-slate-800 mt-0.5 whitespace-nowrap">
+                      {reportData.statistics.totalIuranKas < 0 ? '-' : ''}{formatRp(Math.abs(reportData.statistics.totalIuranKas))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SUMBER KAS MASUK */}
+              <div className="mb-6" style={{ pageBreakInside: 'avoid' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2 border-l-4 border-slate-800 pl-2">Sumber Kas Masuk</h3>
+                <table className="w-full text-left border-collapse border border-slate-200 text-xs" style={{ tableLayout: 'fixed' }}>
+                  <thead>
+                    <tr className="bg-slate-800 text-white font-bold">
+                      <th style={{ width: '20%' }} className="p-2.5 border border-slate-300">Tanggal</th>
+                      <th style={{ width: '55%' }} className="p-2.5 border border-slate-300">Sesi</th>
+                      <th style={{ width: '25%' }} className="p-2.5 border border-slate-300 text-right">Jumlah</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.sumberKasMasuk.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="p-4 text-center text-slate-400 font-medium border border-slate-200">Tidak ada kas masuk periode ini.</td>
+                      </tr>
+                    ) : (
+                      reportData.sumberKasMasuk.map((s: any, idx: number) => (
+                        <tr key={s.id} className={idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}>
+                          <td className="p-2.5 border border-slate-200 whitespace-nowrap">{formatDate(s.tanggal)}</td>
+                          <td className="p-2.5 border border-slate-200 break-words font-semibold text-slate-800">{s.nama}</td>
+                          <td className="p-2.5 border border-slate-200 text-right font-bold text-emerald-600 whitespace-nowrap">+{formatRp(Math.abs(s.jumlah))}</td>
+                        </tr>
+                      ))
+                    )}
+                    <tr className="bg-slate-100/80 font-bold">
+                      <td colSpan={2} className="p-2.5 border border-slate-200 text-right">Subtotal:</td>
+                      <td className="p-2.5 border border-slate-200 text-right text-emerald-700 whitespace-nowrap">+{formatRp(Math.abs(reportData.kasMasuk))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* PENGELUARAN KAS */}
+              <div className="mb-6" style={{ pageBreakInside: 'avoid' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2 border-l-4 border-slate-800 pl-2">Pengeluaran Kas</h3>
+                <table className="w-full text-left border-collapse border border-slate-200 text-xs" style={{ tableLayout: 'fixed' }}>
+                  <thead>
+                    <tr className="bg-slate-800 text-white font-bold">
+                      <th style={{ width: '20%' }} className="p-2.5 border border-slate-300">Tanggal</th>
+                      <th style={{ width: '40%' }} className="p-2.5 border border-slate-300">Keterangan</th>
+                      <th style={{ width: '20%' }} className="p-2.5 border border-slate-300">Kategori</th>
+                      <th style={{ width: '20%' }} className="p-2.5 border border-slate-300 text-right">Nominal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.pengeluaranKas.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-4 text-center text-slate-400 font-medium border border-slate-200">Tidak ada pengeluaran periode ini.</td>
+                      </tr>
+                    ) : (
+                      reportData.pengeluaranKas.map((e: any, idx: number) => (
+                        <tr key={e.id} className={idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}>
+                          <td className="p-2.5 border border-slate-200 whitespace-nowrap">{formatDate(e.tanggal)}</td>
+                          <td className="p-2.5 border border-slate-200 break-words font-semibold text-slate-800">{e.keterangan}</td>
+                          <td className="p-2.5 border border-slate-200"><span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap font-medium border border-slate-200">{e.kategori}</span></td>
+                          <td className="p-2.5 border border-slate-200 text-right font-bold text-red-600 whitespace-nowrap">-{formatRp(Math.abs(e.nominal))}</td>
+                        </tr>
+                      ))
+                    )}
+                    <tr className="bg-slate-100/80 font-bold">
+                      <td colSpan={3} className="p-2.5 border border-slate-200 text-right">Subtotal:</td>
+                      <td className="p-2.5 border border-slate-200 text-right text-red-750 whitespace-nowrap">-{formatRp(Math.abs(reportData.kasKeluar))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* SALDO BERJALAN LEDGER */}
+              <div className="mb-6" style={{ pageBreakInside: 'avoid' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-2 border-l-4 border-slate-800 pl-2">Saldo Berjalan (Ledger)</h3>
+                <table className="w-full text-left border-collapse border border-slate-200 text-xs" style={{ tableLayout: 'fixed' }}>
+                  <thead>
+                    <tr className="bg-slate-800 text-white font-bold">
+                      <th style={{ width: '18%' }} className="p-2.5 border border-slate-300">Tanggal</th>
+                      <th style={{ width: '38%' }} className="p-2.5 border border-slate-300">Keterangan</th>
+                      <th style={{ width: '14.5%' }} className="p-2.5 border border-slate-300 text-right">Masuk</th>
+                      <th style={{ width: '14.5%' }} className="p-2.5 border border-slate-300 text-right">Keluar</th>
+                      <th style={{ width: '15%' }} className="p-2.5 border border-slate-300 text-right">Saldo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="bg-slate-100/50 italic text-slate-500 font-medium">
+                      <td className="p-2.5 border border-slate-200 whitespace-nowrap">-</td>
+                      <td className="p-2.5 border border-slate-200">Saldo Awal Periode</td>
+                      <td className="p-2.5 border border-slate-200 text-right">-</td>
+                      <td className="p-2.5 border border-slate-200 text-right">-</td>
+                      <td className="p-2.5 border border-slate-200 text-right font-bold text-slate-750 whitespace-nowrap">
+                        {reportData.saldoAwal < 0 ? '-' : ''}{formatRp(Math.abs(reportData.saldoAwal))}
+                      </td>
+                    </tr>
+                    {reportData.ledger.length === 0 ? (
+                      <tr className="border-b border-slate-200">
+                        <td colSpan={5} className="p-4 text-center text-slate-400 font-medium border border-slate-200">Tidak ada transaksi tercatat periode ini.</td>
+                      </tr>
+                    ) : (
+                      reportData.ledger.map((row: any, idx: number) => (
+                        <tr key={idx} className={idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}>
+                          <td className="p-2.5 border border-slate-200 whitespace-nowrap">{formatDate(row.tanggal)}</td>
+                          <td className="p-2.5 border border-slate-200 break-words font-semibold text-slate-800">{row.keterangan}</td>
+                          <td className={`p-2.5 border border-slate-200 text-right font-bold whitespace-nowrap ${row.masuk > 0 ? 'text-emerald-600' : 'text-slate-450'}`}>
+                            {row.masuk > 0 ? `+${formatRp(Math.abs(row.masuk))}` : '-'}
+                          </td>
+                          <td className={`p-2.5 border border-slate-200 text-right font-bold whitespace-nowrap ${row.keluar > 0 ? 'text-red-600' : 'text-slate-450'}`}>
+                            {row.keluar > 0 ? `-${formatRp(Math.abs(row.keluar))}` : '-'}
+                          </td>
+                          <td className={`p-2.5 border border-slate-200 text-right font-black whitespace-nowrap ${row.saldo >= 0 ? 'text-slate-800' : 'text-red-650'}`}>
+                            {row.saldo < 0 ? '-' : ''}{formatRp(Math.abs(row.saldo))}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                    <tr className="bg-slate-100/80 font-bold">
+                      <td colSpan={4} className="p-2.5 border border-slate-200 text-right">Saldo Akhir Periode:</td>
+                      <td className={`p-2.5 border border-slate-200 text-right font-black whitespace-nowrap ${reportData.saldoAkhir >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                        {reportData.saldoAkhir < 0 ? '-' : ''}{formatRp(Math.abs(reportData.saldoAkhir))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* FOOTER */}
+          <div className="mt-10 border-t border-slate-200 pt-3 text-[9px] text-slate-400 flex justify-between">
+            <span>Generated by SI-PATRA v1.0.0 • Sistem Informasi UNPAM • Badminton & Kas</span>
+            <span>&nbsp;</span>
+          </div>
+
+        </div>
       </div>
     </div>
   );
