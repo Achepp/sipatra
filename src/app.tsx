@@ -2379,21 +2379,20 @@ export default function App() {
         {/* FAB BOTTOM SHEET ACTION MENU */}
         {showFabActionMenu && (
           <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 flex items-end justify-center sm:items-center p-4 animate-fadeIn" onClick={() => setShowFabActionMenu(false)}>
-            <div className="bg-card w-full max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] p-6 relative border border-border shadow-theme animate-slide-up transition-colors duration-200" onClick={e => e.stopPropagation()}>
-              <div className="flex flex-col gap-1 pb-3 mb-4 border-b border-border text-center">
-                <h3 className="text-secondary font-black text-xs uppercase tracking-widest">Menu Cepat</h3>
-              </div>
+            <div className="bg-card w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-5 pb-6 relative border border-border shadow-theme animate-slide-up transition-colors duration-200" onClick={e => e.stopPropagation()}>
+              {/* Drag Handle */}
+              <div className="w-12 h-1.5 bg-border rounded-full mx-auto mb-5" />
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 <button
                   onClick={() => {
                     setShowFabActionMenu(false);
                     setActiveTab('tagihan');
                     setShowAddSessionModal(true);
                   }}
-                  className="w-full py-4 bg-background hover:bg-border/30 rounded-2xl flex items-center justify-center gap-3 font-extrabold text-sm text-primary transition-all active:scale-[0.98] border border-border"
+                  className="w-full h-[52px] px-4 bg-background hover:bg-border/30 rounded-2xl flex items-center gap-3.5 font-extrabold text-sm text-primary transition-all active:scale-[0.98] border border-border"
                 >
-                  <span className="text-lg">➕</span>
+                  <span className="text-base flex items-center justify-center">➕</span>
                   <span>Tambah Sesi</span>
                 </button>
 
@@ -2403,15 +2402,15 @@ export default function App() {
                     setActiveTab('anggota');
                     setShowAddMemberModal(true);
                   }}
-                  className="w-full py-4 bg-background hover:bg-border/30 rounded-2xl flex items-center justify-center gap-3 font-extrabold text-sm text-primary transition-all active:scale-[0.98] border border-border"
+                  className="w-full h-[52px] px-4 bg-background hover:bg-border/30 rounded-2xl flex items-center gap-3.5 font-extrabold text-sm text-primary transition-all active:scale-[0.98] border border-border"
                 >
-                  <span className="text-lg">👤</span>
+                  <span className="text-base flex items-center justify-center">👤</span>
                   <span>Tambah Anggota</span>
                 </button>
 
                 <button
                   onClick={() => setShowFabActionMenu(false)}
-                  className="w-full py-3 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest text-center transition-all active:scale-[0.98] mt-2"
+                  className="w-full h-[48px] border border-border/80 hover:bg-border/20 text-secondary hover:text-primary rounded-2xl font-bold text-xs uppercase tracking-wider text-center transition-all active:scale-[0.98] mt-1"
                 >
                   Batal
                 </button>
