@@ -598,6 +598,43 @@ export default function App() {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [viewProofUrl, setViewProofUrl] = useState<string | null>(null);
 
+  // Lifted state and form inputs for adding member accounts (Superadmin action)
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [newIdDosen, setNewIdDosen] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newRole, setNewRole] = useState('member');
+  const [isCreatingMember, setIsCreatingMember] = useState(false);
+  const [memberFormError, setMemberFormError] = useState('');
+
+  // FAB bottom sheet menu state
+  const [showFabActionMenu, setShowFabActionMenu] = useState(false);
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMemberFormError('');
+    if (!/^\d{5}$/.test(newIdDosen)) {
+      setMemberFormError('ID Dosen harus terdiri dari 5 digit angka.');
+      return;
+    }
+    if (!newName.trim()) {
+      setMemberFormError('Nama lengkap harus diisi.');
+      return;
+    }
+    
+    setIsCreatingMember(true);
+    const success = await createAccountBySuperadmin(newName, newIdDosen, newPhone, newRole);
+    setIsCreatingMember(false);
+    
+    if (success) {
+      setShowAddMemberModal(false);
+      setNewIdDosen('');
+      setNewName('');
+      setNewPhone('');
+      setNewRole('member');
+    }
+  };
+
   // Toast & Success Modal states
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
   const [successModal, setSuccessModal] = useState<{
@@ -2114,6 +2151,7 @@ export default function App() {
               createAccountBySuperadmin={createAccountBySuperadmin}
               session={session}
               profilePhoto={profilePhoto}
+              setShowAddModal={setShowAddMemberModal}
             />
           )}
 
@@ -2161,12 +2199,12 @@ export default function App() {
         </nav>
 
         {/* FLOATING ACTION BUTTON */}
-        {activeTab === 'dashboard' && isAdmin && (
+        {activeTab === 'dashboard' && isSuperAdmin && (
           <button 
-            onClick={() => setShowAddSessionModal(true)}
+            onClick={() => setShowFabActionMenu(true)}
             className="fixed bottom-28 right-6 w-14 h-14 bg-gradient-to-br from-[#10B981] to-[#059669] text-white rounded-full flex items-center justify-center shadow-[0_8px_25px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-95 transition-all z-30"
-            title="Tambah Sesi Baru"
-            aria-label="Tambah Sesi Baru"
+            title="Menu Cepat"
+            aria-label="Menu Cepat"
           >
             <Plus size={28} strokeWidth={2.5} />
           </button>
@@ -2337,6 +2375,136 @@ export default function App() {
             </div>
           ))}
         </div>
+
+        {/* FAB BOTTOM SHEET ACTION MENU */}
+        {showFabActionMenu && (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 flex items-end justify-center sm:items-center p-4 animate-fadeIn" onClick={() => setShowFabActionMenu(false)}>
+            <div className="bg-card w-full max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] p-6 relative border border-border shadow-theme animate-slide-up transition-colors duration-200" onClick={e => e.stopPropagation()}>
+              <div className="flex flex-col gap-1 pb-3 mb-4 border-b border-border text-center">
+                <h3 className="text-secondary font-black text-xs uppercase tracking-widest">Menu Cepat</h3>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setShowFabActionMenu(false);
+                    setActiveTab('tagihan');
+                    setShowAddSessionModal(true);
+                  }}
+                  className="w-full py-4 bg-background hover:bg-border/30 rounded-2xl flex items-center justify-center gap-3 font-extrabold text-sm text-primary transition-all active:scale-[0.98] border border-border"
+                >
+                  <span className="text-lg">➕</span>
+                  <span>Tambah Sesi</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowFabActionMenu(false);
+                    setActiveTab('anggota');
+                    setShowAddMemberModal(true);
+                  }}
+                  className="w-full py-4 bg-background hover:bg-border/30 rounded-2xl flex items-center justify-center gap-3 font-extrabold text-sm text-primary transition-all active:scale-[0.98] border border-border"
+                >
+                  <span className="text-lg">👤</span>
+                  <span>Tambah Anggota</span>
+                </button>
+
+                <button
+                  onClick={() => setShowFabActionMenu(false)}
+                  className="w-full py-3 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest text-center transition-all active:scale-[0.98] mt-2"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* GLOBAL TAMBAH ANGGOTA MODAL */}
+        {showAddMemberModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setShowAddMemberModal(false)}>
+            <div className="bg-card rounded-[28px] p-6 max-w-sm w-full shadow-theme border border-border flex flex-col gap-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
+              <div className="flex flex-col gap-1">
+                <h3 className="text-primary font-black text-base uppercase tracking-wider">Tambah Akun Baru</h3>
+                <p className="text-xs text-secondary font-bold">Password awal adalah "sisteminformasi".</p>
+              </div>
+
+              {memberFormError && (
+                <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30">
+                  <AlertCircle size={14} className="flex-shrink-0" />
+                  <span>{memberFormError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateAccount} className="space-y-4">
+                <div>
+                  <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">ID Dosen (5 Digit)</label>
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={5}
+                    required 
+                    value={newIdDosen} 
+                    onChange={e => setNewIdDosen(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Contoh: 02975"
+                    className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Nama Lengkap</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={newName} 
+                    onChange={e => setNewName(e.target.value)} 
+                    placeholder="Nama Lengkap"
+                    className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Nomor HP / WhatsApp</label>
+                  <input 
+                    type="text" 
+                    value={newPhone} 
+                    onChange={e => setNewPhone(e.target.value)} 
+                    placeholder="Nomor HP / WhatsApp"
+                    className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Peran (Role)</label>
+                  <select 
+                    value={newRole} 
+                    onChange={e => setNewRole(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs"
+                  >
+                    <option value="member">Anggota (Member)</option>
+                    <option value="admin">Admin (Bendahara)</option>
+                    <option value="superadmin">Superadmin</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-3 mt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowAddMemberModal(false)}
+                    className="flex-1 py-2.5 bg-background border border-border text-secondary font-black text-[10px] rounded-xl uppercase tracking-wider transition-all hover:bg-border/20 active:scale-[0.97]"
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isCreatingMember}
+                    className="flex-1 py-2.5 bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-black text-[10px] rounded-xl uppercase tracking-wider transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-60"
+                  >
+                    {isCreatingMember ? 'Memproses...' : 'Simpan'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
@@ -5855,48 +6023,15 @@ function MembersList({
   deleteMember, 
   createAccountBySuperadmin,
   session,
-  profilePhoto
+  profilePhoto,
+  setShowAddModal
 }: any) {
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
-
-  // Form states for creating a new user
-  const [newIdDosen, setNewIdDosen] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newRole, setNewRole] = useState('member');
-  const [isCreating, setIsCreating] = useState(false);
-  const [formError, setFormError] = useState('');
 
   // States for managing an existing user
   const [manageRole, setManageRole] = useState('');
   const [manageStatus, setManageStatus] = useState('');
-
-  const handleCreateAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-    if (!/^\d{5}$/.test(newIdDosen)) {
-      setFormError('ID Dosen harus terdiri dari 5 digit angka.');
-      return;
-    }
-    if (!newName.trim()) {
-      setFormError('Nama lengkap harus diisi.');
-      return;
-    }
-    
-    setIsCreating(true);
-    const success = await createAccountBySuperadmin(newName, newIdDosen, newPhone, newRole);
-    setIsCreating(false);
-    
-    if (success) {
-      setShowAddModal(false);
-      setNewIdDosen('');
-      setNewName('');
-      setNewPhone('');
-      setNewRole('member');
-    }
-  };
 
   const handleOpenManage = (user: any) => {
     if (!isSuperAdmin && user.role !== 'member') {
@@ -6001,92 +6136,6 @@ function MembersList({
           );
         })}
       </div>
-
-      {/* MODAL TAMBAH AKUN */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setShowAddModal(false)}>
-          <div className="bg-card rounded-[28px] p-6 max-w-sm w-full shadow-theme border border-border flex flex-col gap-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
-            <div className="flex flex-col gap-1">
-              <h3 className="text-primary font-black text-base uppercase tracking-wider">Tambah Akun Baru</h3>
-              <p className="text-xs text-secondary font-bold">Password awal adalah "sisteminformasi".</p>
-            </div>
-
-            {formError && (
-              <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30">
-                <AlertCircle size={14} />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateAccount} className="space-y-4">
-              <div>
-                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">ID Dosen (5 Digit)</label>
-                <input 
-                  type="text" 
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={5}
-                  required 
-                  value={newIdDosen} 
-                  onChange={e => setNewIdDosen(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Contoh: 02975"
-                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-                />
-              </div>
-              <div>
-                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Nama Lengkap</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={newName} 
-                  onChange={e => setNewName(e.target.value)} 
-                  placeholder="Nama Lengkap"
-                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-                />
-              </div>
-              <div>
-                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Nomor HP (Opsional)</label>
-                <input 
-                  type="text" 
-                  value={newPhone} 
-                  onChange={e => setNewPhone(e.target.value)} 
-                  placeholder="Contoh: 08123456789"
-                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-                />
-              </div>
-              <div>
-                <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1">Role Akun</label>
-                <select 
-                  value={newRole} 
-                  onChange={e => setNewRole(e.target.value)} 
-                  className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs"
-                >
-                  <option value="member">Anggota (MEMBER)</option>
-                  <option value="admin">Bendahara (ADMIN)</option>
-                  <option value="superadmin">Superadmin (SUPERADMIN)</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button 
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="w-full border border-border bg-background text-secondary hover:text-primary font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98]"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isCreating}
-                  className="w-full bg-gradient-to-r from-[#1ED760] to-[#059669] text-white font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] disabled:opacity-60"
-                >
-                  {isCreating ? 'Membuat...' : 'Buat Akun'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* MODAL KELOLA USER */}
       {showManageModal && selectedUser && (
