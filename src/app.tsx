@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Home, Users, Receipt, Wallet, 
-  CheckCircle, Clock, XCircle, Plus, 
+  CheckCircle, Clock, XCircle, Plus, X, 
   LogOut, QrCode, Upload, Bell, ChevronRight, 
   User as UserIcon, Activity, Calendar, MapPin, 
   TrendingUp, PlusCircle, DollarSign, AlertCircle, 
@@ -4645,6 +4645,9 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [pdfLoadingMessage, setPdfLoadingMessage] = useState('');
 
+  // Selected Grouped Iuran for detail modal
+  const [selectedGroupedIuran, setSelectedGroupedIuran] = useState<any>(null);
+
   const monthNames = React.useMemo(() => [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
@@ -4691,8 +4694,17 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
   const orgLedger = React.useMemo(() => {
     const events: any[] = [];
     
-    // Inflows
+    // Inflows (grouped by session)
     if (payments && sessions) {
+      const inflowsBySession: { [key: number]: {
+        sessionId: number;
+        sessionName: string;
+        tanggal: string;
+        totalIuran: number;
+        iuranPerMember: number;
+        contributorNames: string[];
+      } } = {};
+
       payments.forEach((p: any) => {
         if (p.status_pembayaran !== 'verified') return;
         const s = sessions.find((x: any) => x.id === p.session_id);
@@ -4700,16 +4712,38 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
           const biayaSesi = s.biaya_per_orang || 0;
           const iuran = Math.max(0, p.nominal_tagihan - biayaSesi);
           if (iuran > 0) {
-            events.push({
-              id: `p-${p.id}`,
-              type: 'inflow',
-              tanggal: s.tanggal_main,
-              keterangan: `Iuran Kas - ${s.nama_sesi}`,
-              nominal: iuran,
-              sub: `Dari Tagihan Member`
-            });
+            const member = members ? members.find((m: any) => m.id === p.member_id) : null;
+            const memberName = member ? member.name : 'Anggota';
+            if (!inflowsBySession[s.id]) {
+              inflowsBySession[s.id] = {
+                sessionId: s.id,
+                sessionName: s.nama_sesi,
+                tanggal: s.tanggal_main,
+                totalIuran: 0,
+                iuranPerMember: iuran,
+                contributorNames: []
+              };
+            }
+            inflowsBySession[s.id].totalIuran += iuran;
+            inflowsBySession[s.id].contributorNames.push(memberName);
           }
         }
+      });
+
+      Object.values(inflowsBySession).forEach((group: any) => {
+        events.push({
+          id: `session-iuran-${group.sessionId}`,
+          type: 'inflow',
+          tanggal: group.tanggal,
+          keterangan: `Iuran Kas - ${group.sessionName}`,
+          nominal: group.totalIuran,
+          sub: `${group.contributorNames.length} Anggota × ${formatRp(group.iuranPerMember)}`,
+          isGroupedIuran: true,
+          sessionName: group.sessionName,
+          memberCount: group.contributorNames.length,
+          iuranPerMember: group.iuranPerMember,
+          contributorNames: group.contributorNames
+        });
       });
     }
 
@@ -4730,7 +4764,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
     }
 
     return events.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
-  }, [payments, sessions, sessionExpenses]);
+  }, [payments, sessions, sessionExpenses, members]);
 
   const totalIuranKasTerkumpul = totalIncome;
 
@@ -4815,19 +4849,26 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
       .reduce((sum, e) => sum + e.nominal, 0);
     const saldoAkhir = saldoAwal + kasMasuk - kasKeluar;
 
-    const sumberKasMasuk = sessionsMonth.map((s: any) => {
-      const sessionPayments = payments.filter((p: any) => p.session_id === s.id && p.status_pembayaran === 'verified');
-      const totalSessionIuran = sessionPayments.reduce((sum: number, p: any) => {
-        const biayaSesi = s.biaya_per_orang || 0;
-        return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
-      }, 0);
-      return {
-        id: s.id,
-        tanggal: s.tanggal_main,
-        nama: s.nama_sesi,
-        jumlah: totalSessionIuran
-      };
-    }).sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
+    const sumberKasMasuk = sessionsMonth
+      .map((s: any) => {
+        const sessionPayments = payments.filter((p: any) => {
+          if (p.session_id !== s.id || p.status_pembayaran !== 'verified') return false;
+          const biayaSesi = s.biaya_per_orang || 0;
+          return (p.nominal_tagihan - biayaSesi) > 0;
+        });
+        const totalSessionIuran = sessionPayments.reduce((sum: number, p: any) => {
+          const biayaSesi = s.biaya_per_orang || 0;
+          return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+        }, 0);
+        return {
+          id: s.id,
+          tanggal: s.tanggal_main,
+          nama: `Iuran Kas - ${s.nama_sesi} (${sessionPayments.length} anggota)`,
+          jumlah: totalSessionIuran
+        };
+      })
+      .filter((s: any) => s.jumlah > 0)
+      .sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
 
     const pengeluaranKas = expensesMonth
       .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
@@ -4848,7 +4889,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
         ledgerEvents.push({
           type: 'masuk',
           tanggal: s.tanggal,
-          keterangan: `Iuran Kas ${s.nama}`,
+          keterangan: s.nama,
           masuk: s.jumlah,
           keluar: 0
         });
@@ -5175,7 +5216,13 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
               ) : (
                 <div className="space-y-3">
                   {orgLedger.map((evt: any) => (
-                    <div key={evt.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all">
+                    <div 
+                      key={evt.id} 
+                      onClick={() => evt.isGroupedIuran && setSelectedGroupedIuran(evt)}
+                      className={`bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all ${
+                        evt.isGroupedIuran ? 'cursor-pointer hover:bg-border/20 active:scale-[0.99] hover:shadow-md' : ''
+                      }`}
+                    >
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         evt.type === 'inflow' 
                           ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
@@ -5732,6 +5779,67 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
 
         </div>
       </div>
+
+      {/* GROUPED IURAN DETAILS MODAL */}
+      {selectedGroupedIuran && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-card border border-border rounded-[2.5rem] p-6 w-full max-w-sm shadow-theme relative overflow-hidden space-y-4 animate-scaleUp">
+            <button 
+              onClick={() => setSelectedGroupedIuran(null)}
+              className="absolute top-4 right-4 p-2 text-secondary hover:text-primary hover:bg-border/40 rounded-full transition-all"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="text-center pb-2 border-b border-border">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3">
+                <TrendingUp size={20} strokeWidth={2.2} />
+              </div>
+              <h3 className="text-xs font-black text-secondary uppercase tracking-widest">Detail Iuran Kas</h3>
+              <p className="text-sm font-extrabold text-primary mt-1">{selectedGroupedIuran.sessionName}</p>
+              <p className="text-[10px] text-secondary font-semibold mt-0.5">{formatDate(selectedGroupedIuran.tanggal)}</p>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center py-1.5 border-b border-border/50">
+                <span className="text-secondary font-bold">Nama Sesi</span>
+                <span className="text-primary font-extrabold">{selectedGroupedIuran.sessionName}</span>
+              </div>
+              <div className="flex justify-between items-center py-1.5 border-b border-border/50">
+                <span className="text-secondary font-bold">Jumlah Anggota</span>
+                <span className="text-primary font-extrabold">{selectedGroupedIuran.memberCount} Orang</span>
+              </div>
+              <div className="flex justify-between items-center py-1.5 border-b border-border/50">
+                <span className="text-secondary font-bold">Iuran per Anggota</span>
+                <span className="text-primary font-extrabold">{formatRp(selectedGroupedIuran.iuranPerMember)}</span>
+              </div>
+              <div className="flex justify-between items-center py-1.5 border-b border-border/50">
+                <span className="text-secondary font-black">Total Kas Masuk</span>
+                <span className="text-emerald-500 font-black text-sm">{formatRp(selectedGroupedIuran.nominal)}</span>
+              </div>
+              
+              <div className="pt-2">
+                <span className="text-secondary font-bold block mb-2">Daftar Kontributor:</span>
+                <div className="max-h-36 overflow-y-auto bg-background/50 border border-border rounded-2xl p-3 space-y-1.5 scrollbar-thin">
+                  {selectedGroupedIuran.contributorNames.map((name: string, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2 text-primary font-extrabold text-[11px]">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                      <span>{name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedGroupedIuran(null)}
+              className="w-full py-3 bg-accent hover:opacity-90 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all active:scale-[0.98] shadow-theme"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -7006,21 +7114,24 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
   const renderHeader = (compact = false) => {
     return (
       <div className="relative w-full flex flex-col items-center justify-center text-center z-10">
-        {/* Logo */}
-        <img 
-          src="/logo.png" 
-          alt="Logo SI-PATRA" 
-          className={`${compact ? 'w-[72px] h-[72px]' : 'w-[110px] h-[110px]'} object-contain mx-auto select-none`}
-          style={{ imageRendering: 'crisp-edges', WebkitImageRendering: 'crisp-edges' } as any}
-        />
+        {/* Logo with Ambient Glow */}
+        <div className="relative mb-[12px]">
+          <div className={`absolute inset-0 bg-accent/${compact ? '8' : '10'} blur-2xl rounded-full pointer-events-none transform scale-75`} />
+          <img 
+            src="/logo.png" 
+            alt="Logo SI-PATRA" 
+            className={`${compact ? 'w-[82px] h-[82px]' : 'w-[125px] h-[125px]'} object-contain mx-auto select-none relative z-10 drop-shadow-[0_4px_12px_rgba(16,185,129,0.08)]`}
+            style={{ imageRendering: 'crisp-edges', WebkitImageRendering: 'crisp-edges' } as any}
+          />
+        </div>
 
         {/* Title */}
-        <h1 className={`${compact ? 'text-[32px] mt-[10px]' : 'text-[44px] mt-[16px]'} font-[800] text-primary leading-none tracking-tight font-sans bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent`}>
+        <h1 className={`${compact ? 'text-[32px] mt-[6px]' : 'text-[44px] mt-[10px]'} font-[800] text-primary leading-none tracking-tight font-sans bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent`}>
           SI-PATRA
         </h1>
 
         {/* Subtitle */}
-        <p className="text-accent text-[10px] font-[700] uppercase tracking-[4px] mt-[10px]">
+        <p className="text-accent text-[10px] font-[700] uppercase tracking-[4px] mt-[8px]">
           SI BADMINTON & KAS
         </p>
       </div>
@@ -7032,9 +7143,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
       {/* Simulated Mobile Mockup Container */}
       <div className="w-full h-screen md:h-[844px] md:w-[390px] md:rounded-[40px] md:shadow-theme md:border-[8px] md:border-border overflow-hidden flex flex-col relative transition-all justify-center items-center" style={{ background: 'var(--login-bg)' }}>
         
-        {/* Court background lines with 3% opacity */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-0">
-          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="stroke-emerald-800 stroke-[0.5] fill-none">
+        {/* Court background lines with 4% opacity (Premium branding accent) */}
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none z-0">
+          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="stroke-accent stroke-[0.6] fill-none">
             <rect x="5" y="5" width="90" height="90" />
             <line x1="5" y1="35" x2="95" y2="35" />
             <line x1="5" y1="65" x2="95" y2="65" />
@@ -7046,6 +7157,9 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
         {/* Subtle green glow at bottom left */}
         <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-accent opacity-[0.08] blur-3xl pointer-events-none z-0" />
+
+        {/* Subtle green glow at top right */}
+        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-accent opacity-[0.04] blur-3xl pointer-events-none z-0" />
 
         {/* Bottom Left wave decoration */}
         <div className="absolute -left-10 -bottom-10 w-44 h-44 bg-gradient-to-tr from-[#059669] to-[#1ED760] opacity-30 rounded-tr-[100px] pointer-events-none z-0" />
@@ -7065,60 +7179,17 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
           </svg>
         </div>
 
-        {/* Floating racket outline: Top Right, Opacity 8% */}
-        <div className="absolute -right-6 top-[2%] text-accent/[0.08] pointer-events-none transform rotate-[25deg] w-[180px] h-[180px] z-0">
-          <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[1.2]">
-            <ellipse cx="40" cy="40" rx="20" ry="25" />
-            <path d="M30 20 L30 60 M35 17 L35 63 M40 15 L40 65 M45 17 L45 63 M50 20 L50 60" className="stroke-[0.4] opacity-50" />
-            <path d="M20 30 L60 30 M17 35 L63 35 M15 40 L65 40 M17 45 L63 45 M20 50 L60 50" className="stroke-[0.4] opacity-50" />
-            <line x1="40" y1="65" x2="40" y2="95" />
-            <rect x="38" y="95" width="4" height="15" rx="0.5" fill="currentColor" className="opacity-40" />
-          </svg>
-        </div>
-
-        {/* Floating shuttlecock decor: Top Left, Opacity 100% */}
-        <div className="absolute left-2 top-[8%] w-[90px] h-[90px] pointer-events-none transform -rotate-[20deg] z-0">
-          <svg viewBox="0 0 100 100" className="w-full h-full fill-none drop-shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
-            {/* Feathers skirt (pointing up-left) */}
-            <path d="M 62 62 L 15 25 C 22 15, 45 8, 55 20 L 72 52 Z" fill="white" stroke="#E2E8F0" strokeWidth="0.5" />
-            <line x1="63" y1="61" x2="20" y2="28" stroke="#CBD5E1" strokeWidth="0.8" />
-            <line x1="65" y1="59" x2="28" y2="21" stroke="#CBD5E1" strokeWidth="0.8" />
-            <line x1="67" y1="57" x2="38" y2="16" stroke="#CBD5E1" strokeWidth="0.8" />
-            <line x1="69" y1="55" x2="48" y2="15" stroke="#CBD5E1" strokeWidth="0.8" />
-            <line x1="71" y1="53" x2="58" y2="20" stroke="#CBD5E1" strokeWidth="0.8" />
-            <path d="M 32 37 C 38 28, 48 23, 58 29" fill="none" stroke="#E2E8F0" strokeWidth="0.8" />
-            <path d="M 45 47 C 50 39, 58 35, 66 40" fill="none" stroke="#E2E8F0" strokeWidth="0.8" />
-            {/* Cork band (Green) */}
-            <path d="M 61 61 C 59 63, 61 67, 65 69 C 69 67, 71 63, 69 61 Z" fill="#059669" />
-            {/* Cork base (White dome) */}
-            <path d="M 65 67 C 70 72, 80 80, 83 75 C 86 70, 78 60, 73 55 Z" fill="white" stroke="#E2E8F0" strokeWidth="0.5" />
-            <path d="M 71 71 C 74 74, 80 78, 81 74" fill="none" stroke="#CBD5E1" strokeWidth="0.5" />
-          </svg>
-        </div>
-
+        {/* Floating racket outline: Top Right, Opacity 4% (Subtle Accent) */}
         {/* Content View Area */}
-        <div className="flex-1 flex flex-col justify-center items-center overflow-hidden w-full h-full relative z-10">
+        <div className="flex-1 flex flex-col justify-start pt-[48px] md:pt-[56px] items-center overflow-hidden w-full h-full relative z-10">
           
           {authMode === 'login' && (
             <div className="w-full flex flex-col items-center justify-center animate-fadeIn">
               {/* Branding Section */}
-              <img 
-                src="/logo.png" 
-                alt="Logo SI-PATRA" 
-                className="w-[110px] h-[110px] object-contain mx-auto select-none" 
-                style={{ imageRendering: 'crisp-edges', WebkitImageRendering: 'crisp-edges' } as any}
-              />
-
-              <h1 className="text-[44px] font-[800] text-primary leading-none tracking-tight font-sans mt-[16px] text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                SI-PATRA
-              </h1>
-
-              <p className="text-accent text-xs font-[700] uppercase tracking-[4px] mt-[10px] text-center">
-                SI BADMINTON & KAS
-              </p>
+              {renderHeader(false)}
               
               {/* Card Section */}
-              <div className="bg-card rounded-[28px] border border-border shadow-theme p-[32px] mt-[36px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
+              <div className="bg-card rounded-[28px] border border-border shadow-theme p-[32px] mt-[28px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
                 {errorMsg && (
                   <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 line-clamp-1 mb-2">
                     <AlertCircle size={14} className="flex-shrink-0" />
@@ -7420,7 +7491,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               {renderHeader(false)}
               
               {/* Card Section */}
-              <div className="bg-card rounded-[28px] border border-border shadow-theme p-[32px] mt-[36px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
+              <div className="bg-card rounded-[28px] border border-border shadow-theme p-[32px] mt-[28px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
                 {errorMsg && (
                   <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 line-clamp-1 mb-2">
                     <AlertCircle size={14} className="flex-shrink-0" />
