@@ -1628,21 +1628,37 @@ export default function App() {
 
   // --- SPLASH SCREEN RENDER ---
   if (showSplash) {
+    const isLight = theme === 'light';
     return (
-      <div className="min-h-screen w-full bg-gradient-to-br from-emerald-650 via-emerald-800 to-slate-950 flex flex-col items-center justify-center p-6 text-center select-none">
+      <div className={`min-h-screen w-full flex flex-col items-center justify-center p-6 text-center select-none transition-colors duration-300 ${
+        isLight
+          ? 'bg-white'
+          : 'bg-gradient-to-br from-emerald-650 via-emerald-800 to-slate-950'
+      }`}>
         <div className="space-y-6 max-w-sm w-full">
           <img src="/logo.png" alt="Logo SI-PATRA" className="w-[150px] h-auto object-contain mx-auto animate-pulse-gentle" />
           <div className="space-y-2">
-            <h1 className="text-4xl font-black text-white tracking-wider">SI-PATRA</h1>
-            <p className="text-emerald-300 text-[10px] font-extrabold uppercase tracking-widest leading-relaxed">
-              Sistem Manajemen Iuran & Sesi Badminton
+            {/* Title: dark gray in light mode, white in dark mode */}
+            <h1 className={`text-4xl font-black tracking-wider ${isLight ? 'text-[#111827]' : 'text-white'}`}>
+              SI-PATRA
+            </h1>
+            {/* Subtitle: brand green in light mode, soft mint in dark mode */}
+            <p className={`text-[10px] font-extrabold uppercase tracking-widest leading-relaxed ${
+              isLight ? 'text-[#10B981]' : 'text-[#6EE7B7]'
+            }`}>
+              Sistem Manajemen Iuran &amp; Sesi Badminton
             </p>
           </div>
           <div className="pt-8 space-y-3">
-            <div className="w-40 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden border border-white/5">
+            <div className={`w-40 h-1.5 rounded-full mx-auto overflow-hidden border ${
+              isLight ? 'bg-emerald-100 border-emerald-200' : 'bg-white/10 border-white/5'
+            }`}>
               <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full animate-loading-bar"></div>
             </div>
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider animate-pulse">
+            {/* Loading text: medium gray in light mode, light gray in dark mode */}
+            <p className={`text-[9px] font-bold uppercase tracking-wider animate-pulse ${
+              isLight ? 'text-[#6B7280]' : 'text-[#9CA3AF]'
+            }`}>
               Memuat Sistem...
             </p>
           </div>
