@@ -476,29 +476,42 @@ export default function App() {
       if (signUpErr) throw signUpErr;
 
       if (signUpData.user) {
-        const { data: existingProfile } = await supabase.from('profiles').select('*').eq('id', signUpData.user.id).maybeSingle();
-        if (existingProfile) {
-          await supabase.from('profiles').update({ role: roleVal, nama: name, nomor_hp: phone }).eq('id', signUpData.user.id);
-        } else {
-          await supabase.from('profiles').insert({
-            id: signUpData.user.id,
-            nama: name,
-            email: targetEmail,
-            nomor_hp: phone,
-            role: roleVal
-          });
-        }
+        // ── UPSERT profile — atomic, no race condition, no duplicates possible ──
+        //    onConflict:'id' means if a row with this auth UUID already exists
+        //    (e.g. from a Supabase trigger), it is updated in-place rather than
+        //    inserting a second row.
+        const { error: profileUpsertErr } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: signUpData.user.id,
+              nama: name,
+              email: targetEmail,
+              nomor_hp: phone,
+              role: roleVal,
+            },
+            { onConflict: 'id', ignoreDuplicates: false }
+          );
+        if (profileUpsertErr) throw profileUpsertErr;
 
-        const { data: existingMember } = await supabase.from('members').select('*').eq('user_id', signUpData.user.id).maybeSingle();
+        // ── UPSERT member — same pattern, keyed on user_id ────────────────────
+        const { data: existingMember } = await supabase
+          .from('members')
+          .select('id')
+          .eq('user_id', signUpData.user.id)
+          .maybeSingle();
         if (existingMember) {
-          await supabase.from('members').update({ role: roleVal, name: name, email: targetEmail, status: 'aktif' }).eq('user_id', signUpData.user.id);
+          await supabase
+            .from('members')
+            .update({ role: roleVal, name: name, email: targetEmail, status: 'aktif' })
+            .eq('user_id', signUpData.user.id);
         } else {
           await supabase.from('members').insert({
             name: name,
             email: targetEmail,
             role: roleVal,
             status: 'aktif',
-            user_id: signUpData.user.id
+            user_id: signUpData.user.id,
           });
         }
       }
@@ -520,40 +533,31 @@ export default function App() {
     const memberObj = members.find(m => m.id === memberId);
     
     if (isSuperAdmin) {
+      const hasHistory = attendees.some(a => Number(a.member_id) === Number(memberId)) || payments.some(p => Number(p.member_id) === Number(memberId));
+
       setConfirmModal({
         isOpen: true,
         title: 'Hapus Anggota (Soft/Hard)',
-        message: `Pilih metode penghapusan untuk pengguna "${memberObj?.name}":`,
+        message: `Pilih metode tindakan untuk pengguna "${memberObj?.name}":`,
         listItems: [
           `Nama: ${memberObj?.name}`,
-          `Role: ${memberObj?.role}`,
-          'Soft Delete: Pengguna dinonaktifkan dan disembunyikan. Dapat dipulihkan.',
-          'Hard Delete: Akun pengguna dihapus secara permanen dari database.'
+          `Role: ${memberObj?.role === 'superadmin' ? 'SUPERADMIN' : memberObj?.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA'}`
         ],
         showSoftDeleteOption: true,
+        hardDeleteDisabled: hasHistory,
+        hardDeleteDisabledMessage: 'Pengguna memiliki histori data dan tidak dapat dihapus permanen.',
         onSoftConfirm: async () => {
           try {
             const { error } = await supabase
               .from('members')
-              .update({ status: 'soft_deleted' })
+              .update({ status: 'nonaktif' })
               .eq('id', memberId);
             if (error) throw error;
             
-            const newSoftDeletedItem = {
-              id: `member_${memberId}_${Date.now()}`,
-              type: 'member' as const,
-              deletedAt: new Date().toISOString(),
-              data: memberObj
-            };
-            setSoftDeletedItems(prev => ({
-              ...prev,
-              members: [...prev.members, newSoftDeletedItem]
-            }));
-            
-            setMembers(prev => prev.filter(m => m.id !== memberId));
-            showToast('✅ Pengguna dipindahkan ke Keranjang Sampah', 'success');
+            setMembers(prev => prev.map(m => m.id === memberId ? { ...m, status: 'nonaktif' } : m));
+            showToast('✅ Pengguna berhasil dinonaktifkan', 'success');
           } catch (e: any) {
-            showToast(`❌ Gagal: ${e.message}`, 'error');
+            showToast(`❌ Gagal menonaktifkan: ${e.message}`, 'error');
           }
         },
         onConfirm: async () => {
@@ -574,14 +578,34 @@ export default function App() {
   const executeHardDeleteUser = async (userId: string, memberId: number) => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
-      if (error) throw error;
-      
+
+      // Step 1: Delete from auth.users via secure RPC (SECURITY DEFINER)
+      const { error: rpcError } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
+      if (rpcError) throw rpcError;
+
+      // Step 2: Explicitly delete from public.members — no CASCADE FK exists from
+      // auth.users to public.members, so we must do this manually.
+      const { error: memberError } = await supabase
+        .from('members')
+        .delete()
+        .eq('id', memberId);
+      if (memberError) console.warn('members delete warning:', memberError.message);
+
+      // Step 3: Explicitly delete from public.profiles (same reason as above)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+      if (profileError) console.warn('profiles delete warning:', profileError.message);
+
+      // Step 4: Sync local state and re-fetch to ensure UI matches database
       setMembers(prev => prev.filter(m => m.id !== memberId));
+      await fetchData();
+
       showToast('✅ Akun berhasil dihapus secara permanen', 'success');
     } catch (e: any) {
       console.error(e);
-      showToast(`❌ Gagal: ${e.message}`, 'error');
+      showToast(`❌ Gagal hapus: ${e.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -655,6 +679,8 @@ export default function App() {
     message: string;
     listItems?: string[];
     showSoftDeleteOption?: boolean;
+    hardDeleteDisabled?: boolean;
+    hardDeleteDisabledMessage?: string;
     onSoftConfirm?: () => void | Promise<void>;
     onConfirm: () => void | Promise<void>;
   }>({
@@ -674,41 +700,69 @@ export default function App() {
 
   const fetchUserProfile = async (userId: string, userEmail?: string) => {
     try {
+      // ── Step 1: Resolve the authenticated user's email ──────────────────────
+      let actualEmail = userEmail;
+      if (!actualEmail) {
+        const { data: { user } } = await supabase.auth.getUser();
+        actualEmail = user?.email || '';
+      }
+
+      // ── Step 2: Fetch existing profile (maybeSingle — never throws on 0 rows) ─
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
-      
+        .maybeSingle();
+
       if (profileError) throw profileError;
-      
+
       let finalProfile = profileData;
-      
-      // Resolve the actual authenticated user's email
-      let actualEmail = userEmail;
-      if (!actualEmail) {
-        const { data: { user } } = await supabase.auth.getUser();
-        actualEmail = user?.email || profileData?.email || '';
+
+      // ── Step 3: If no profile exists, create it via UPSERT (idempotent) ─────
+      //    Using upsert with onConflict:'id' means concurrent calls are safe —
+      //    only one row will ever be written regardless of how many times this
+      //    function fires (login, refresh, session restore, etc.).
+      if (!profileData) {
+        const { data: upsertedProfile, error: upsertError } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: userId,
+              email: actualEmail,
+              nama: actualEmail.split('@')[0],
+              nomor_hp: '',
+              role: 'member',
+            },
+            { onConflict: 'id', ignoreDuplicates: true }
+          )
+          .select()
+          .maybeSingle();
+
+        if (upsertError) throw upsertError;
+        finalProfile = upsertedProfile;
       }
-      
-      // Auto-migrate dosen02975@unpam.ac.id to superadmin
-      if (profileData && (actualEmail === 'dosen02975@unpam.ac.id' || profileData.email === 'dosen02975@unpam.ac.id') && profileData.role !== 'superadmin') {
+
+      // ── Step 4: Auto-migrate superadmin account ───────────────────────────────
+      if (
+        finalProfile &&
+        (actualEmail === 'dosen02975@unpam.ac.id' || finalProfile.email === 'dosen02975@unpam.ac.id') &&
+        finalProfile.role !== 'superadmin'
+      ) {
         const { error: profileUpdateErr } = await supabase
           .from('profiles')
           .update({ role: 'superadmin', email: 'dosen02975@unpam.ac.id' })
           .eq('id', userId);
-        
+
         if (!profileUpdateErr) {
-          finalProfile = { ...profileData, role: 'superadmin', email: 'dosen02975@unpam.ac.id' };
+          finalProfile = { ...finalProfile, role: 'superadmin', email: 'dosen02975@unpam.ac.id' };
         }
-        
-        // Also update role in members table
+
         await supabase
           .from('members')
           .update({ role: 'superadmin', email: 'dosen02975@unpam.ac.id' })
           .eq('user_id', userId);
       }
-      
+
       setProfile(finalProfile);
 
       const { data: memberData } = await supabase
@@ -716,7 +770,17 @@ export default function App() {
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
-      
+
+      if (memberData && memberData.status === 'nonaktif') {
+        await supabase.auth.signOut();
+        setProfile(null);
+        setMemberRecord(null);
+        setSession(null);
+        setIsLoading(false);
+        showToast('❌ Akun Anda dinonaktifkan. Silakan hubungi admin.', 'error');
+        return;
+      }
+
       setMemberRecord(memberData || null);
     } catch (err) {
       console.error('Error fetching user profile:', err);
@@ -1156,67 +1220,15 @@ export default function App() {
     }
   };
 
-  const deleteSession = async (sessionId: number, isHardDelete = false) => {
-    const isSuperAdmin = profile?.role === 'superadmin';
-    if (isSuperAdmin && !isHardDelete) {
-      const sessionObj = sessions.find(s => s.id === sessionId);
-      const sessionAttendees = attendees.filter(a => a.session_id === sessionId);
-      const sessionExpensesList = sessionExpenses.filter(e => e.session_id === sessionId);
-      const sessionPayments = payments.filter(p => p.session_id === sessionId);
-
-      setConfirmModal({
-        isOpen: true,
-        title: 'Hapus Sesi (Soft/Hard)',
-        message: `Pilih metode penghapusan untuk sesi "${sessionObj?.nama_sesi}":`,
-        listItems: [
-          `Sesi: ${sessionObj?.nama_sesi}`,
-          `${sessionAttendees.length} data kehadiran`,
-          `${sessionExpensesList.length} pengeluaran`,
-          `${sessionPayments.length} pembayaran`
-        ],
-        showSoftDeleteOption: true,
-        onSoftConfirm: () => {
-          const newSoftDeletedItem = {
-            id: `session_${sessionId}_${Date.now()}`,
-            type: 'session' as const,
-            deletedAt: new Date().toISOString(),
-            data: sessionObj,
-            attendees: sessionAttendees,
-            expenses: sessionExpensesList,
-            payments: sessionPayments
-          };
-          setSoftDeletedItems(prev => ({
-            ...prev,
-            sessions: [...prev.sessions, newSoftDeletedItem]
-          }));
-          executeHardDeleteSession(sessionId);
-          showToast('✅ Sesi dipindahkan ke Keranjang Sampah', 'success');
-        },
-        onConfirm: () => {
-          executeHardDeleteSession(sessionId);
-        }
-      });
-    } else {
-      const sessionObj = sessions.find(s => s.id === sessionId);
-      const sessionAttendees = attendees.filter(a => a.session_id === sessionId);
-      const sessionExpensesList = sessionExpenses.filter(e => e.session_id === sessionId);
-      const sessionPayments = payments.filter(p => p.session_id === sessionId);
-
-      setConfirmModal({
-        isOpen: true,
-        title: 'Hapus Sesi Permanen',
-        message: `Apakah Anda yakin ingin menghapus sesi "${sessionObj?.nama_sesi}" secara permanen?`,
-        listItems: [
-          `Sesi: ${sessionObj?.nama_sesi}`,
-          `${sessionAttendees.length} data kehadiran`,
-          `${sessionExpensesList.length} pengeluaran`,
-          `${sessionPayments.length} pembayaran`
-        ],
-        onConfirm: () => {
-          executeHardDeleteSession(sessionId);
-        }
-      });
-    }
+  const deleteSession = async (sessionId: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Hapus Sesi',
+      message: 'Data sesi beserta seluruh transaksi terkait akan dihapus permanen dan tidak dapat dipulihkan.',
+      onConfirm: () => {
+        executeHardDeleteSession(sessionId);
+      }
+    });
   };
 
   const executeHardDeleteSession = async (sessionId: number) => {
@@ -2323,6 +2335,13 @@ export default function App() {
 
               {confirmModal.showSoftDeleteOption ? (
                 <div className="flex flex-col gap-2.5 mt-2">
+                  {confirmModal.hardDeleteDisabled && confirmModal.hardDeleteDisabledMessage && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
+                      <p className="text-[10px] text-red-500 font-bold leading-relaxed">
+                        ⚠️ {confirmModal.hardDeleteDisabledMessage}
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
                     <button 
                       onClick={async () => {
@@ -2331,16 +2350,21 @@ export default function App() {
                       }}
                       className="w-full bg-amber-500 hover:bg-amber-400 text-white font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] shadow-md"
                     >
-                      Soft Delete
+                      Nonaktifkan
                     </button>
                     <button 
+                      disabled={confirmModal.hardDeleteDisabled}
                       onClick={async () => {
                         setConfirmModal(prev => ({ ...prev, isOpen: false }));
                         await confirmModal.onConfirm();
                       }}
-                      className="w-full bg-red-650 hover:bg-red-500 text-white font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] shadow-md"
+                      className={`w-full font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] shadow-md ${
+                        confirmModal.hardDeleteDisabled 
+                          ? 'bg-red-500/30 text-white/50 cursor-not-allowed border border-red-500/10 shadow-none' 
+                          : 'bg-red-650 hover:bg-red-500 text-white'
+                      }`}
                     >
-                      Hard Delete
+                      Hapus Permanen
                     </button>
                   </div>
                   <button 
@@ -3577,17 +3601,7 @@ function SessionsAdmin({
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenMenuSessionId(null);
-                            setConfirmModal({
-                              isOpen: true,
-                              title: 'Hapus Sesi',
-                              message: 'Yakin ingin menghapus sesi ini?',
-                              listItems: [
-                                'session_attendees (catatan kehadiran)',
-                                'session_expenses (rincian biaya sesi)',
-                                'generated bills/payments related to this session (tagihan & pembayaran)'
-                              ],
-                              onConfirm: () => deleteSession(s.id)
-                            });
+                            deleteSession(s.id);
                           }}
                           className="w-full text-left px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors border-t border-border/45"
                         >
@@ -6220,10 +6234,16 @@ function MembersList({
 
                   <button
                     type="button"
-                    onClick={async () => {
+                    onClick={() => {
+                      // Close manage modal first, then open confirm modal on next tick
+                      // so React can fully unmount the manage modal before the
+                      // confirm dialog mounts — prevents state collision.
+                      const userToDelete = selectedUser;
                       setShowManageModal(false);
-                      await deleteMember(selectedUser.id, selectedUser.user_id);
                       setSelectedUser(null);
+                      setTimeout(() => {
+                        deleteMember(userToDelete.id, userToDelete.user_id);
+                      }, 150);
                     }}
                     className="w-full flex items-center justify-center gap-2 py-2.5 border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-xs rounded-xl transition-all"
                   >

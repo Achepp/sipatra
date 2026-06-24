@@ -39,7 +39,13 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized: Only superadmins can delete user accounts.';
   END IF;
 
-  -- Delete from auth.users (Cascade delete automatically clears public.profiles and public.members)
+  -- Step 1: Delete related rows in public.members (no CASCADE FK to auth.users exists)
+  DELETE FROM public.members WHERE user_id = target_user_id;
+
+  -- Step 2: Delete the profile row in public.profiles
+  DELETE FROM public.profiles WHERE id = target_user_id;
+
+  -- Step 3: Delete from auth.users (the source of truth for authentication)
   DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
