@@ -49,3 +49,22 @@ BEGIN
   DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
+
+-- 3. Function to programmatically check and create the avatar_url column in profiles
+CREATE OR REPLACE FUNCTION public.check_and_create_avatar_url_column()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER -- Runs with superuser privileges to allow table alteration
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'profiles' 
+      AND column_name = 'avatar_url'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN avatar_url TEXT;
+  END IF;
+END;
+$$;

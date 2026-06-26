@@ -9,4 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// CATATAN KEAMANAN: supabaseAdmin dihapus.
+// Admin API (auth.admin.updateUserById dll) sekarang dipanggil via Supabase Edge Function.
+// Service role key TIDAK boleh diekspos ke frontend (VITE_*).
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

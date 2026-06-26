@@ -9,7 +9,6 @@ import {
   Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { createClient } from '@supabase/supabase-js';
 
 // --- TYPES ---
 interface Profile {
@@ -31,6 +30,7 @@ interface Member {
   role: string;
   status: string;
   user_id: string | null;
+  avatar_url?: string | null;
 }
 
 interface Session {
@@ -186,12 +186,12 @@ export default function App() {
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
 
   useEffect(() => {
-    if (session?.user?.id) {
-      setProfilePhoto(localStorage.getItem(`sipatra_profile_photo_${session.user.id}`));
+    if (profile?.avatar_url) {
+      setProfilePhoto(profile.avatar_url);
     } else {
       setProfilePhoto(null);
     }
-  }, [session]);
+  }, [profile]);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -380,15 +380,49 @@ export default function App() {
     }
   };
 
-  const resetUserPassword = async (userId: string, userName: string) => {
+  const resetUserPassword = async (userId: string, userName: string): Promise<{ success: boolean; error?: string }> => {
+    // Guard: hanya Superadmin yang boleh menggunakan fitur ini
+    if (profile?.role !== 'superadmin') {
+      const msg = 'Akses Ditolak: Hanya Superadmin yang dapat mereset password.';
+      showToast(`❌ ${msg}`, 'error');
+      return { success: false, error: msg };
+    }
     try {
       setIsLoading(true);
-      const { error } = await supabase.rpc('admin_reset_user_password', { target_user_id: userId });
-      if (error) throw error;
-      showToast(`✅ Password "${userName}" berhasil di-reset ke "sisteminformasi"`, 'success');
+
+      console.log(`[Reset Password] Memanggil Edge Function untuk userId: ${userId} (${userName})`);
+
+      // Panggil Supabase Edge Function — Admin API dijalankan di server (AMAN)
+      // Service role key tidak pernah ada di frontend
+      const { data, error } = await supabase.functions.invoke('reset-user-password', {
+        body: { userId, userName },
+      });
+
+      // Tampilkan response lengkap dari Edge Function (data dan error)
+      console.log('[Reset Password] Edge Function response data:', JSON.stringify(data));
+      console.log('[Reset Password] Edge Function response error:', JSON.stringify(error));
+
+      if (error) {
+        // Error dari jaringan / Edge Function tidak dapat diakses
+        console.error('[Reset Password] Edge Function invoke error:', error);
+        const errMsg = error?.message || JSON.stringify(error) || 'Gagal menghubungi Edge Function';
+        return { success: false, error: errMsg };
+      }
+
+      if (!data?.success) {
+        // Edge Function berhasil diakses, tapi operasi di dalamnya gagal
+        const errMsg = data?.error || 'Gagal mereset password (Edge Function mengembalikan kegagalan)';
+        console.error('[Reset Password] Edge Function returned failure:', errMsg);
+        return { success: false, error: errMsg };
+      }
+
+      // Hanya sukses jika data.success === true
+      console.log('[Reset Password] SUCCESS: Password berhasil direset untuk userId:', userId);
+      return { success: true };
     } catch (e: any) {
-      console.error(e);
-      showToast(`❌ Gagal reset password: ${e.message}`, 'error');
+      console.error('[Reset Password] Unexpected error:', e);
+      const errMsg = e?.message || e?.error_description || JSON.stringify(e) || 'Terjadi kesalahan tidak diketahui.';
+      return { success: false, error: errMsg };
     } finally {
       setIsLoading(false);
     }
@@ -794,7 +828,26 @@ export default function App() {
         .select('*')
         .order('id', { ascending: true });
       if (membersError) throw membersError;
-      setMembers(membersData?.filter(m => m.status !== 'soft_deleted') || []);
+
+      // Fetch avatar_url from profiles for each member that has a user_id
+      const userIds = (membersData || []).map((m: any) => m.user_id).filter(Boolean);
+      let avatarMap: Record<string, string | null> = {};
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, avatar_url')
+          .in('id', userIds);
+        (profilesData || []).forEach((p: any) => {
+          avatarMap[p.id] = p.avatar_url ?? null;
+        });
+      }
+
+      // Merge avatar_url into each member object
+      const membersWithAvatar = (membersData || []).map((m: any) => ({
+        ...m,
+        avatar_url: m.user_id ? (avatarMap[m.user_id] ?? null) : null,
+      }));
+      setMembers(membersWithAvatar.filter((m: any) => m.status !== 'soft_deleted'));
 
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
@@ -865,6 +918,27 @@ export default function App() {
 
   // Auth monitoring & PWA initialization
   useEffect(() => {
+    // Self-healing database check to ensure profiles.avatar_url exists
+    const ensureAvatarColumn = async () => {
+      try {
+        await supabase.rpc('check_and_create_avatar_url_column');
+      } catch (err) {
+        console.warn('RPC check_and_create_avatar_url_column not available. Checking schema fallback...', err);
+        try {
+          const { error: selectError } = await supabase
+            .from('profiles')
+            .select('avatar_url')
+            .limit(1);
+          if (selectError && selectError.message.includes('avatar_url')) {
+            console.error('PENTING: Kolom "avatar_url" tidak ada pada tabel "profiles".');
+          }
+        } catch (selectErr) {
+          console.error('Error verifying profiles schema:', selectErr);
+        }
+      }
+    };
+    ensureAvatarColumn();
+
     // 1. Get initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
@@ -894,6 +968,12 @@ export default function App() {
 
     // 2. Listen to auth state changes
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (sessionStorage.getItem('sipatra_is_registering') === 'true') {
+        sessionStorage.removeItem('sipatra_is_registering');
+        await supabase.auth.signOut();
+        setSession(null);
+        return;
+      }
       setSession(session);
       if (event === 'PASSWORD_RECOVERY') {
         setIsRecoveringPassword(true);
@@ -991,6 +1071,21 @@ export default function App() {
         }
       }).subscribe();
 
+    // Real-time sync for profiles.avatar_url changes
+    // When any user updates their profile photo, refresh the members list
+    const profilesChannel = supabase
+      .channel('profiles_realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, (payload) => {
+        const updated = payload.new as any;
+        // Update avatar_url in members list if this profile's user_id matches
+        setMembers(prev => prev.map(m => {
+          if (m.user_id === updated.id) {
+            return { ...m, avatar_url: updated.avatar_url ?? null };
+          }
+          return m;
+        }));
+      }).subscribe();
+
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       clearTimeout(splashTimer);
@@ -999,6 +1094,7 @@ export default function App() {
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(attendeesChannel);
       supabase.removeChannel(expensesChannel);
+      supabase.removeChannel(profilesChannel);
     };
   }, []);
 
@@ -1564,11 +1660,109 @@ export default function App() {
     }
   };
 
-  const updateProfile = async (nama: string, nomor_hp: string, photo: string | null) => {
+  const updateProfile = async (
+    nama: string,
+    nomor_hp: string,
+    fileToUpload: File | Blob | null,
+    isPhotoRemoved?: boolean
+  ) => {
     try {
+      const { data: currentProfile, error: getProfileError } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      if (getProfileError) throw getProfileError;
+
+      let newAvatarUrl = currentProfile?.avatar_url || null;
+
+      if (isPhotoRemoved) {
+        if (newAvatarUrl) {
+          try {
+            const bucketSearchStr = '/avatars/';
+            const bucketIdx = newAvatarUrl.indexOf(bucketSearchStr);
+            if (bucketIdx !== -1) {
+              const filePathInBucket = decodeURIComponent(newAvatarUrl.substring(bucketIdx + bucketSearchStr.length));
+              console.log('Deleting removed avatar from storage:', filePathInBucket);
+              const { error: removeError } = await supabase.storage.from('avatars').remove([filePathInBucket]);
+              if (removeError) console.warn('Warning: Failed to delete old avatar:', removeError);
+            }
+          } catch (deleteError) {
+            console.error('Error deleting old avatar:', deleteError);
+          }
+        }
+        newAvatarUrl = null;
+      } else if (fileToUpload) {
+        if (newAvatarUrl) {
+          try {
+            const bucketSearchStr = '/avatars/';
+            const bucketIdx = newAvatarUrl.indexOf(bucketSearchStr);
+            if (bucketIdx !== -1) {
+              const filePathInBucket = decodeURIComponent(newAvatarUrl.substring(bucketIdx + bucketSearchStr.length));
+              console.log('Deleting old avatar before upload:', filePathInBucket);
+              const { error: removeError } = await supabase.storage.from('avatars').remove([filePathInBucket]);
+              if (removeError) console.warn('Warning: Failed to delete old avatar:', removeError);
+            }
+          } catch (deleteError) {
+            console.error('Error deleting old avatar before upload:', deleteError);
+          }
+        }
+
+        const fileExt = fileToUpload instanceof File ? fileToUpload.name.split('.').pop() || 'jpg' : 'jpg';
+        const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+
+
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, fileToUpload, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error('Avatar upload to Supabase Storage failed:', uploadError);
+          const customErrorMsg = uploadError.message?.toLowerCase().includes('bucket')
+            ? 'Gagal mengunggah: Bucket "avatars" tidak ditemukan di Supabase Storage. Silakan buat bucket "avatars" (Public) terlebih dahulu di Dashboard Supabase Anda.'
+            : `Gagal mengunggah foto ke Storage: ${uploadError.message}`;
+          showToast(customErrorMsg, 'error');
+          throw new Error(customErrorMsg);
+        }
+
+
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+
+        newAvatarUrl = publicUrl;
+      }
+
+      const profileUpdates: any = { nama, nomor_hp };
+      
+      let hasAvatarUrlColumn = true;
+      try {
+        const { error: checkColError } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .limit(1);
+        if (checkColError && checkColError.message.includes('avatar_url')) {
+          hasAvatarUrlColumn = false;
+        }
+      } catch (checkColErr) {
+        hasAvatarUrlColumn = false;
+      }
+
+      if (hasAvatarUrlColumn) {
+        profileUpdates.avatar_url = newAvatarUrl;
+      } else {
+        console.warn('Kolom "avatar_url" tidak ada di database, update foto profil dilewati.');
+      }
+
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ nama, nomor_hp })
+        .update(profileUpdates)
         .eq('id', session.user.id);
       if (profileError) throw profileError;
 
@@ -1580,20 +1774,14 @@ export default function App() {
         if (memberError) throw memberError;
       }
 
-      if (photo) {
-        localStorage.setItem(`sipatra_profile_photo_${session.user.id}`, photo);
-        setProfilePhoto(photo);
-      } else {
-        localStorage.removeItem(`sipatra_profile_photo_${session.user.id}`);
-        setProfilePhoto(null);
-      }
-
+      setProfilePhoto(newAvatarUrl);
       await fetchUserProfile(session.user.id);
       await fetchData();
-      showToast('Profil berhasil disimpan!', 'success');
-    } catch (err) {
+      showToast('✅ Foto profil berhasil diperbarui.', 'success');
+    } catch (err: any) {
       console.error('Error updating profile:', err);
-      showToast('Gagal menyimpan profil.', 'error');
+      showToast(err.message || 'Gagal menyimpan profil.', 'error');
+      throw err;
     }
   };
 
@@ -2017,15 +2205,17 @@ export default function App() {
   const isSuperAdmin = profile.role === 'superadmin';
   const isAdmin = profile.role === 'superadmin' || profile.role === 'admin';
 
-  // Compute unread billing notifications for member
-  const memberUnreadBills = !isAdmin && memberRecord
+  // Badge hanya menghitung tagihan yang BENAR-BENAR memerlukan tindakan anggota:
+  // 'unpaid' = belum bayar, 'generated' = tagihan baru diterbitkan
+  // TIDAK termasuk: uploaded, Menunggu Verifikasi Cash, verified, rejected
+  const memberPendingBills = !isAdmin && memberRecord
     ? payments.filter((p: Payment) =>
         p.member_id === memberRecord.id &&
-        (p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated') &&
-        !readNotificationIds.has(p.id)
+        (p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated')
       )
     : [];
-  const unreadCount = memberUnreadBills.length;
+  const memberUnreadBills = memberPendingBills;
+  const unreadCount = memberPendingBills.length;
 
   return (
     <div className="min-h-screen bg-background flex justify-center text-primary font-sans transition-all duration-200">
@@ -2188,6 +2378,7 @@ export default function App() {
               profile={profile} 
               updateProfile={updateProfile} 
               profilePhoto={profilePhoto}
+              showToast={showToast}
             />
           )}
 
@@ -2211,7 +2402,7 @@ export default function App() {
 
         {/* BOTTOM FLOATING NAVIGATION */}
         <nav className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-card border border-border rounded-[24px] shadow-theme flex justify-around p-2.5 z-30 transition-all duration-200">
-          <NavItem icon={<Home size={20} />} label="Beranda" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} badge={!isAdmin ? unreadCount : 0} />
+          <NavItem icon={<Home size={20} />} label="Beranda" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           <NavItem icon={<Calendar size={20} />} label={isAdmin ? 'Sesi' : 'Tagihan Saya'} active={activeTab === 'tagihan'} onClick={() => setActiveTab('tagihan')} badge={!isAdmin ? unreadCount : 0} />
           <NavItem icon={<Wallet size={20} />} label={isAdmin ? 'Laporan' : 'Kas'} active={activeTab === 'kas'} onClick={() => setActiveTab('kas')} />
           {isAdmin ? (
@@ -2769,7 +2960,17 @@ function Dashboard({
 
         {/* QUICK ACTION SECTION */}
         <div className="bg-card rounded-[24px] p-3.5 shadow-theme border border-border grid grid-cols-5 divide-x divide-border transition-all duration-200">
-          <div onClick={() => setShowAddSessionModal(true)} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity">
+          <div 
+            onClick={() => {
+              if (isAdmin) {
+                setActiveTab('tagihan');
+                setShowAddSessionModal(true);
+              } else {
+                showToast('Hanya Admin atau Bendahara yang dapat menambah sesi.', 'warning');
+              }
+            }} 
+            className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity"
+          >
             <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <PlusCircle size={20} strokeWidth={2.2} />
             </div>
@@ -2785,7 +2986,7 @@ function Dashboard({
             <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
               <QrCode size={20} strokeWidth={2.2} />
             </div>
-            <span className="text-[9px] font-black text-secondary text-center leading-tight">QRIS Saya</span>
+            <span className="text-[9px] font-black text-secondary text-center leading-tight">QRIS</span>
           </div>
           <div onClick={() => setActiveTab('kas')} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
             <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
@@ -6073,6 +6274,12 @@ function MembersList({
   const [manageRole, setManageRole] = useState('');
   const [manageStatus, setManageStatus] = useState('');
 
+  // States for reset password dialogs
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showResetSuccess, setShowResetSuccess] = useState(false);
+  const [resetErrorMsg, setResetErrorMsg] = useState<string | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+
   const handleOpenManage = (user: any) => {
     if (!isSuperAdmin && user.role !== 'member') {
       return;
@@ -6138,8 +6345,13 @@ function MembersList({
                     ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                     : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
               }`}>
-                {m.user_id === session?.user?.id && profilePhoto ? (
-                  <img src={profilePhoto} alt="Foto Profil" className="w-full h-full object-cover" />
+                {/* Show avatar from profiles.avatar_url if available, otherwise initials */}
+                {(m.user_id === session?.user?.id && profilePhoto) || m.avatar_url ? (
+                  <img
+                    src={m.user_id === session?.user?.id && profilePhoto ? profilePhoto : m.avatar_url}
+                    alt={`Foto ${m.name}`}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   getInitials(m.name)
                 )}
@@ -6220,12 +6432,9 @@ function MembersList({
                   
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (window.confirm(`Reset password pengguna "${selectedUser.name}" ke "sisteminformasi"?`)) {
-                        await resetUserPassword(selectedUser.user_id, selectedUser.name);
-                        setShowManageModal(false);
-                        setSelectedUser(null);
-                      }
+                    onClick={() => {
+                      setResetErrorMsg(null);
+                      setShowResetConfirm(true);
                     }}
                     className="w-full flex items-center justify-center gap-2 py-2.5 border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs rounded-xl transition-all"
                   >
@@ -6272,24 +6481,180 @@ function MembersList({
           </div>
         </div>
       )}
+
+      {/* DIALOG KONFIRMASI RESET PASSWORD */}
+      {showResetConfirm && selectedUser && (
+        <div
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            className="bg-card rounded-[24px] p-6 max-w-sm w-full shadow-theme border border-border flex flex-col gap-4 animate-scaleUp"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                <Key size={22} className="text-amber-400" />
+              </div>
+              <h3 className="text-primary font-extrabold text-base tracking-tight uppercase">Reset Password</h3>
+              <p className="text-secondary font-bold text-xs leading-relaxed px-1">
+                Apakah Anda yakin ingin mereset password pengguna ini?
+              </p>
+              <div className="w-full bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3 flex flex-col gap-1">
+                <p className="text-[10px] text-secondary font-black uppercase tracking-wider">Password akan diubah menjadi:</p>
+                <p className="text-amber-300 font-black text-sm tracking-widest">sisteminformasi</p>
+              </div>
+              <p className="text-[11px] font-extrabold text-primary">{selectedUser.name}</p>
+            </div>
+
+            {resetErrorMsg && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
+                <p className="text-[11px] text-red-400 font-bold leading-relaxed">❌ {resetErrorMsg}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <button
+                onClick={() => { setShowResetConfirm(false); setResetErrorMsg(null); }}
+                disabled={isResettingPassword}
+                className="w-full border border-border bg-background text-secondary hover:text-primary font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] hover:bg-border/60 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                disabled={isResettingPassword}
+                onClick={async () => {
+                  setIsResettingPassword(true);
+                  setResetErrorMsg(null);
+                  const result = await resetUserPassword(selectedUser.user_id, selectedUser.name);
+                  setIsResettingPassword(false);
+                  if (result.success) {
+                    setShowResetConfirm(false);
+                    setShowManageModal(false);
+                    setShowResetSuccess(true);
+                  } else {
+                    setResetErrorMsg(result.error || 'Terjadi kesalahan tidak diketahui.');
+                  }
+                }}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-white font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] shadow-md disabled:opacity-50 disabled:cursor-wait"
+              >
+                {isResettingPassword ? 'Memproses...' : 'Reset Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP BERHASIL RESET PASSWORD */}
+      {showResetSuccess && (
+        <div
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setShowResetSuccess(false)}
+        >
+          <div
+            className="bg-card rounded-[24px] p-6 max-w-sm w-full shadow-theme border border-border flex flex-col gap-4 animate-scaleUp"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <span className="text-2xl">✅</span>
+              </div>
+              <h3 className="text-primary font-extrabold text-base tracking-tight uppercase">Password Berhasil Direset</h3>
+              <p className="text-secondary font-bold text-xs leading-relaxed px-1">
+                Password pengguna berhasil diubah menjadi:
+              </p>
+              <div className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-4 py-3">
+                <p className="text-emerald-400 font-black text-sm tracking-widest">sisteminformasi</p>
+              </div>
+              <p className="text-[11px] text-secondary font-bold leading-relaxed">
+                Silakan informasikan password baru kepada pengguna.
+              </p>
+            </div>
+
+            <button
+              onClick={() => { setShowResetSuccess(false); setSelectedUser(null); }}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-extrabold py-3 rounded-xl transition-all text-xs active:scale-[0.98] shadow-md"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const compressImageToBlob = (file: File): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Gagal mendapatkan canvas context.'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Gagal kompres gambar.'));
+            }
+          },
+          'image/jpeg',
+          0.8
+        );
+      };
+      img.onerror = () => reject(new Error('Gagal memuat gambar.'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
+};
 
 // --- PROFILE MEMBER COMPONENT ---
 function ProfileMember({ 
   profile, 
   updateProfile, 
-  profilePhoto 
+  profilePhoto,
+  showToast
 }: { 
   profile: any; 
-  updateProfile: (nama: string, nomor_hp: string, photo: string | null) => Promise<void>; 
+  updateProfile: (nama: string, nomor_hp: string, fileToUpload: File | Blob | null, isPhotoRemoved?: boolean) => Promise<void>; 
   profilePhoto: string | null; 
+  showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }) {
   const [nama, setNama] = useState(profile.nama);
   const [nomorHp, setNomorHp] = useState(profile.nomor_hp || '');
   const [photo, setPhoto] = useState<string | null>(profilePhoto);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | Blob | null>(null);
+  const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
 
   useEffect(() => {
     setPhoto(profilePhoto);
@@ -6298,24 +6663,48 @@ function ProfileMember({
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        showToast('Format file harus JPG, JPEG, PNG, atau WEBP.', 'error');
+        return;
+      }
+
       try {
-        const compressed = await compressImage(file);
-        setPhoto(compressed);
+        const localPreviewUrl = URL.createObjectURL(file);
+        setPhoto(localPreviewUrl);
+        setIsPhotoRemoved(false);
+
+        if (file.size > 2 * 1024 * 1024) {
+          const compressedBlob = await compressImageToBlob(file);
+          setSelectedFile(compressedBlob);
+        } else {
+          setSelectedFile(file);
+        }
       } catch (err: any) {
         console.error(err);
+        showToast('Gagal memproses gambar.', 'error');
       }
     }
   };
 
   const handleRemovePhoto = () => {
     setPhoto(null);
+    setSelectedFile(null);
+    setIsPhotoRemoved(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await updateProfile(nama, nomorHp, photo);
-    setIsSubmitting(false);
+    try {
+      await updateProfile(nama, nomorHp, selectedFile, isPhotoRemoved);
+      setSelectedFile(null);
+      setIsPhotoRemoved(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const idDosen = profile.email ? (profile.email.match(/dosen(\d{5})@/i)?.[1] || '-') : '-';
@@ -6336,7 +6725,7 @@ function ProfileMember({
           </div>
           <label className="absolute -bottom-1 -right-1 bg-accent hover:bg-accent/90 text-white p-1 rounded-full shadow-lg border border-border cursor-pointer flex items-center justify-center transition-all hover:scale-105 active:scale-95">
             <Camera size={12} />
-            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden" onChange={handlePhotoChange} />
           </label>
         </div>
 
@@ -7082,6 +7471,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showRegSuccessModal, setShowRegSuccessModal] = useState(false);
 
   // Load saved ID Dosen on mount if rememberMe was previously active
   useEffect(() => {
@@ -7146,6 +7536,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
     setIsSubmitting(true);
     try {
       const email = `dosen${idDosen}@unpam.ac.id`;
+      sessionStorage.setItem('sipatra_is_registering', 'true');
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -7161,14 +7552,16 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
 
       if (error) throw error;
       
-      setSuccessMsg('Pendaftaran sukses! Silakan langsung masuk.');
+      sessionStorage.removeItem('sipatra_is_registering');
       
+      // If a session was automatically created, clear it by signing out immediately
       if (data.session) {
-        await onLoginSuccess(data.session.user.id);
-      } else {
-        setAuthMode('login');
+        await supabase.auth.signOut();
       }
+      
+      setShowRegSuccessModal(true);
     } catch (err: any) {
+      sessionStorage.removeItem('sipatra_is_registering');
       console.error(err);
       setErrorMsg(err.message || 'Gagal melakukan registrasi.');
     } finally {
@@ -7654,6 +8047,44 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
                 >
                   <span className="transition-transform group-hover:-translate-x-0.5">←</span> Kembali ke Login
                 </button>
+              </div>
+            </div>
+          )}
+
+          {showRegSuccessModal && (
+            <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fadeIn">
+              <div className="bg-card rounded-[24px] p-6 max-w-sm w-full shadow-theme border border-border flex flex-col gap-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-605 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+                    <CheckCircle size={24} className="text-emerald-605 dark:text-emerald-450 animate-pulse-gentle" />
+                  </div>
+                  <h3 className="text-primary font-extrabold text-base tracking-tight uppercase">
+                    ✅ Pendaftaran Berhasil
+                  </h3>
+                  <p className="text-secondary font-bold text-xs leading-relaxed px-1 whitespace-pre-line">
+                    Akun Anda berhasil dibuat.
+                    
+                    Silakan masuk menggunakan ID Dosen dan password yang telah didaftarkan.
+                  </p>
+                </div>
+                <div className="mt-2">
+                  <button 
+                    onClick={() => {
+                      setShowRegSuccessModal(false);
+                      setIdDosen('');
+                      setPassword('');
+                      setConfirmPassword('');
+                      setFullName('');
+                      setPhone('');
+                      setErrorMsg('');
+                      setSuccessMsg('');
+                      setAuthMode('login');
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-2xl transition-all text-xs active:scale-[0.98] shadow-md shadow-emerald-950/20"
+                  >
+                    Masuk ke Login
+                  </button>
+                </div>
               </div>
             </div>
           )}

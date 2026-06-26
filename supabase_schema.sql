@@ -136,3 +136,23 @@ CREATE POLICY "Allow public select on payment-proofs" ON storage.objects FOR SEL
 
 DROP POLICY IF EXISTS "Allow public insert on payment-proofs" ON storage.objects;
 CREATE POLICY "Allow public insert on payment-proofs" ON storage.objects FOR INSERT TO public WITH CHECK (bucket_id = 'payment-proofs');
+
+-- Storage bucket avatars
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Allow public select on avatars" ON storage.objects;
+CREATE POLICY "Allow public select on avatars" ON storage.objects FOR SELECT TO public USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Allow public insert on avatars" ON storage.objects;
+CREATE POLICY "Allow public insert on avatars" ON storage.objects FOR INSERT TO public WITH CHECK (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Allow public update on avatars" ON storage.objects;
+CREATE POLICY "Allow public update on avatars" ON storage.objects FOR UPDATE TO public WITH CHECK (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Allow public delete on avatars" ON storage.objects;
+CREATE POLICY "Allow public delete on avatars" ON storage.objects FOR DELETE TO public USING (bucket_id = 'avatars');
+
+-- 9. Tambahkan kolom avatar_url ke tabel profiles jika belum ada
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
