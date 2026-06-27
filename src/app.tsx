@@ -2962,10 +2962,13 @@ function Dashboard({
         <div className="bg-card rounded-[24px] p-3.5 shadow-theme border border-border grid grid-cols-5 divide-x divide-border transition-all duration-200">
           <div 
             onClick={() => {
+              console.log('[DEBUG] Clicked "Tambah Sesi" Quick Action. isAdmin:', isAdmin, 'user.role:', user?.role);
               if (isAdmin) {
+                console.log('[DEBUG] Setting activeTab to "tagihan" and showAddSessionModal to true');
                 setActiveTab('tagihan');
                 setShowAddSessionModal(true);
               } else {
+                console.log('[DEBUG] User is not admin. Toasting warning.');
                 showToast('Hanya Admin atau Bendahara yang dapat menambah sesi.', 'warning');
               }
             }} 
@@ -3731,7 +3734,11 @@ function SessionsAdmin({
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-black tracking-wide text-primary uppercase">Manajemen Sesi</h2>
         <button 
-          onClick={() => setShowAddSessionModal(true)} 
+          onClick={() => {
+            console.log('[DEBUG] Clicked "Sesi Baru" button. Previous showAddSessionModal:', showAddSessionModal);
+            setShowAddSessionModal(true);
+            console.log('[DEBUG] set showAddSessionModal to true.');
+          }} 
           className="flex items-center gap-1 text-xs bg-accent hover:opacity-90 text-white px-3.5 py-2 rounded-xl font-bold transition-all shadow-md active:scale-[0.98]"
         >
           <Plus size={14} /> Sesi Baru
