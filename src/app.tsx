@@ -9,6 +9,7 @@ import {
   Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 
 // --- TYPES ---
 interface Profile {
@@ -489,7 +490,13 @@ export default function App() {
           auth: {
             persistSession: false,
             autoRefreshToken: false,
-            detectSessionInUrl: false
+            detectSessionInUrl: false,
+            storageKey: 'sipatra-temp-signup-storage',
+            storage: {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {}
+            }
           }
         }
       );
@@ -899,7 +906,13 @@ export default function App() {
           auth: {
             persistSession: false,
             autoRefreshToken: false,
-            detectSessionInUrl: false
+            detectSessionInUrl: false,
+            storageKey: 'sipatra-temp-checkpwd-storage',
+            storage: {
+              getItem: () => null,
+              setItem: () => {},
+              removeItem: () => {}
+            }
           }
         }
       );
