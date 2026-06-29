@@ -4,7 +4,7 @@ import {
   CheckCircle, Clock, XCircle, Plus, X, 
   LogOut, QrCode, Upload, Bell, ChevronRight, 
   User as UserIcon, Activity, Calendar, MapPin, 
-  TrendingUp, PlusCircle, DollarSign, AlertCircle, 
+  TrendingUp, TrendingDown, PlusCircle, DollarSign, AlertCircle, 
   ChevronDown, Check, RefreshCw, Key, Shield, UserCheck,
   Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera
 } from 'lucide-react';
@@ -44,6 +44,8 @@ interface Session {
   status_tagihan: 'draft' | 'generated';
   biaya_per_orang: number;
   created_at: string;
+  biaya_lapangan?: number;
+  kas_wajib_per_orang?: number;
 }
 
 interface SessionAttendee {
@@ -215,6 +217,15 @@ export default function App() {
     const saved = localStorage.getItem('sipatra_iuran_kas');
     return saved ? parseInt(saved) : 5000;
   });
+
+  // Tambah Kas Modal states
+  const [showAddKasModal, setShowAddKasModal] = useState(false);
+  const [txJenis, setTxJenis] = useState<'masuk' | 'keluar'>('masuk');
+  const [txTanggal, setTxTanggal] = useState('');
+  const [txKategori, setTxKategori] = useState('');
+  const [txNominal, setTxNominal] = useState('');
+  const [txKeterangan, setTxKeterangan] = useState('');
+  const [editingTx, setEditingTx] = useState<any>(null);
 
   // Notification read-state (localStorage-backed, no DB needed)
   const [readNotificationIds, setReadNotificationIds] = useState<Set<number>>(() => {
@@ -1159,24 +1170,29 @@ export default function App() {
 
   // Kas and Session calculations (Separated Accounting Model)
   const totalIncome = React.useMemo(() => {
-    return payments
+    const sessionInflows = payments
       ? payments
           .filter((p: any) => p.status_pembayaran === 'verified')
           .reduce((sum: number, p: any) => {
             const s = sessions.find((x: any) => x.id === p.session_id);
-            if (s) {
-              const biayaSesi = s.biaya_per_orang || 0;
-              return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
-            }
-            return sum;
+            const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
+            return sum + kasWajib;
           }, 0)
       : 0;
-  }, [payments, sessions]);
+
+    const manualInflows = sessionExpenses
+      ? sessionExpenses
+          .filter((e: any) => e.session_id === null && e.jenis_transaksi === 'masuk')
+          .reduce((sum: number, e: any) => sum + e.nominal, 0)
+      : 0;
+
+    return sessionInflows + manualInflows;
+  }, [payments, sessions, sessionExpenses, iuranKasConfig]);
 
   const totalExpense = React.useMemo(() => {
     return sessionExpenses
       ? sessionExpenses
-          .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
+          .filter((e: any) => e.jenis_transaksi === 'keluar' && (e.session_id === null || e.kategori !== 'Sewa Lapangan'))
           .reduce((sum: number, e: any) => sum + e.nominal, 0)
       : 0;
   }, [sessionExpenses]);
@@ -1191,18 +1207,22 @@ export default function App() {
           .filter((p: any) => p.status_pembayaran === 'verified')
           .reduce((sum: number, p: any) => {
             const s = sessions.find((x: any) => x.id === p.session_id);
-            return sum + (s ? s.biaya_per_orang || 0 : 0);
+            const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
+            return sum + Math.max(0, p.nominal_tagihan - kasWajib);
           }, 0)
       : 0;
-  }, [payments, sessions]);
+  }, [payments, sessions, iuranKasConfig]);
 
   const totalSessionExpense = React.useMemo(() => {
-    return sessionExpenses
-      ? sessionExpenses
-          .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
-          .reduce((sum: number, e: any) => sum + e.nominal, 0)
-      : 0;
-  }, [sessionExpenses]);
+    const fromSessions = sessions.reduce((sum: number, s: any) => {
+      const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
+      const sLapangan = s.biaya_lapangan !== undefined && s.biaya_lapangan !== null
+        ? s.biaya_lapangan
+        : sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((acc: number, e: any) => acc + e.nominal, 0);
+      return sum + sLapangan;
+    }, 0);
+    return fromSessions;
+  }, [sessions, sessionExpenses]);
 
   const sessionBalance = totalSessionIncome - totalSessionExpense;
 
@@ -1216,14 +1236,14 @@ export default function App() {
               const d = new Date(s.tanggal_main);
               const now = new Date();
               if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
-                const biayaSesi = s.biaya_per_orang || 0;
-                return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+                const kasWajib = s.kas_wajib_per_orang ?? iuranKasConfig;
+                return sum + kasWajib;
               }
             }
             return sum;
           }, 0)
       : 0;
-  }, [payments, sessions]);
+  }, [payments, sessions, iuranKasConfig]);
 
   const handleLogout = async () => {
     setIsLoading(true);
@@ -1231,7 +1251,15 @@ export default function App() {
   };
 
   // --- BACKEND MUTATIONS ---
-  const addSession = async (newSession: { nama_sesi: string; tanggal_main: string; jam_main: string; lokasi: string; catatan: string }) => {
+  const addSession = async (newSession: { 
+    nama_sesi: string; 
+    tanggal_main: string; 
+    jam_main: string; 
+    lokasi: string; 
+    catatan: string;
+    biaya_lapangan: number;
+    kas_wajib_per_orang: number;
+  }) => {
     try {
       const { data: insertedSession, error } = await supabase
         .from('sessions')
@@ -1242,7 +1270,9 @@ export default function App() {
           lokasi: newSession.lokasi,
           catatan: newSession.catatan || null,
           status_tagihan: 'draft',
-          biaya_per_orang: 0
+          biaya_per_orang: 0,
+          biaya_lapangan: newSession.biaya_lapangan,
+          kas_wajib_per_orang: newSession.kas_wajib_per_orang
         })
         .select()
         .single();
@@ -1251,6 +1281,24 @@ export default function App() {
       if (insertedSession) {
         setSessions(prev => [insertedSession, ...prev]);
         setSelectedSessionId(insertedSession.id);
+
+        // Sync 'Sewa Lapangan' expense to session_expenses table
+        if (newSession.biaya_lapangan > 0) {
+          const { data: expData, error: expError } = await supabase
+            .from('session_expenses')
+            .insert({
+              session_id: insertedSession.id,
+              keterangan: 'Sewa Lapangan',
+              nominal: newSession.biaya_lapangan,
+              kategori: 'Sewa Lapangan',
+              jenis_transaksi: 'keluar'
+            })
+            .select()
+            .single();
+          if (!expError && expData) {
+            setSessionExpenses(prev => [...prev, expData]);
+          }
+        }
       }
     } catch (err) {
       console.error('Error adding session:', err);
@@ -1329,6 +1377,157 @@ export default function App() {
     }
   };
 
+  const handleTypeChange = (type: 'masuk' | 'keluar') => {
+    setTxJenis(type);
+    setTxKategori('');
+  };
+
+  const handleTambahKasClick = () => {
+    setEditingTx(null);
+    setTxJenis('masuk');
+    setTxTanggal(new Date().toISOString().split('T')[0]);
+    setTxKategori('');
+    setTxNominal('');
+    setTxKeterangan('');
+    setShowAddKasModal(true);
+  };
+
+  const saveKasTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) {
+      showToast('Anda harus login terlebih dahulu.', 'error');
+      return;
+    }
+    try {
+      const nominalNum = parseInt(txNominal);
+      if (isNaN(nominalNum) || nominalNum <= 0) {
+        showToast('Nominal harus berupa angka valid dan lebih dari 0.', 'error');
+        return;
+      }
+
+      const dateISO = txTanggal ? `${txTanggal}T12:00:00.000Z` : new Date().toISOString();
+
+      if (editingTx) {
+        const oldVal = editingTx;
+        const { data: updatedTx, error } = await supabase
+          .from('session_expenses')
+          .update({
+            keterangan: txKeterangan,
+            nominal: nominalNum,
+            kategori: txKategori,
+            jenis_transaksi: txJenis,
+            created_at: dateISO
+          })
+          .eq('id', oldVal.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setSessionExpenses(prev => prev.map(item => item.id === oldVal.id ? updatedTx : item));
+        
+        const roleStr = profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA';
+        const logDetail = `Mengubah Transaksi ID ${oldVal.id}. Sebelum: [Jenis: ${oldVal.jenis_transaksi || 'keluar'}, Kategori: ${oldVal.kategori}, Nominal: ${oldVal.nominal}, Keterangan: ${oldVal.keterangan}, Tanggal: ${oldVal.created_at?.split('T')[0]}]. Sesudah: [Jenis: ${txJenis}, Kategori: ${txKategori}, Nominal: ${nominalNum}, Keterangan: ${txKeterangan}, Tanggal: ${txTanggal}].`;
+        
+        await supabase.from('activity_logs').insert({
+          action: 'edit_transaksi',
+          performed_by: profile.nama || profile.email,
+          performed_by_id: profile.id,
+          detail: `User: ${profile.nama || profile.email} | Role: ${roleStr} | Tanggal & Jam: ${new Date().toLocaleString('id-ID')} | ${logDetail}`
+        });
+
+        showToast('✅ Transaksi berhasil diperbarui', 'success');
+      } else {
+        const { data: insertedTx, error } = await supabase
+          .from('session_expenses')
+          .insert({
+            session_id: null,
+            keterangan: txKeterangan,
+            nominal: nominalNum,
+            kategori: txKategori,
+            jenis_transaksi: txJenis,
+            created_at: dateISO
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setSessionExpenses(prev => [...prev, insertedTx]);
+
+        const roleStr = profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA';
+        const logDetail = `Menambahkan Transaksi Baru. Jenis: ${txJenis}, Kategori: ${txKategori}, Nominal: ${nominalNum}, Keterangan: ${txKeterangan}, Tanggal: ${txTanggal}.`;
+        
+        await supabase.from('activity_logs').insert({
+          action: 'tambah_transaksi',
+          performed_by: profile.nama || profile.email,
+          performed_by_id: profile.id,
+          detail: `User: ${profile.nama || profile.email} | Role: ${roleStr} | Tanggal & Jam: ${new Date().toLocaleString('id-ID')} | ${logDetail}`
+        });
+
+        showToast('✅ Transaksi berhasil dicatat', 'success');
+      }
+
+      setShowAddKasModal(false);
+      setEditingTx(null);
+      setTxTanggal('');
+      setTxKategori('');
+      setTxNominal('');
+      setTxKeterangan('');
+    } catch (err: any) {
+      console.error('Error saving transaction:', err);
+      showToast(`❌ Gagal menyimpan transaksi: ${err.message || err}`, 'error');
+    }
+  };
+
+  const deleteKasTransaction = async (tx: any) => {
+    if (!profile) return;
+    try {
+      const { error } = await supabase
+        .from('session_expenses')
+        .delete()
+        .eq('id', tx.id);
+
+      if (error) throw error;
+
+      setSessionExpenses(prev => prev.filter(item => item.id !== tx.id));
+
+      const roleStr = profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA';
+      const logDetail = `Menghapus Transaksi ID ${tx.id}. Detail: [Jenis: ${tx.jenis_transaksi || 'keluar'}, Kategori: ${tx.kategori}, Nominal: ${tx.nominal}, Keterangan: ${tx.keterangan}, Tanggal: ${tx.created_at?.split('T')[0]}].`;
+      
+      await supabase.from('activity_logs').insert({
+        action: 'hapus_transaksi',
+        performed_by: profile.nama || profile.email,
+        performed_by_id: profile.id,
+        detail: `User: ${profile.nama || profile.email} | Role: ${roleStr} | Tanggal & Jam: ${new Date().toLocaleString('id-ID')} | ${logDetail}`
+      });
+
+      showToast('✅ Transaksi berhasil dihapus', 'success');
+    } catch (err: any) {
+      console.error('Error deleting transaction:', err);
+      showToast(`❌ Gagal menghapus transaksi: ${err.message || err}`, 'error');
+    }
+  };
+
+  const handleEditKasTransaction = (tx: any) => {
+    setEditingTx(tx);
+    setTxJenis(tx.jenis_transaksi || 'keluar');
+    setTxTanggal(tx.created_at ? tx.created_at.split('T')[0] : '');
+    setTxKategori(tx.kategori);
+    setTxNominal(tx.nominal.toString());
+    setTxKeterangan(tx.keterangan);
+    setShowAddKasModal(true);
+  };
+
+  const handleDeleteKasTransaction = (tx: any) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Hapus Transaksi Kas',
+      message: `Apakah Anda yakin ingin menghapus transaksi "${tx.keterangan}" sebesar ${formatRp(tx.nominal)}?`,
+      onConfirm: () => deleteKasTransaction(tx)
+    });
+  };
+
   const deleteSession = async (sessionId: number) => {
     setConfirmModal({
       isOpen: true,
@@ -1364,7 +1563,15 @@ export default function App() {
     }
   };
 
-  const updateSession = async (sessionId: number, updatedData: { nama_sesi: string; tanggal_main: string; jam_main: string; lokasi: string; catatan: string }) => {
+  const updateSession = async (sessionId: number, updatedData: { 
+    nama_sesi: string; 
+    tanggal_main: string; 
+    jam_main: string; 
+    lokasi: string; 
+    catatan: string;
+    biaya_lapangan: number;
+    kas_wajib_per_orang: number;
+  }) => {
     try {
       const { data, error } = await supabase
         .from('sessions')
@@ -1376,6 +1583,55 @@ export default function App() {
       if (error) throw error;
       if (data) {
         setSessions(prev => prev.map(s => s.id === sessionId ? data : s));
+
+        // Sync 'Sewa Lapangan' expense to session_expenses table
+        const { data: existingExps } = await supabase
+          .from('session_expenses')
+          .select('*')
+          .eq('session_id', sessionId)
+          .eq('kategori', 'Sewa Lapangan');
+          
+        if (existingExps && existingExps.length > 0) {
+          if (updatedData.biaya_lapangan > 0) {
+            const { data: updatedExp } = await supabase
+              .from('session_expenses')
+              .update({ nominal: updatedData.biaya_lapangan, keterangan: 'Sewa Lapangan' })
+              .eq('id', existingExps[0].id)
+              .select()
+              .single();
+            if (updatedExp) {
+              setSessionExpenses(prev => prev.map(e => e.id === existingExps[0].id ? updatedExp : e));
+            }
+            
+            // Delete any duplicates
+            if (existingExps.length > 1) {
+              const duplicateIds = existingExps.slice(1).map(e => e.id);
+              await supabase.from('session_expenses').delete().in('id', duplicateIds);
+              setSessionExpenses(prev => prev.filter(e => !duplicateIds.includes(e.id)));
+            }
+          } else {
+            // Delete if biaya_lapangan is 0
+            const deleteIds = existingExps.map(e => e.id);
+            await supabase.from('session_expenses').delete().in('id', deleteIds);
+            setSessionExpenses(prev => prev.filter(e => !deleteIds.includes(e.id)));
+          }
+        } else if (updatedData.biaya_lapangan > 0) {
+          const { data: insertedExp } = await supabase
+            .from('session_expenses')
+            .insert({
+              session_id: sessionId,
+              keterangan: 'Sewa Lapangan',
+              nominal: updatedData.biaya_lapangan,
+              kategori: 'Sewa Lapangan',
+              jenis_transaksi: 'keluar'
+            })
+            .select()
+            .single();
+          if (insertedExp) {
+            setSessionExpenses(prev => [...prev, insertedExp]);
+          }
+        }
+        
         showToast('Sesi berhasil diperbarui!', 'success');
       }
     } catch (err: any) {
@@ -1465,15 +1721,12 @@ export default function App() {
         return;
       }
       
-      const sessionExps = sessionExpenses.filter(e => e.session_id === sessionId && e.kategori !== 'Pengeluaran Organisasi');
-      const totalSessionExpense = sessionExps.reduce((sum, e) => sum + e.nominal, 0);
-      if (totalSessionExpense <= 0) {
-        showToast('Total pengeluaran sesi adalah Rp 0. Tambahkan pengeluaran sesi terlebih dahulu.', 'error');
-        return;
-      }
+      const s = sessions.find(x => x.id === sessionId);
+      const biayaLapangan = s ? (s.biaya_lapangan ?? (sessionExpenses.filter(e => e.session_id === sessionId && e.kategori === 'Sewa Lapangan').reduce((sum, e) => sum + e.nominal, 0))) : 0;
+      const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
 
-      const costPerPerson = Math.round(totalSessionExpense / sessionAttendees.length);
-      const finalBill = costPerPerson + iuranKasConfig;
+      const costPerPerson = Math.round(biayaLapangan / sessionAttendees.length);
+      const finalBill = costPerPerson + kasWajib;
 
       const paymentsToInsert = sessionAttendees.map(a => ({
         session_id: sessionId,
@@ -2313,6 +2566,8 @@ export default function App() {
               markNotificationsRead={markNotificationsRead}
               unreadCount={unreadCount}
               memberUnreadBills={memberUnreadBills}
+              onTambahKasClick={handleTambahKasClick}
+              iuranKasConfig={iuranKasConfig}
             />
           )}
 
@@ -2367,6 +2622,9 @@ export default function App() {
               payments={payments}
               members={members}
               isAdmin={isAdmin}
+              handleEditKasTransaction={handleEditKasTransaction}
+              handleDeleteKasTransaction={handleDeleteKasTransaction}
+              iuranKasConfig={iuranKasConfig}
             />
           )}
 
@@ -2749,6 +3007,141 @@ export default function App() {
           </div>
         )}
 
+        {/* TRANSACTION KAS ORGANISASI MODAL (TAMBAH/EDIT KAS) */}
+        {showAddKasModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center p-4" onClick={() => { setShowAddKasModal(false); setEditingTx(null); }}>
+            <div className="bg-card w-full max-w-md rounded-t-[24px] sm:rounded-[24px] p-6 relative border border-border shadow-theme animate-slide-up transition-colors duration-200" onClick={e => e.stopPropagation()}>
+              <button 
+                type="button"
+                onClick={() => { setShowAddKasModal(false); setEditingTx(null); }} 
+                className="absolute top-5 right-5 p-2 bg-background border border-border/45 text-secondary hover:text-primary rounded-full transition-colors"
+              >
+                <XCircle size={18} />
+              </button>
+              <h3 className="text-base font-black text-primary uppercase tracking-wide mb-1">
+                {editingTx ? 'Edit Transaksi Kas Organisasi' : 'Transaksi Kas Organisasi'}
+              </h3>
+              <p className="text-[10px] font-bold text-secondary mb-6">
+                {editingTx ? 'Perbarui pencatatan transaksi kas organisasi.' : 'Catat pemasukan maupun pengeluaran kas organisasi.'}
+              </p>
+              
+              {/* Segmented Control */}
+              <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-2">Jenis Transaksi</label>
+              <div className="relative flex bg-background border border-border rounded-2xl p-1 shadow-inner w-full mb-5">
+                <button
+                  type="button"
+                  onClick={() => handleTypeChange('masuk')}
+                  className={`flex-grow py-2 text-center text-xs font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                    txJenis === 'masuk' 
+                      ? 'bg-emerald-500 text-white shadow-theme' 
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  <TrendingUp size={14} /> Pemasukan Kas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTypeChange('keluar')}
+                  className={`flex-grow py-2 text-center text-xs font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                    txJenis === 'keluar' 
+                      ? 'bg-red-500 text-white shadow-theme' 
+                      : 'text-secondary hover:text-primary'
+                  }`}
+                >
+                  <TrendingDown size={14} /> Pengeluaran Kas
+                </button>
+              </div>
+
+              <form onSubmit={saveKasTransaction} className="space-y-4">
+                {/* Tanggal */}
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Tanggal</label>
+                  <input 
+                    required
+                    type="date"
+                    value={txTanggal}
+                    onChange={(e) => setTxTanggal(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary outline-none transition-all font-bold text-xs"
+                  />
+                </div>
+
+                {/* Kategori */}
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Kategori</label>
+                  <select
+                    required
+                    value={txKategori}
+                    onChange={(e) => setTxKategori(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary outline-none transition-all font-bold text-xs"
+                  >
+                    <option value="" disabled>Pilih Kategori</option>
+                    {txJenis === 'masuk' ? (
+                      <>
+                        <option value="Kas Awal">Kas Awal</option>
+                        <option value="Donasi">Donasi</option>
+                        <option value="Sponsor">Sponsor</option>
+                        <option value="Denda">Denda</option>
+                        <option value="Transfer Dana Operasional Sesi">Transfer Dana Operasional Sesi</option>
+                        <option value="Pendapatan Lainnya">Pendapatan Lainnya</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Shuttlecock">Shuttlecock</option>
+                        <option value="Sewa Lapangan">Sewa Lapangan</option>
+                        <option value="Konsumsi">Konsumsi</option>
+                        <option value="Peralatan">Peralatan</option>
+                        <option value="Turnamen">Turnamen</option>
+                        <option value="Administrasi">Administrasi</option>
+                        <option value="Lainnya">Lainnya</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {/* Nominal */}
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Nominal</label>
+                  <input 
+                    required
+                    type="number"
+                    min="1"
+                    placeholder="Contoh: 100000"
+                    value={txNominal}
+                    onChange={(e) => setTxNominal(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary outline-none transition-all font-bold text-xs"
+                  />
+                </div>
+
+                {/* Keterangan */}
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Keterangan</label>
+                  <textarea 
+                    required
+                    placeholder="Keterangan transaksi..."
+                    value={txKeterangan}
+                    onChange={(e) => setTxKeterangan(e.target.value)}
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary outline-none transition-all font-bold text-xs resize-none"
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button 
+                  type="submit" 
+                  className={`w-full text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs ${
+                    txJenis === 'masuk' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
+                  }`}
+                >
+                  {editingTx 
+                    ? 'Simpan Perubahan' 
+                    : (txJenis === 'masuk' ? 'Simpan Pemasukan' : 'Simpan Pengeluaran')
+                  }
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
@@ -2785,7 +3178,7 @@ function NavItem({ icon, label, active, onClick, badge = 0 }: { icon: React.Reac
 function Dashboard({ 
   user, memberRecord, saldoKas, totalIncome, totalExpense, members, sessions, attendees, sessionExpenses, payments, verifyPayment, setViewProofUrl, setSelectedPayment,
   isInstallable, handleInstallPWA, setActiveTab, setSelectedSessionId, showToast, setShowAddSessionModal, contributionsThisMonth, profilePhoto, session: authSession,
-  readNotificationIds, markNotificationsRead, unreadCount, memberUnreadBills
+  readNotificationIds, markNotificationsRead, unreadCount, memberUnreadBills, onTambahKasClick, iuranKasConfig
 }: any) {
   const isAdmin = user.role === 'admin' || user.role === 'superadmin';
 
@@ -2796,18 +3189,22 @@ function Dashboard({
           .filter((p: any) => p.status_pembayaran === 'verified')
           .reduce((sum: number, p: any) => {
             const s = sessions.find((x: any) => x.id === p.session_id);
-            return sum + (s ? s.biaya_per_orang || 0 : 0);
+            const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
+            return sum + Math.max(0, p.nominal_tagihan - kasWajib);
           }, 0)
       : 0;
-  }, [payments, sessions]);
+  }, [payments, sessions, iuranKasConfig]);
 
   const totalSessionExpense = React.useMemo(() => {
-    return sessionExpenses
-      ? sessionExpenses
-          .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
-          .reduce((sum: number, e: any) => sum + e.nominal, 0)
-      : 0;
-  }, [sessionExpenses]);
+    const fromSessions = sessions.reduce((sum: number, s: any) => {
+      const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
+      const sLapangan = s.biaya_lapangan !== undefined && s.biaya_lapangan !== null
+        ? s.biaya_lapangan
+        : sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((acc: number, e: any) => acc + e.nominal, 0);
+      return sum + sLapangan;
+    }, 0);
+    return fromSessions;
+  }, [sessions, sessionExpenses]);
 
   const sessionBalance = totalSessionIncome - totalSessionExpense;
   
@@ -2898,7 +3295,7 @@ function Dashboard({
                 <TrendingUp size={16} strokeWidth={2.5} />
               </div>
               <div>
-                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">PEMASUKAN IURAN KAS</p>
+                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">KAS MASUK</p>
                 <p className="font-extrabold text-xs text-white mt-1">
                   {formatRp(totalIncome)}
                 </p>
@@ -2909,7 +3306,7 @@ function Dashboard({
                 <TrendingUp size={16} strokeWidth={2.5} className="transform rotate-180" />
               </div>
               <div>
-                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">PENGELUARAN ORGANISASI</p>
+                <p className="text-emerald-200 text-[9px] font-black uppercase tracking-wider leading-none">KAS KELUAR</p>
                 <p className="font-extrabold text-xs text-white mt-1">
                   {formatRp(totalExpense)}
                 </p>
@@ -2941,7 +3338,7 @@ function Dashboard({
           <h2 className={`text-4xl font-[900] tracking-tight mb-7 ${sessionBalance < 0 ? 'text-red-300' : 'text-white'}`}>
             {sessionBalance < 0 ? '-' : ''}{formatRp(Math.abs(sessionBalance))}
             <span className="text-[10px] font-extrabold uppercase text-blue-200 ml-2">
-              ({sessionBalance >= 0 ? 'Surplus Sesi' : 'Defisit Sesi'})
+              ({sessionBalance >= 0 ? 'Surplus' : 'Defisit'})
             </span>
           </h2>
 
@@ -2951,7 +3348,7 @@ function Dashboard({
                 <TrendingUp size={16} strokeWidth={2.5} />
               </div>
               <div>
-                <p className="text-blue-200 text-[9px] font-black uppercase tracking-wider leading-none">PENDAPATAN SESI</p>
+                <p className="text-blue-200 text-[9px] font-black uppercase tracking-wider leading-none">PENDAPATAN OPERASIONAL</p>
                 <p className="font-extrabold text-xs text-white mt-1">
                   {formatRp(totalSessionIncome)}
                 </p>
@@ -2962,7 +3359,7 @@ function Dashboard({
                 <TrendingUp size={16} strokeWidth={2.5} className="transform rotate-180" />
               </div>
               <div>
-                <p className="text-blue-200 text-[9px] font-black uppercase tracking-wider leading-none">PENGELUARAN SESI</p>
+                <p className="text-blue-200 text-[9px] font-black uppercase tracking-wider leading-none">SEWA LAPANGAN</p>
                 <p className="font-extrabold text-xs text-white mt-1">
                   {formatRp(totalSessionExpense)}
                 </p>
@@ -2992,7 +3389,16 @@ function Dashboard({
             </div>
             <span className="text-[9px] font-black text-secondary text-center leading-tight">Tambah Sesi</span>
           </div>
-          <div onClick={() => { setActiveTab('tagihan'); showToast('Pilih sesi terlebih dahulu untuk mencatat biaya.', 'info'); }} className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1">
+          <div 
+            onClick={() => { 
+              if (isAdmin) {
+                onTambahKasClick();
+              } else {
+                showToast('Akses Ditolak: Hanya Superadmin atau Bendahara yang dapat mengakses fitur ini.', 'warning');
+              }
+            }} 
+            className="flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:opacity-85 transition-opacity pl-1"
+          >
             <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <Wallet size={20} strokeWidth={2.2} />
             </div>
@@ -3699,12 +4105,16 @@ function SessionsAdmin({
   const handleCreateSession = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const biayaLapanganRaw = (fd.get('biaya_lapangan') as string || '').replace(/\./g, '');
+    const kasWajibRaw = (fd.get('kas_wajib_per_orang') as string || '').replace(/\./g, '');
     addSession({
       nama_sesi: fd.get('nama_sesi') as string,
       tanggal_main: fd.get('tanggal_main') as string,
       jam_main: fd.get('jam_main') as string,
       lokasi: fd.get('lokasi') as string,
-      catatan: fd.get('catatan') as string
+      catatan: fd.get('catatan') as string,
+      biaya_lapangan: parseInt(biayaLapanganRaw) || 0,
+      kas_wajib_per_orang: parseInt(kasWajibRaw) || 0
     });
     setShowAddSessionModal(false);
     setCreateDate('');
@@ -3716,12 +4126,16 @@ function SessionsAdmin({
     e.preventDefault();
     if (!editingSession) return;
     const fd = new FormData(e.currentTarget);
+    const biayaLapanganRaw = (fd.get('biaya_lapangan') as string || '').replace(/\./g, '');
+    const kasWajibRaw = (fd.get('kas_wajib_per_orang') as string || '').replace(/\./g, '');
     updateSession(editingSession.id, {
       nama_sesi: fd.get('nama_sesi') as string,
       tanggal_main: fd.get('tanggal_main') as string,
       jam_main: fd.get('jam_main') as string,
       lokasi: fd.get('lokasi') as string,
-      catatan: fd.get('catatan') as string
+      catatan: fd.get('catatan') as string,
+      biaya_lapangan: parseInt(biayaLapanganRaw) || 0,
+      kas_wajib_per_orang: parseInt(kasWajibRaw) || 0
     });
     setEditingSession(null);
   };
@@ -3912,96 +4326,22 @@ function SessionsAdmin({
                     )}
                   </div>
 
-                  {/* 2. EXPENSES */}
+                  {/* 2. EXPENSES OVERVIEW */}
                   <div className="space-y-3">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-secondary flex items-center justify-between">
-                      <span>Rincian Biaya Sesi</span>
-                      <span className="text-red-500 font-extrabold">{formatRp(totalExps)}</span>
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-secondary">
+                      <span>Biaya Operasional & Kas Sesi</span>
                     </h4>
-
-                    {sExpenses.length === 0 ? (
-                      <p className="text-[10px] text-secondary font-bold italic text-center py-2 bg-background/40 rounded-xl border border-border">
-                        Belum ada biaya pengeluaran sesi dicatat.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {sExpenses.map((exp: any) => (
-                          <div key={exp.id} className="bg-background p-2.5 rounded-xl border border-border/60 flex justify-between items-center text-xs">
-                            <div className="min-w-0 flex-1 pr-2">
-                              <p className="font-extrabold text-primary truncate">{exp.keterangan}</p>
-                              <span className="text-[8px] bg-card border border-border/30 text-secondary font-bold px-1.5 py-0.5 rounded mt-1 inline-block">{exp.kategori}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-primary">{formatRp(exp.nominal)}</span>
-                              {s.status_tagihan === 'draft' && (
-                                <button 
-                                  onClick={() => {
-                                    setConfirmModal({
-                                      isOpen: true,
-                                      title: 'Hapus Pengeluaran',
-                                      message: 'Yakin ingin menghapus pengeluaran ini?',
-                                      onConfirm: () => deleteSessionExpense(exp.id)
-                                    });
-                                  }} 
-                                  className="text-red-500 hover:text-red-400 p-1 hover:bg-background rounded-lg transition-colors"
-                                  title="Hapus Pengeluaran"
-                                >
-                                  <XCircle size={14} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                    
+                    <div className="bg-background p-4 rounded-2xl border border-border flex flex-col gap-3 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-secondary font-semibold">Biaya Sewa Lapangan</span>
+                        <span className="font-black text-primary">{formatRp(s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0)))}</span>
                       </div>
-                    )}
-
-                    {s.status_tagihan === 'draft' && (
-                      <form onSubmit={(e) => handleAddExpenseInline(e, s.id)} className="bg-background border border-border/80 p-3 rounded-2xl space-y-2.5">
-                        <div className="grid grid-cols-2 gap-2">
-                          <input 
-                            name="keterangan" 
-                            type="text" 
-                            required 
-                            placeholder="Contoh: Lapangan (2 Jam)" 
-                            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-card border border-border focus:border-accent focus:ring-1 focus:ring-accent/15 outline-none text-primary placeholder:text-secondary" 
-                          />
-                          <input 
-                            name="nominal" 
-                            type="text" 
-                            inputMode="numeric"
-                            required 
-                            placeholder="Nominal (Rp)" 
-                            onChange={(e) => {
-                              const rawVal = e.target.value.replace(/\D/g, '');
-                              if (!rawVal) {
-                                e.target.value = '';
-                                return;
-                              }
-                              e.target.value = new Intl.NumberFormat('id-ID').format(parseInt(rawVal));
-                            }}
-                            className="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-card border border-border focus:border-accent focus:ring-1 focus:ring-accent/15 outline-none text-primary placeholder:text-secondary" 
-                          />
-                        </div>
-                        <div className="flex justify-between items-center gap-2">
-                          <select 
-                            name="kategori" 
-                            className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg bg-card border border-border focus:border-accent focus:ring-1 focus:ring-accent/15 outline-none text-primary appearance-none flex-1"
-                          >
-                            <option value="Sewa Lapangan">Sewa Lapangan</option>
-                            <option value="Peralatan">Peralatan (Kok, dll)</option>
-                            <option value="Konsumsi">Konsumsi</option>
-                            <option value="Pengeluaran Organisasi">Pengeluaran Organisasi</option>
-                            <option value="Lainnya">Lainnya</option>
-                          </select>
-                          <button 
-                            type="submit" 
-                            className="px-4 py-1.5 bg-card hover:bg-background border border-border/40 text-primary font-extrabold rounded-lg text-[10px] flex items-center gap-1 transition-all"
-                          >
-                            <Plus size={11} /> Catat
-                          </button>
-                        </div>
-                      </form>
-                    )}
+                      <div className="flex justify-between items-center border-t border-border/40 pt-2.5">
+                        <span className="text-secondary font-semibold">Kas Wajib per Orang</span>
+                        <span className="font-black text-primary">{formatRp(s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig)}</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* 3. ACTIONS MODULE */}
@@ -4013,35 +4353,41 @@ function SessionsAdmin({
                             Perhitungan Tagihan Sesi
                           </p>
                           <div className="flex justify-between font-semibold">
-                            <span className="text-secondary">Biaya Sesi:</span>
-                            <span className="text-primary">{formatRp(totalExps)}</span>
+                            <span className="text-secondary">Biaya Sewa Lapangan:</span>
+                            <span className="text-primary">{formatRp(s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0)))}</span>
                           </div>
                           <div className="flex justify-between font-semibold">
                             <span className="text-secondary">Jumlah Hadir:</span>
                             <span className="text-primary">{sAttendees.length} orang</span>
                           </div>
                           <div className="flex justify-between font-semibold">
-                            <span className="text-secondary">Iuran Kas:</span>
-                            <span className="text-primary">{formatRp(iuranKasConfig)}</span>
+                            <span className="text-secondary">Total Kas Wajib:</span>
+                            <span className="text-primary">{formatRp(sAttendees.length * (s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig))}</span>
                           </div>
                           
                           <div className="border-t border-emerald-500/10 my-2 pt-2 space-y-1.5 text-[10px] font-semibold text-secondary">
                             <div className="flex justify-between">
-                              <span>Biaya per Orang:</span>
+                              <span>Biaya Lapangan / Orang:</span>
                               <span className="text-primary">
-                                {sAttendees.length > 0 ? formatRp(Math.round(totalExps / sAttendees.length)) : 'Rp 0'}
+                                {sAttendees.length > 0 ? formatRp(Math.round((s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0))) / sAttendees.length)) : 'Rp 0'}
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span>Total Iuran Kas:</span>
-                              <span className="text-primary">{formatRp(sAttendees.length * iuranKasConfig)}</span>
+                              <span>Kas Wajib / Orang:</span>
+                              <span className="text-primary">{formatRp(s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig)}</span>
                             </div>
                           </div>
 
                           <div className="border-t border-emerald-500/20 pt-2 flex justify-between items-center text-xs font-black">
                             <span className="text-secondary uppercase tracking-wider">Total Tagihan:</span>
                             <span className="text-emerald-500 text-sm">
-                              {sAttendees.length > 0 ? formatRp(Math.round(totalExps / sAttendees.length) + iuranKasConfig) : 'Rp 0'}
+                              {formatRp((s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0))) + (sAttendees.length * (s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig)))}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs font-black mt-1">
+                            <span className="text-secondary uppercase tracking-wider">Tagihan per Orang:</span>
+                            <span className="text-emerald-500 text-sm">
+                              {sAttendees.length > 0 ? formatRp(Math.round(((s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0))) + (sAttendees.length * (s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig))) / sAttendees.length)) : 'Rp 0'}
                             </span>
                           </div>
                         </div>
@@ -4234,6 +4580,47 @@ function SessionsAdmin({
                 <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Lokasi</label>
                 <input required name="lokasi" type="text" placeholder="GOR Badminton Utama" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
               </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Biaya Sewa Lapangan</label>
+                  <input 
+                    required 
+                    name="biaya_lapangan" 
+                    type="text" 
+                    inputMode="numeric"
+                    placeholder="Contoh: 150.000" 
+                    onChange={(e) => {
+                      const rawVal = e.target.value.replace(/\D/g, '');
+                      if (!rawVal) {
+                        e.target.value = '';
+                        return;
+                      }
+                      e.target.value = new Intl.NumberFormat('id-ID').format(parseInt(rawVal));
+                    }}
+                    className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Kas Wajib per Orang</label>
+                  <input 
+                    required 
+                    name="kas_wajib_per_orang" 
+                    type="text" 
+                    inputMode="numeric"
+                    placeholder="Contoh: 5.000" 
+                    defaultValue={new Intl.NumberFormat('id-ID').format(iuranKasConfig)}
+                    onChange={(e) => {
+                      const rawVal = e.target.value.replace(/\D/g, '');
+                      if (!rawVal) {
+                        e.target.value = '';
+                        return;
+                      }
+                      e.target.value = new Intl.NumberFormat('id-ID').format(parseInt(rawVal));
+                    }}
+                    className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" 
+                  />
+                </div>
+              </div>
               <div>
                 <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Catatan (Optional)</label>
                 <textarea name="catatan" placeholder="Catatan opsional..." rows={2} className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs resize-none"></textarea>
@@ -4245,6 +4632,7 @@ function SessionsAdmin({
           </div>
         </div>
       )}
+
       {/* EDIT SESSION MODAL */}
       {editingSession && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center p-4">
@@ -4302,6 +4690,48 @@ function SessionsAdmin({
               <div>
                 <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Lokasi</label>
                 <input required name="lokasi" defaultValue={editingSession.lokasi} type="text" placeholder="GOR Badminton Utama" className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" />
+              </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Biaya Sewa Lapangan</label>
+                  <input 
+                    required 
+                    name="biaya_lapangan" 
+                    type="text" 
+                    inputMode="numeric"
+                    placeholder="Contoh: 150.000" 
+                    defaultValue={editingSession.biaya_lapangan !== undefined && editingSession.biaya_lapangan !== null ? new Intl.NumberFormat('id-ID').format(editingSession.biaya_lapangan) : ''}
+                    onChange={(e) => {
+                      const rawVal = e.target.value.replace(/\D/g, '');
+                      if (!rawVal) {
+                        e.target.value = '';
+                        return;
+                      }
+                      e.target.value = new Intl.NumberFormat('id-ID').format(parseInt(rawVal));
+                    }}
+                    className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Kas Wajib per Orang</label>
+                  <input 
+                    required 
+                    name="kas_wajib_per_orang" 
+                    type="text" 
+                    inputMode="numeric"
+                    placeholder="Contoh: 5.000" 
+                    defaultValue={editingSession.kas_wajib_per_orang !== undefined && editingSession.kas_wajib_per_orang !== null ? new Intl.NumberFormat('id-ID').format(editingSession.kas_wajib_per_orang) : new Intl.NumberFormat('id-ID').format(iuranKasConfig)}
+                    onChange={(e) => {
+                      const rawVal = e.target.value.replace(/\D/g, '');
+                      if (!rawVal) {
+                        e.target.value = '';
+                        return;
+                      }
+                      e.target.value = new Intl.NumberFormat('id-ID').format(parseInt(rawVal));
+                    }}
+                    className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs" 
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Catatan (Optional)</label>
@@ -5051,7 +5481,10 @@ function PaymentModal({
   );
 }
 // --- TREASURY (KAS) COMPONENT ---
-function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessions, payments, members, isAdmin }: any) {
+function Treasury({ 
+  saldoKas, totalIncome, totalExpense, sessionExpenses, sessions, payments, members, isAdmin,
+  handleEditKasTransaction, handleDeleteKasTransaction, iuranKasConfig
+}: any) {
   const [subTab, setSubTab] = useState('histori'); // 'histori' | 'laporan'
   const [kasType, setKasType] = useState('organisasi'); // 'organisasi' | 'sesi'
   
@@ -5094,18 +5527,22 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
           .filter((p: any) => p.status_pembayaran === 'verified')
           .reduce((sum: number, p: any) => {
             const s = sessions.find((x: any) => x.id === p.session_id);
-            return sum + (s ? s.biaya_per_orang || 0 : 0);
+            const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
+            return sum + Math.max(0, p.nominal_tagihan - kasWajib);
           }, 0)
       : 0;
-  }, [payments, sessions]);
+  }, [payments, sessions, iuranKasConfig]);
 
   const totalSessionExpense = React.useMemo(() => {
-    return sessionExpenses
-      ? sessionExpenses
-          .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
-          .reduce((sum: number, e: any) => sum + e.nominal, 0)
-      : 0;
-  }, [sessionExpenses]);
+    const fromSessions = sessions.reduce((sum: number, s: any) => {
+      const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
+      const sLapangan = s.biaya_lapangan !== undefined && s.biaya_lapangan !== null
+        ? s.biaya_lapangan
+        : sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((acc: number, e: any) => acc + e.nominal, 0);
+      return sum + sLapangan;
+    }, 0);
+    return fromSessions;
+  }, [sessions, sessionExpenses]);
 
   const sessionBalance = totalSessionIncome - totalSessionExpense;
 
@@ -5127,8 +5564,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
         if (p.status_pembayaran !== 'verified') return;
         const s = sessions.find((x: any) => x.id === p.session_id);
         if (s) {
-          const biayaSesi = s.biaya_per_orang || 0;
-          const iuran = Math.max(0, p.nominal_tagihan - biayaSesi);
+          const iuran = s.kas_wajib_per_orang ?? iuranKasConfig;
           if (iuran > 0) {
             const member = members ? members.find((m: any) => m.id === p.member_id) : null;
             const memberName = member ? member.name : 'Anggota';
@@ -5165,24 +5601,43 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
       });
     }
 
+    // Manual Inflows (jenis_transaksi = 'masuk')
+    if (sessionExpenses) {
+      sessionExpenses.forEach((e: any) => {
+        if (e.session_id !== null || e.jenis_transaksi !== 'masuk') return;
+        events.push({
+          id: `in-${e.id}`,
+          type: 'inflow',
+          tanggal: e.created_at ? e.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          keterangan: e.keterangan,
+          nominal: e.nominal,
+          sub: e.kategori,
+          rawExpense: e
+        });
+      });
+    }
+
     // Outflows
     if (sessionExpenses && sessions) {
       sessionExpenses.forEach((e: any) => {
-        if (e.kategori !== 'Pengeluaran Organisasi') return;
+        const isOrgOutflow = e.jenis_transaksi === 'keluar' && (e.session_id === null || e.kategori !== 'Sewa Lapangan');
+        if (!isOrgOutflow) return;
+        
         const s = sessions.find((x: any) => x.id === e.session_id);
         events.push({
           id: `e-${e.id}`,
           type: 'outflow',
-          tanggal: s ? s.tanggal_main : e.created_at.split('T')[0],
+          tanggal: s ? s.tanggal_main : (e.created_at ? e.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
           keterangan: e.keterangan,
           nominal: e.nominal,
-          sub: e.kategori
+          sub: e.kategori,
+          rawExpense: e
         });
       });
     }
 
     return events.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
-  }, [payments, sessions, sessionExpenses, members]);
+  }, [payments, sessions, sessionExpenses, members, iuranKasConfig]);
 
   const totalIuranKasTerkumpul = totalIncome;
 
@@ -5206,8 +5661,6 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
 
     const sessionsBefore: any[] = [];
     const sessionsMonth: any[] = [];
-    const expensesBefore: any[] = [];
-    const expensesMonth: any[] = [];
     const paymentsBefore: any[] = [];
     const paymentsMonth: any[] = [];
 
@@ -5227,14 +5680,6 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
     const sessionBeforeIds = new Set(sessionsBefore.map(s => s.id));
     const sessionMonthIds = new Set(sessionsMonth.map(s => s.id));
 
-    sessionExpenses.forEach((e: any) => {
-      if (sessionBeforeIds.has(e.session_id)) {
-        expensesBefore.push(e);
-      } else if (sessionMonthIds.has(e.session_id)) {
-        expensesMonth.push(e);
-      }
-    });
-
     payments.forEach((p: any) => {
       if (p.status_pembayaran !== 'verified') return;
       if (sessionBeforeIds.has(p.session_id)) {
@@ -5247,59 +5692,108 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
     const calculateIuran = (pList: any[]) => {
       return pList.reduce((sum: number, p: any) => {
         const s = sessions.find((x: any) => x.id === p.session_id);
-        if (s) {
-          const biayaSesi = s.biaya_per_orang || 0;
-          return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
-        }
-        return sum;
+        const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
+        return sum + kasWajib;
       }, 0);
     };
 
     const iuranBefore = calculateIuran(paymentsBefore);
-    const costBefore = expensesBefore
-      .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
-      .reduce((sum, e) => sum + e.nominal, 0);
-    const saldoAwal = iuranBefore - costBefore;
+    const iuranMonth = calculateIuran(paymentsMonth);
 
-    const kasMasuk = calculateIuran(paymentsMonth);
-    const kasKeluar = expensesMonth
-      .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
-      .reduce((sum, e) => sum + e.nominal, 0);
+    let manualInflowBefore = 0;
+    let manualOutflowBefore = 0;
+    const manualInflowMonth: any[] = [];
+    const manualOutflowMonth: any[] = [];
+    const sessionExpenseMonthList: any[] = [];
+
+    sessionExpenses.forEach((e: any) => {
+      const isMasuk = e.session_id === null && e.jenis_transaksi === 'masuk';
+      const isKeluar = e.jenis_transaksi === 'keluar' && (e.session_id === null || e.kategori !== 'Sewa Lapangan');
+      
+      let tgl = '';
+      if (e.session_id) {
+        const s = sessions.find((x: any) => x.id === e.session_id);
+        tgl = s ? s.tanggal_main : (e.created_at ? e.created_at.split('T')[0] : '');
+      } else {
+        tgl = e.created_at ? e.created_at.split('T')[0] : '';
+      }
+
+      if (!tgl) return;
+      const [yStr, mStr] = tgl.split('-');
+      const y = parseInt(yStr);
+      const m = parseInt(mStr) - 1;
+
+      if (y < selectedYear || (y === selectedYear && m < selectedMonth)) {
+        if (isMasuk) {
+          manualInflowBefore += e.nominal;
+        } else if (isKeluar) {
+          manualOutflowBefore += e.nominal;
+        }
+      } else if (y === selectedYear && m === selectedMonth) {
+        if (isMasuk) {
+          manualInflowMonth.push({
+            id: e.id,
+            tanggal: tgl,
+            keterangan: e.keterangan,
+            kategori: e.kategori,
+            nominal: e.nominal
+          });
+        } else if (isKeluar) {
+          manualOutflowMonth.push({
+            id: e.id,
+            tanggal: tgl,
+            keterangan: e.keterangan,
+            kategori: e.kategori,
+            nominal: e.nominal
+          });
+        } else {
+          sessionExpenseMonthList.push(e);
+        }
+      }
+    });
+
+    const saldoAwal = iuranBefore + manualInflowBefore - manualOutflowBefore;
+    const kasMasuk = iuranMonth + manualInflowMonth.reduce((sum, e) => sum + e.nominal, 0);
+    const kasKeluar = manualOutflowMonth.reduce((sum, e) => sum + e.nominal, 0);
     const saldoAkhir = saldoAwal + kasMasuk - kasKeluar;
 
-    const sumberKasMasuk = sessionsMonth
+    const sessionInflowList = sessionsMonth
       .map((s: any) => {
         const sessionPayments = payments.filter((p: any) => {
-          if (p.session_id !== s.id || p.status_pembayaran !== 'verified') return false;
-          const biayaSesi = s.biaya_per_orang || 0;
-          return (p.nominal_tagihan - biayaSesi) > 0;
+          return p.session_id === s.id && p.status_pembayaran === 'verified';
         });
         const totalSessionIuran = sessionPayments.reduce((sum: number, p: any) => {
-          const biayaSesi = s.biaya_per_orang || 0;
-          return sum + Math.max(0, p.nominal_tagihan - biayaSesi);
+          const kasWajib = s.kas_wajib_per_orang ?? iuranKasConfig;
+          return sum + kasWajib;
         }, 0);
         return {
-          id: s.id,
+          id: `session-iuran-${s.id}`,
           tanggal: s.tanggal_main,
           nama: `Iuran Kas - ${s.nama_sesi} (${sessionPayments.length} anggota)`,
           jumlah: totalSessionIuran
         };
       })
-      .filter((s: any) => s.jumlah > 0)
+      .filter((s: any) => s.jumlah > 0);
+
+    const manualInflowList = manualInflowMonth.map((e: any) => ({
+      id: `manual-in-${e.id}`,
+      tanggal: e.tanggal,
+      nama: `${e.keterangan} (${e.kategori})`,
+      jumlah: e.nominal
+    }));
+
+    const sumberKasMasuk = [...sessionInflowList, ...manualInflowList]
       .sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
 
-    const pengeluaranKas = expensesMonth
-      .filter((e: any) => e.kategori === 'Pengeluaran Organisasi')
-      .map((e: any) => {
-        const s = sessionsMonth.find(x => x.id === e.session_id);
-        return {
-          id: e.id,
-          tanggal: s ? s.tanggal_main : '',
-          keterangan: e.keterangan,
-          kategori: e.kategori,
-          nominal: e.nominal
-        };
-      }).sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
+    const pengeluaranKas = manualOutflowMonth
+      .map((e: any) => ({
+        id: e.id,
+        tanggal: e.tanggal,
+        keterangan: e.keterangan,
+        kategori: e.kategori,
+        nominal: e.nominal
+      }))
+      .sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
 
     const ledgerEvents: any[] = [];
     sumberKasMasuk.forEach(s => {
@@ -5351,15 +5845,19 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
     const totalKehadiran = payments.filter((p: any) => sessionMonthIds.has(p.session_id)).length;
     const totalIuranKas = kasMasuk;
 
-    // Monthly Session Finances (Operasional Sesi)
     const sessionIncomeMonth = paymentsMonth.reduce((sum, p) => {
       const s = sessionsMonth.find(x => x.id === p.session_id);
-      return sum + (s ? s.biaya_per_orang || 0 : 0);
+      const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
+      return sum + (s ? Math.max(0, p.nominal_tagihan - kasWajib) : 0);
     }, 0);
 
-    const sessionExpenseMonth = expensesMonth
-      .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
-      .reduce((sum, e) => sum + e.nominal, 0);
+    const sessionExpenseMonth = sessionsMonth.reduce((sum, s) => {
+      const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
+      const sLapangan = s.biaya_lapangan !== undefined && s.biaya_lapangan !== null
+        ? s.biaya_lapangan
+        : sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((acc: number, e: any) => acc + e.nominal, 0);
+      return sum + sLapangan;
+    }, 0);
 
     return {
       saldoAwal,
@@ -5379,7 +5877,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
       sessionExpense: sessionExpenseMonth,
       sessionBalance: sessionIncomeMonth - sessionExpenseMonth
     };
-  }, [sessions, sessionExpenses, payments, selectedMonth, selectedYear, members]);
+  }, [sessions, sessionExpenses, payments, selectedMonth, selectedYear, members, iuranKasConfig]);
 
   // Format dates for period display
   const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
@@ -5580,7 +6078,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
                     kasType === 'sesi' ? 'text-white' : 'text-secondary hover:text-primary'
                   }`}
                 >
-                  Dana Sesi
+                  Dana Operasional
                 </button>
               </div>
             </div>
@@ -5591,17 +6089,17 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
               <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
                 <Wallet size={100} />
               </div>
-              <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Saldo Kas Organisasi</p>
+              <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Saldo Kas</p>
               <h2 className="text-3xl font-black text-emerald-450 tracking-tight">{formatRp(saldoKas)}</h2>
               
               <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
                 <div className="flex-1">
-                  <p className="text-secondary text-[9px] font-bold uppercase">Total Iuran Kas Terkumpul</p>
+                  <p className="text-secondary text-[9px] font-bold uppercase">Kas Masuk</p>
                   <p className="font-extrabold text-xs text-primary">{formatRp(totalIncome)}</p>
                 </div>
                 <div className="w-px bg-border"></div>
                 <div className="flex-1">
-                  <p className="text-secondary text-[9px] font-bold uppercase">Total Pengeluaran Organisasi</p>
+                  <p className="text-secondary text-[9px] font-bold uppercase">Kas Keluar</p>
                   <p className="font-extrabold text-xs text-primary">{formatRp(totalExpense)}</p>
                 </div>
               </div>
@@ -5611,19 +6109,19 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
               <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
                 <Activity size={100} />
               </div>
-              <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Surplus/Defisit Dana Sesi</p>
+              <p className="text-secondary text-xs font-bold uppercase tracking-wider mb-1">Surplus / Defisit</p>
               <h2 className={`text-3xl font-black tracking-tight ${sessionBalance < 0 ? 'text-red-400' : 'text-emerald-450'}`}>
                 {sessionBalance < 0 ? '-' : ''}{formatRp(Math.abs(sessionBalance))}
               </h2>
               
               <div className="flex gap-4 border-t border-border pt-4 mt-5 text-left">
                 <div className="flex-1">
-                  <p className="text-secondary text-[9px] font-bold uppercase">Total Pendapatan Sesi</p>
+                  <p className="text-secondary text-[9px] font-bold uppercase">Pendapatan Operasional</p>
                   <p className="font-extrabold text-xs text-primary">{formatRp(totalSessionIncome)}</p>
                 </div>
                 <div className="w-px bg-border"></div>
                 <div className="flex-1">
-                  <p className="text-secondary text-[9px] font-bold uppercase">Total Pengeluaran Sesi</p>
+                  <p className="text-secondary text-[9px] font-bold uppercase">Pengeluaran Sewa Lapangan</p>
                   <p className="font-extrabold text-xs text-primary">{formatRp(totalSessionExpense)}</p>
                 </div>
               </div>
@@ -5634,7 +6132,7 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
 
           <div className="space-y-4">
             <h2 className="text-sm font-black text-primary uppercase tracking-wider">
-              {kasType === 'organisasi' ? 'Histori Transaksi Kas' : 'Histori Biaya Sesi'}
+              {kasType === 'organisasi' ? 'Histori Transaksi Kas' : 'Histori Sewa Lapangan'}
             </h2>
             
             {kasType === 'organisasi' ? (
@@ -5666,24 +6164,42 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
                           <span>{formatDate(evt.tanggal)}</span>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-1.5">
                         <p className={`text-xs font-black ${evt.type === 'inflow' ? 'text-emerald-500' : 'text-red-400'}`}>
                           {evt.type === 'inflow' ? '+' : '-'}{formatRp(evt.nominal)}
                         </p>
+                        {isAdmin && evt.rawExpense && (
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => handleEditKasTransaction(evt.rawExpense)}
+                              className="p-1 text-secondary hover:text-accent rounded hover:bg-background transition-colors"
+                              title="Edit Transaksi"
+                            >
+                              <Edit size={12} strokeWidth={2.5} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteKasTransaction(evt.rawExpense)}
+                              className="p-1 text-red-455 hover:text-red-600 rounded hover:bg-background transition-colors"
+                              title="Hapus Transaksi"
+                            >
+                              <Trash2 size={12} strokeWidth={2.5} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )
             ) : (
-              sessionExpenses.filter((e: any) => e.kategori !== 'Pengeluaran Organisasi').length === 0 ? (
+              sessionExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').length === 0 ? (
                 <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
-                  Belum ada pengeluaran sesi dicatat.
+                  Belum ada biaya sewa lapangan dicatat.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {[...sessionExpenses]
-                    .filter((e: any) => e.kategori !== 'Pengeluaran Organisasi')
+                    .filter((e: any) => e.kategori === 'Sewa Lapangan')
                     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                     .map((exp: any) => {
                       const session = sessions.find((s: any) => s.id === exp.session_id);
@@ -5806,11 +6322,11 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
                 <h3 className="text-xs font-black text-primary uppercase tracking-wider">Keuangan Operasional Sesi</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
-                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Pendapatan Sesi</p>
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Pendapatan Operasional</p>
                     <p className="text-sm font-black text-emerald-450 mt-1">+{formatRp(Math.abs(reportData.sessionIncome))}</p>
                   </div>
                   <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
-                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Pengeluaran Sesi</p>
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Pengeluaran Sewa Lapangan</p>
                     <p className="text-sm font-black text-red-450 mt-1">-{formatRp(Math.abs(reportData.sessionExpense))}</p>
                   </div>
                   <div className="bg-card rounded-2xl p-4 border border-border shadow-theme">
@@ -6031,19 +6547,19 @@ function Treasury({ saldoKas, totalIncome, totalExpense, sessionExpenses, sessio
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3 border-l-4 border-slate-800 pl-2">Keuangan Operasional Sesi</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase">Total Pendapatan Sesi</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Pendapatan Operasional</p>
                     <p className="text-sm font-black text-emerald-600 mt-1 whitespace-nowrap">
                       +{formatRp(Math.abs(reportData.sessionIncome))}
                     </p>
                   </div>
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase">Total Pengeluaran Sesi</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Pengeluaran Sewa Lapangan</p>
                     <p className="text-sm font-black text-red-650 mt-1 whitespace-nowrap">
                       -{formatRp(Math.abs(reportData.sessionExpense))}
                     </p>
                   </div>
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase">Surplus / Defisit Sesi</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase">Surplus / Defisit</p>
                     <p className={`text-sm font-black mt-1 whitespace-nowrap ${reportData.sessionBalance < 0 ? 'text-red-650' : 'text-slate-800'}`}>
                       {reportData.sessionBalance < 0 ? '-' : ''}{formatRp(Math.abs(reportData.sessionBalance))}
                     </p>
