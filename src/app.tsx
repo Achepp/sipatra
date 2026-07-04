@@ -1219,16 +1219,21 @@ export default function App() {
   const totalIuranKasTerkumpul = totalIncome;
 
   const totalSessionIncome = React.useMemo(() => {
-    return payments
-      ? payments
-          .filter((p: any) => p.status_pembayaran === 'verified')
-          .reduce((sum: number, p: any) => {
-            const s = sessions.find((x: any) => x.id === p.session_id);
-            const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
-            return sum + Math.max(0, p.nominal_tagihan - kasWajib);
-          }, 0)
-      : 0;
-  }, [payments, sessions, iuranKasConfig]);
+    // Gunakan biaya lapangan aktual per sesi (bukan hasil perkalian split cost yang sudah dibulatkan)
+    // untuk menghindari rounding error. Pendapatan Operasional = total biaya lapangan dari sesi
+    // yang memiliki setidaknya satu pembayaran terverifikasi.
+    if (!payments || !sessions) return 0;
+    const verifiedSessionIds = new Set(
+      payments
+        .filter((p: any) => p.status_pembayaran === 'verified')
+        .map((p: any) => p.session_id)
+    );
+    return sessions.reduce((sum: number, s: any) => {
+      if (!verifiedSessionIds.has(s.id)) return sum;
+      const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
+      return sum + getSewaLapangan(s, sExpenses);
+    }, 0);
+  }, [payments, sessions, sessionExpenses]);
 
   const totalSessionExpense = React.useMemo(() => {
     // Selalu baca dari session_expenses (single source of truth)
@@ -3216,16 +3221,21 @@ function Dashboard({
 
   // 5. Session Financial Summary calculations inside Dashboard
   const totalSessionIncome = React.useMemo(() => {
-    return payments
-      ? payments
-          .filter((p: any) => p.status_pembayaran === 'verified')
-          .reduce((sum: number, p: any) => {
-            const s = sessions.find((x: any) => x.id === p.session_id);
-            const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
-            return sum + Math.max(0, p.nominal_tagihan - kasWajib);
-          }, 0)
-      : 0;
-  }, [payments, sessions, iuranKasConfig]);
+    // Gunakan biaya lapangan aktual per sesi (bukan hasil perkalian split cost yang sudah dibulatkan)
+    // untuk menghindari rounding error. Pendapatan Operasional = total biaya lapangan dari sesi
+    // yang memiliki setidaknya satu pembayaran terverifikasi.
+    if (!payments || !sessions) return 0;
+    const verifiedSessionIds = new Set(
+      payments
+        .filter((p: any) => p.status_pembayaran === 'verified')
+        .map((p: any) => p.session_id)
+    );
+    return sessions.reduce((sum: number, s: any) => {
+      if (!verifiedSessionIds.has(s.id)) return sum;
+      const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
+      return sum + getSewaLapangan(s, sExpenses);
+    }, 0);
+  }, [payments, sessions, sessionExpenses]);
 
   const totalSessionExpense = React.useMemo(() => {
     // Selalu baca dari session_expenses (single source of truth)
@@ -5572,16 +5582,21 @@ function Treasury({
 
   // Calculations for Session Operational Funds inside Treasury
   const totalSessionIncome = React.useMemo(() => {
-    return payments
-      ? payments
-          .filter((p: any) => p.status_pembayaran === 'verified')
-          .reduce((sum: number, p: any) => {
-            const s = sessions.find((x: any) => x.id === p.session_id);
-            const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
-            return sum + Math.max(0, p.nominal_tagihan - kasWajib);
-          }, 0)
-      : 0;
-  }, [payments, sessions, iuranKasConfig]);
+    // Gunakan biaya lapangan aktual per sesi (bukan hasil perkalian split cost yang sudah dibulatkan)
+    // untuk menghindari rounding error. Pendapatan Operasional = total biaya lapangan dari sesi
+    // yang memiliki setidaknya satu pembayaran terverifikasi.
+    if (!payments || !sessions) return 0;
+    const verifiedSessionIds = new Set(
+      payments
+        .filter((p: any) => p.status_pembayaran === 'verified')
+        .map((p: any) => p.session_id)
+    );
+    return sessions.reduce((sum: number, s: any) => {
+      if (!verifiedSessionIds.has(s.id)) return sum;
+      const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
+      return sum + getSewaLapangan(s, sExpenses);
+    }, 0);
+  }, [payments, sessions, sessionExpenses]);
 
   const totalSessionExpense = React.useMemo(() => {
     // Selalu baca dari session_expenses (single source of truth)
@@ -5893,10 +5908,13 @@ function Treasury({
     const totalKehadiran = payments.filter((p: any) => sessionMonthIds.has(p.session_id)).length;
     const totalIuranKas = kasMasuk;
 
-    const sessionIncomeMonth = paymentsMonth.reduce((sum, p) => {
-      const s = sessionsMonth.find(x => x.id === p.session_id);
-      const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
-      return sum + (s ? Math.max(0, p.nominal_tagihan - kasWajib) : 0);
+    // Gunakan biaya lapangan aktual per sesi (bukan hasil perkalian split cost yang sudah dibulatkan)
+    // untuk menghindari rounding error pada laporan bulanan.
+    const verifiedSessionIdsMonth = new Set(paymentsMonth.map(p => p.session_id));
+    const sessionIncomeMonth = sessionsMonth.reduce((sum, s) => {
+      if (!verifiedSessionIdsMonth.has(s.id)) return sum;
+      const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
+      return sum + getSewaLapangan(s, sExpenses);
     }, 0);
 
     const sessionExpenseMonth = sessionsMonth.reduce((sum, s) => {
