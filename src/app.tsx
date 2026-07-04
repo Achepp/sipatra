@@ -99,6 +99,23 @@ const formatRp = (num: number) => {
   }).format(num);
 };
 
+/**
+ * Sumber kebenaran tunggal untuk menghitung biaya sewa lapangan sebuah sesi.
+ * Selalu membaca dari session_expenses dengan kategori 'Sewa Lapangan' atau 'Lapangan'.
+ * Fallback ke s.biaya_lapangan hanya jika sama sekali tidak ada data di session_expenses.
+ */
+const KATEGORI_LAPANGAN = ['Sewa Lapangan', 'Lapangan'];
+
+const getSewaLapangan = (s: any, sExpenses: any[]): number => {
+  const fromExpenses = sExpenses
+    .filter((e: any) => KATEGORI_LAPANGAN.includes(e.kategori))
+    .reduce((acc: number, e: any) => acc + e.nominal, 0);
+  // Jika ada data di session_expenses, gunakan itu (sumber paling akurat)
+  if (fromExpenses > 0) return fromExpenses;
+  // Fallback ke kolom sessions.biaya_lapangan untuk sesi lama yang mungkin belum punya expense record
+  return s?.biaya_lapangan ?? 0;
+};
+
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   return new Intl.DateTimeFormat('id-ID', {
@@ -1214,14 +1231,12 @@ export default function App() {
   }, [payments, sessions, iuranKasConfig]);
 
   const totalSessionExpense = React.useMemo(() => {
-    const fromSessions = sessions.reduce((sum: number, s: any) => {
+    // Selalu baca dari session_expenses (single source of truth)
+    // Mendukung kategori 'Sewa Lapangan' dan 'Lapangan'
+    return sessions.reduce((sum: number, s: any) => {
       const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
-      const sLapangan = s.biaya_lapangan !== undefined && s.biaya_lapangan !== null
-        ? s.biaya_lapangan
-        : sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((acc: number, e: any) => acc + e.nominal, 0);
-      return sum + sLapangan;
+      return sum + getSewaLapangan(s, sExpenses);
     }, 0);
-    return fromSessions;
   }, [sessions, sessionExpenses]);
 
   const sessionBalance = totalSessionIncome - totalSessionExpense;
@@ -1277,7 +1292,18 @@ export default function App() {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase insert sessions error:', error);
+        const msg = error.message || JSON.stringify(error);
+        if (msg.includes('column') && (msg.includes('biaya_lapangan') || msg.includes('kas_wajib_per_orang'))) {
+          showToast('Gagal: Kolom database belum diperbarui. Jalankan migration SQL terlebih dahulu.', 'error');
+        } else if (msg.includes('permission denied') || msg.includes('violates row-level security')) {
+          showToast('Gagal: Tidak ada izin untuk membuat sesi. Hubungi admin.', 'error');
+        } else {
+          showToast(`Gagal membuat sesi: ${msg}`, 'error');
+        }
+        return false;
+      }
       if (insertedSession) {
         setSessions(prev => [insertedSession, ...prev]);
         setSelectedSessionId(insertedSession.id);
@@ -1299,10 +1325,15 @@ export default function App() {
             setSessionExpenses(prev => [...prev, expData]);
           }
         }
+        showToast('Sesi baru berhasil dibuat!', 'success');
+        return true;
       }
-    } catch (err) {
+      return false;
+    } catch (err: any) {
       console.error('Error adding session:', err);
-      showToast('Gagal membuat sesi baru.', 'error');
+      const msg = err?.message || 'Terjadi kesalahan tidak terduga.';
+      showToast(`Gagal membuat sesi baru: ${msg}`, 'error');
+      return false;
     }
   };
 
@@ -1722,7 +1753,8 @@ export default function App() {
       }
       
       const s = sessions.find(x => x.id === sessionId);
-      const biayaLapangan = s ? (s.biaya_lapangan ?? (sessionExpenses.filter(e => e.session_id === sessionId && e.kategori === 'Sewa Lapangan').reduce((sum, e) => sum + e.nominal, 0))) : 0;
+      const sExpenses = sessionExpenses.filter(e => e.session_id === sessionId);
+      const biayaLapangan = s ? getSewaLapangan(s, sExpenses) : 0;
       const kasWajib = s ? (s.kas_wajib_per_orang ?? iuranKasConfig) : iuranKasConfig;
 
       const costPerPerson = Math.round(biayaLapangan / sessionAttendees.length);
@@ -3196,14 +3228,12 @@ function Dashboard({
   }, [payments, sessions, iuranKasConfig]);
 
   const totalSessionExpense = React.useMemo(() => {
-    const fromSessions = sessions.reduce((sum: number, s: any) => {
+    // Selalu baca dari session_expenses (single source of truth)
+    // Mendukung kategori 'Sewa Lapangan' dan 'Lapangan'
+    return sessions.reduce((sum: number, s: any) => {
       const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
-      const sLapangan = s.biaya_lapangan !== undefined && s.biaya_lapangan !== null
-        ? s.biaya_lapangan
-        : sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((acc: number, e: any) => acc + e.nominal, 0);
-      return sum + sLapangan;
+      return sum + getSewaLapangan(s, sExpenses);
     }, 0);
-    return fromSessions;
   }, [sessions, sessionExpenses]);
 
   const sessionBalance = totalSessionIncome - totalSessionExpense;
@@ -4012,6 +4042,7 @@ function SessionsAdmin({
 }: any) {
   const [openMenuSessionId, setOpenMenuSessionId] = useState<number | null>(null);
   const [editingSession, setEditingSession] = useState<any | null>(null);
+  const [isSubmittingSession, setIsSubmittingSession] = useState(false);
 
   // States for Date & Time Pickers (Create and Edit forms)
   const [createDate, setCreateDate] = useState('');
@@ -4102,24 +4133,38 @@ function SessionsAdmin({
     return () => window.removeEventListener('click', handleOutsideClick);
   }, []);
   
-  const handleCreateSession = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreateSession = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const tanggalMain = fd.get('tanggal_main') as string;
+    const jamMain = fd.get('jam_main') as string;
+    if (!tanggalMain) {
+      alert('Tanggal main wajib diisi.');
+      return;
+    }
+    if (!jamMain) {
+      alert('Jam main wajib diisi. Silakan pilih jam main terlebih dahulu.');
+      return;
+    }
     const biayaLapanganRaw = (fd.get('biaya_lapangan') as string || '').replace(/\./g, '');
     const kasWajibRaw = (fd.get('kas_wajib_per_orang') as string || '').replace(/\./g, '');
-    addSession({
+    setIsSubmittingSession(true);
+    const success = await addSession({
       nama_sesi: fd.get('nama_sesi') as string,
-      tanggal_main: fd.get('tanggal_main') as string,
-      jam_main: fd.get('jam_main') as string,
+      tanggal_main: tanggalMain,
+      jam_main: jamMain,
       lokasi: fd.get('lokasi') as string,
       catatan: fd.get('catatan') as string,
       biaya_lapangan: parseInt(biayaLapanganRaw) || 0,
       kas_wajib_per_orang: parseInt(kasWajibRaw) || 0
     });
-    setShowAddSessionModal(false);
-    setCreateDate('');
-    setCreateStartTime('');
-    setCreateEndTime('');
+    setIsSubmittingSession(false);
+    if (success) {
+      setShowAddSessionModal(false);
+      setCreateDate('');
+      setCreateStartTime('');
+      setCreateEndTime('');
+    }
   };
 
   const handleEditSessionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -4335,7 +4380,7 @@ function SessionsAdmin({
                     <div className="bg-background p-4 rounded-2xl border border-border flex flex-col gap-3 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-secondary font-semibold">Biaya Sewa Lapangan</span>
-                        <span className="font-black text-primary">{formatRp(s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0)))}</span>
+                        <span className="font-black text-primary">{formatRp(getSewaLapangan(s, sExpenses))}</span>
                       </div>
                       <div className="flex justify-between items-center border-t border-border/40 pt-2.5">
                         <span className="text-secondary font-semibold">Kas Wajib per Orang</span>
@@ -4354,7 +4399,7 @@ function SessionsAdmin({
                           </p>
                           <div className="flex justify-between font-semibold">
                             <span className="text-secondary">Biaya Sewa Lapangan:</span>
-                            <span className="text-primary">{formatRp(s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0)))}</span>
+                            <span className="text-primary">{formatRp(getSewaLapangan(s, sExpenses))}</span>
                           </div>
                           <div className="flex justify-between font-semibold">
                             <span className="text-secondary">Jumlah Hadir:</span>
@@ -4369,7 +4414,7 @@ function SessionsAdmin({
                             <div className="flex justify-between">
                               <span>Biaya Lapangan / Orang:</span>
                               <span className="text-primary">
-                                {sAttendees.length > 0 ? formatRp(Math.round((s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0))) / sAttendees.length)) : 'Rp 0'}
+                                {sAttendees.length > 0 ? formatRp(Math.round((getSewaLapangan(s, sExpenses)) / sAttendees.length)) : 'Rp 0'}
                               </span>
                             </div>
                             <div className="flex justify-between">
@@ -4381,13 +4426,13 @@ function SessionsAdmin({
                           <div className="border-t border-emerald-500/20 pt-2 flex justify-between items-center text-xs font-black">
                             <span className="text-secondary uppercase tracking-wider">Total Tagihan:</span>
                             <span className="text-emerald-500 text-sm">
-                              {formatRp((s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0))) + (sAttendees.length * (s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig)))}
+                              {formatRp((getSewaLapangan(s, sExpenses)) + (sAttendees.length * (s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig)))}
                             </span>
                           </div>
                           <div className="flex justify-between items-center text-xs font-black mt-1">
                             <span className="text-secondary uppercase tracking-wider">Tagihan per Orang:</span>
                             <span className="text-emerald-500 text-sm">
-                              {sAttendees.length > 0 ? formatRp(Math.round(((s.biaya_lapangan !== undefined && s.biaya_lapangan !== null ? s.biaya_lapangan : (sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((sum: number, e: any) => sum + e.nominal, 0))) + (sAttendees.length * (s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig))) / sAttendees.length)) : 'Rp 0'}
+                              {sAttendees.length > 0 ? formatRp(Math.round(((getSewaLapangan(s, sExpenses)) + (sAttendees.length * (s.kas_wajib_per_orang !== undefined && s.kas_wajib_per_orang !== null ? s.kas_wajib_per_orang : iuranKasConfig))) / sAttendees.length)) : 'Rp 0'}
                             </span>
                           </div>
                         </div>
@@ -4625,8 +4670,13 @@ function SessionsAdmin({
                 <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1.5">Catatan (Optional)</label>
                 <textarea name="catatan" placeholder="Catatan opsional..." rows={2} className="w-full px-4 py-3 rounded-2xl bg-background border border-border text-primary placeholder:text-secondary focus:border-accent focus:ring-accent/15 outline-none transition-all font-bold text-xs resize-none"></textarea>
               </div>
-              <button type="submit" className="w-full bg-accent hover:opacity-90 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs">
-                Buat Sesi & Tandai Hadir
+              <button type="submit" disabled={isSubmittingSession} className="w-full bg-accent hover:opacity-90 text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                {isSubmittingSession ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Menyimpan...
+                  </>
+                ) : 'Buat Sesi & Tandai Hadir'}
               </button>
             </form>
           </div>
@@ -5534,14 +5584,12 @@ function Treasury({
   }, [payments, sessions, iuranKasConfig]);
 
   const totalSessionExpense = React.useMemo(() => {
-    const fromSessions = sessions.reduce((sum: number, s: any) => {
+    // Selalu baca dari session_expenses (single source of truth)
+    // Mendukung kategori 'Sewa Lapangan' dan 'Lapangan'
+    return sessions.reduce((sum: number, s: any) => {
       const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
-      const sLapangan = s.biaya_lapangan !== undefined && s.biaya_lapangan !== null
-        ? s.biaya_lapangan
-        : sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((acc: number, e: any) => acc + e.nominal, 0);
-      return sum + sLapangan;
+      return sum + getSewaLapangan(s, sExpenses);
     }, 0);
-    return fromSessions;
   }, [sessions, sessionExpenses]);
 
   const sessionBalance = totalSessionIncome - totalSessionExpense;
@@ -5853,10 +5901,7 @@ function Treasury({
 
     const sessionExpenseMonth = sessionsMonth.reduce((sum, s) => {
       const sExpenses = sessionExpenses.filter((e: any) => e.session_id === s.id);
-      const sLapangan = s.biaya_lapangan !== undefined && s.biaya_lapangan !== null
-        ? s.biaya_lapangan
-        : sExpenses.filter((e: any) => e.kategori === 'Sewa Lapangan').reduce((acc: number, e: any) => acc + e.nominal, 0);
-      return sum + sLapangan;
+      return sum + getSewaLapangan(s, sExpenses);
     }, 0);
 
     return {
