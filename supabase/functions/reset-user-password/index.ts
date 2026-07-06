@@ -5,20 +5,12 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Allowed origins: localhost dev + production domain
-// Tambahkan domain produksi Anda di sini jika sudah deploy ke hosting
-const ALLOWED_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:5175',
-  'https://yatsujlrfyvtrxudvcnu.supabase.co',
-];
-
+// CORS: Allow any origin — fungsi ini sudah diamankan oleh JWT + superadmin role check server-side.
+// Tidak perlu whitelist origin karena keamanan tidak bergantung pada CORS.
 function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const origin = req.headers.get('Origin') || '*';
   return {
-    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
@@ -113,8 +105,11 @@ Deno.serve(async (req: Request) => {
     console.log(`[reset-user-password] Resetting password for userId: ${userId} (${userName ?? 'unknown'})`);
 
     // 7. Panggil Admin API dengan service role key (AMAN — berjalan di server Supabase)
+    //    Reset password DAN set user_metadata.password_changed = false
+    //    agar sistem mendeteksi password masih default dan memaksa user ganti saat login berikutnya
     const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
       password: 'sisteminformasi',
+      user_metadata: { password_changed: false },
     });
 
     // Log di server (hanya terlihat di Supabase Edge Function logs, tidak di browser)

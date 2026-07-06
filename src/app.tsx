@@ -6,10 +6,11 @@ import {
   User as UserIcon, Activity, Calendar, MapPin, 
   TrendingUp, TrendingDown, PlusCircle, DollarSign, AlertCircle, 
   ChevronDown, Check, RefreshCw, Key, Shield, UserCheck,
-  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera
+  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera, FileText
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
+import { SessionReportTemplate } from './SessionReportTemplate';
 
 // --- TYPES ---
 interface Profile {
@@ -2634,6 +2635,7 @@ export default function App() {
                 deleteAttendanceRecord={deleteAttendanceRecord}
                 setConfirmModal={setConfirmModal}
                 iuranKasConfig={iuranKasConfig}
+                settings={settings}
               />
             ) : (
               <MyBillsMember 
@@ -4048,9 +4050,50 @@ function Dashboard({
 function SessionsAdmin({ 
   sessions, members, attendees, sessionExpenses, payments, selectedSessionId, setSelectedSessionId, 
   showAddSessionModal, setShowAddSessionModal, addSession, saveAttendance, addSessionExpense, deleteSessionExpense, generateBillsForSession, verifyPayment, setViewProofUrl,
-  markAsPaidCashDirectly, deleteSession, updateSession, deletePayment, deleteAttendanceRecord, setConfirmModal, iuranKasConfig
+  markAsPaidCashDirectly, deleteSession, updateSession, deletePayment, deleteAttendanceRecord, setConfirmModal, iuranKasConfig, settings
 }: any) {
   const [openMenuSessionId, setOpenMenuSessionId] = useState<number | null>(null);
+  const [sessionPdfId, setSessionPdfId] = useState<number | null>(null);
+  const [isExportingSessionPdf, setIsExportingSessionPdf] = useState(false);
+
+  const handleExportSessionPDF = (sessionId: number) => {
+    setSessionPdfId(sessionId);
+    setIsExportingSessionPdf(true);
+    setTimeout(() => {
+      const element = document.getElementById('session-report-content');
+      if (!element) {
+        setIsExportingSessionPdf(false);
+        setSessionPdfId(null);
+        return;
+      }
+      const s = sessions.find((x: any) => x.id === sessionId);
+      const sessionNameClean = s?.nama_sesi?.replace(/\s+/g, '-') || 'Sesi';
+      const dateClean = s?.tanggal_main || 'Tanggal';
+      const filename = `Laporan-Sesi-${sessionNameClean}-${dateClean}.pdf`;
+      const opt = {
+        margin: 0,
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      };
+      if (typeof (window as any).html2pdf === 'function') {
+        (window as any).html2pdf().set(opt).from(element).save()
+          .then(() => {
+            setIsExportingSessionPdf(false);
+            setSessionPdfId(null);
+          })
+          .catch(() => {
+            setIsExportingSessionPdf(false);
+            setSessionPdfId(null);
+          });
+      } else {
+        alert('html2pdf belum termuat. Coba refresh halaman.');
+        setIsExportingSessionPdf(false);
+        setSessionPdfId(null);
+      }
+    }, 300);
+  };
   const [editingSession, setEditingSession] = useState<any | null>(null);
   const [isSubmittingSession, setIsSubmittingSession] = useState(false);
 
@@ -4455,6 +4498,18 @@ function SessionsAdmin({
                       </div>
                     ) : (
                       <div className="space-y-3">
+                        {/* EXPORT PDF BUTTON */}
+                        <button
+                          onClick={() => handleExportSessionPDF(s.id)}
+                          disabled={isExportingSessionPdf}
+                          className="w-full py-2.5 bg-card border border-border hover:bg-background text-primary font-extrabold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-60"
+                        >
+                          {isExportingSessionPdf && sessionPdfId === s.id ? (
+                            <><svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Menyiapkan PDF...</>
+                          ) : (
+                            <><FileText size={13} />Export PDF Laporan Sesi</>
+                          )}
+                        </button>
                         <div className="flex justify-between items-center mb-2">
                           <p className="font-bold text-xs uppercase tracking-wider text-secondary">Status Bayar Peserta</p>
                           <span className="text-[10px] font-black text-accent bg-emerald-500/10 px-2 py-0.5 rounded">
@@ -4869,6 +4924,32 @@ function SessionsAdmin({
           </div>
         </div>
       )}
+    {/* HIDDEN SESSION REPORT CONTAINER FOR PDF EXPORT */}
+    {sessionPdfId !== null && (() => {
+      const s       = sessions.find((x: any) => x.id === sessionPdfId);
+      if (!s) return null;
+      const sAtt    = attendees.filter((a: any) => a.session_id === sessionPdfId);
+      const sPay    = payments.filter((p: any) => p.session_id === sessionPdfId);
+      const sExp    = sessionExpenses.filter((e: any) => e.session_id === sessionPdfId);
+      const biaya   = getSewaLapangan(s, sExp);
+      const kasWajib = s.kas_wajib_per_orang ?? iuranKasConfig;
+      return (
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', overflow: 'hidden', zIndex: -1 }}>
+          <SessionReportTemplate
+            session={s}
+            attendees={sAtt}
+            payments={sPay}
+            members={members}
+            biayaLapangan={biaya}
+            kasWajibPerOrang={kasWajib}
+            formatRp={formatRp}
+            formatDate={formatDate}
+            namaKomunitas={settings?.nama_komunitas || ''}
+            sessionExpenses={sExp}
+          />
+        </div>
+      );
+    })()}
     </div>
   );
 }
@@ -7025,20 +7106,29 @@ function MembersList({
                 </select>
               </div>
 
-              {isSuperAdmin && selectedUser.user_id && (
+              {isSuperAdmin && (
                 <div className="pt-2 border-t border-border space-y-2.5">
                   <p className="text-[9px] font-black text-secondary uppercase tracking-wider">Tindakan Khusus Superadmin</p>
                   
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResetErrorMsg(null);
-                      setShowResetConfirm(true);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs rounded-xl transition-all"
-                  >
-                    <Key size={14} /> Reset Password ke Bawaan
-                  </button>
+                  {selectedUser.user_id ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetErrorMsg(null);
+                        setShowResetConfirm(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs rounded-xl transition-all"
+                    >
+                      <Key size={14} /> Reset Password ke Bawaan
+                    </button>
+                  ) : (
+                    <div className="w-full flex flex-col items-center gap-1.5 py-2.5 border border-slate-500/20 bg-slate-500/10 text-slate-400 font-bold text-xs rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <Key size={14} /> Reset Password ke Bawaan
+                      </div>
+                      <p className="text-[9px] font-semibold text-slate-500 px-3 text-center">Anggota ini belum memiliki akun (belum register). Tidak bisa reset password.</p>
+                    </div>
+                  )}
 
                   <button
                     type="button"
