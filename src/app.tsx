@@ -4,13 +4,114 @@ import {
   CheckCircle, Clock, XCircle, Plus, X, 
   LogOut, QrCode, Upload, Bell, ChevronRight, 
   User as UserIcon, Activity, Calendar, MapPin, 
-  TrendingUp, TrendingDown, PlusCircle, DollarSign, AlertCircle, 
+  TrendingUp, TrendingDown, PlusCircle, DollarSign, AlertCircle, AlertTriangle, 
   ChevronDown, Check, RefreshCw, Key, Shield, UserCheck,
   Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera, FileText
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { SessionReportTemplate } from './SessionReportTemplate';
+
+// --- SUPABASE ERROR MAPPER ---
+// Maps Supabase auth error messages to user-friendly Indonesian messages.
+// Ensures no raw Supabase error is ever shown to the user.
+function mapSupabaseError(err: any): string {
+  const msg = (err?.message || err?.error_description || '').toLowerCase();
+  const status = err?.status || err?.statusCode || 0;
+
+  // Network / connectivity errors
+  if (
+    msg.includes('fetch') ||
+    msg.includes('network') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('net::') ||
+    msg.includes('econnrefused') ||
+    msg.includes('enotfound') ||
+    msg.includes('timeout') ||
+    msg.includes('offline') ||
+    !navigator.onLine
+  ) {
+    return 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda dan coba lagi.';
+  }
+
+  // Server errors (5xx)
+  if (status >= 500 || msg.includes('internal server error') || msg.includes('server error')) {
+    return 'Terjadi kesalahan pada server. Silakan coba beberapa saat lagi.';
+  }
+
+  // Invalid credentials
+  if (
+    msg.includes('invalid login credentials') ||
+    msg.includes('invalid email or password') ||
+    msg.includes('invalid credentials') ||
+    msg.includes('wrong password') ||
+    msg.includes('unauthorized')
+  ) {
+    return 'ID Dosen atau Password yang Anda masukkan tidak sesuai. Silakan periksa kembali dan coba lagi.';
+  }
+
+  // Email not confirmed
+  if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+    return 'Akun Anda belum dikonfirmasi. Silakan hubungi administrator.';
+  }
+
+  // User not found
+  if (
+    msg.includes('user not found') ||
+    msg.includes('no user found') ||
+    msg.includes('unable to validate email') ||
+    msg.includes('user does not exist')
+  ) {
+    return 'Akun tidak ditemukan.';
+  }
+
+  // User banned / disabled
+  if (
+    msg.includes('user banned') ||
+    msg.includes('user is banned') ||
+    msg.includes('disabled') ||
+    msg.includes('blocked')
+  ) {
+    return 'Akun Anda sedang dinonaktifkan. Silakan hubungi administrator.';
+  }
+
+  // Rate limiting
+  if (
+    msg.includes('rate limit') ||
+    msg.includes('too many requests') ||
+    msg.includes('for security purposes')
+  ) {
+    return 'Terlalu banyak percobaan login. Silakan tunggu beberapa saat sebelum mencoba lagi.';
+  }
+
+  // Email already registered (for registration)
+  if (
+    msg.includes('already registered') ||
+    msg.includes('already been registered') ||
+    msg.includes('user already exists') ||
+    msg.includes('duplicate')
+  ) {
+    return 'ID Dosen ini sudah terdaftar. Silakan gunakan ID Dosen lain atau login dengan akun yang sudah ada.';
+  }
+
+  // Weak password
+  if (msg.includes('weak password') || msg.includes('password should be')) {
+    return 'Password terlalu lemah. Gunakan minimal 8 karakter dengan kombinasi huruf dan angka.';
+  }
+
+  // Session expired
+  if (
+    msg.includes('session expired') ||
+    msg.includes('refresh_token') ||
+    msg.includes('token expired') ||
+    msg.includes('jwt expired')
+  ) {
+    return 'Sesi Anda telah berakhir. Silakan login kembali.';
+  }
+
+  // Catch-all: never expose raw Supabase messages
+  return 'Terjadi kesalahan. Silakan coba lagi.';
+}
 
 // --- TYPES ---
 interface Profile {
@@ -7889,6 +7990,14 @@ function ChangePasswordScreen({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (errorMsg) {
+      const timer = setTimeout(() => setErrorMsg(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMsg]);
+
   const getPasswordStrength = (pwd: string) => {
     if (!pwd) return { score: 0, label: 'Belum diisi', color: 'bg-border', textColor: 'text-secondary' };
     if (pwd.length < 8) return { score: 1, label: 'Sangat Lemah (Min. 8 Karakter)', color: 'bg-red-500', textColor: 'text-red-500' };
@@ -7948,7 +8057,7 @@ function ChangePasswordScreen({
       }, 1500);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Gagal memperbarui password.');
+      setErrorMsg(mapSupabaseError(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -8006,9 +8115,17 @@ function ChangePasswordScreen({
               </p>
 
               {errorMsg && (
-                <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 mb-4">
-                  <AlertCircle size={14} className="flex-shrink-0" />
-                  <span>{errorMsg}</span>
+                <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs rounded-xl border border-red-200 dark:border-red-800/50 mb-4 animate-fadeIn">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle size={14} className="flex-shrink-0 text-red-500" />
+                      <span className="font-[700] text-[11px]">Login Gagal</span>
+                    </div>
+                    <button onClick={() => setErrorMsg('')} className="text-red-400 hover:text-red-600 dark:hover:text-red-200 transition-colors p-0.5 -mr-1" aria-label="Tutup">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <p className="text-[11px] leading-relaxed ml-[20px] opacity-90">{errorMsg}</p>
                 </div>
               )}
 
@@ -8171,6 +8288,14 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
     }
   }, []);
 
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (errorMsg) {
+      const timer = setTimeout(() => setErrorMsg(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMsg]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -8201,7 +8326,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Gagal login. Periksa kembali ID Dosen dan password.');
+      setErrorMsg(mapSupabaseError(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -8252,7 +8377,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
     } catch (err: any) {
       sessionStorage.removeItem('sipatra_is_registering');
       console.error(err);
-      setErrorMsg(err.message || 'Gagal melakukan registrasi.');
+      setErrorMsg(mapSupabaseError(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -8280,7 +8405,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
       setSuccessMsg('Tautan reset password telah dikirim');
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Gagal mengirim email reset password.');
+      setErrorMsg(mapSupabaseError(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -8368,9 +8493,17 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               {/* Card Section */}
               <div className="bg-card rounded-[28px] border border-border shadow-theme p-[32px] mt-[28px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
                 {errorMsg && (
-                  <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 line-clamp-1 mb-2">
-                    <AlertCircle size={14} className="flex-shrink-0" />
-                    <span className="truncate">{errorMsg}</span>
+                  <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs rounded-xl border border-red-200 dark:border-red-800/50 mb-2 animate-fadeIn">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle size={14} className="flex-shrink-0 text-red-500" />
+                        <span className="font-[700] text-[11px]">Login Gagal</span>
+                      </div>
+                      <button onClick={() => setErrorMsg('')} className="text-red-400 hover:text-red-600 dark:hover:text-red-200 transition-colors p-0.5 -mr-1" aria-label="Tutup">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <p className="text-[11px] leading-relaxed ml-[20px] opacity-90">{errorMsg}</p>
                   </div>
                 )}
 
@@ -8512,9 +8645,17 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               {/* Card Section */}
               <div className="bg-card rounded-[28px] border border-border shadow-theme p-[24px] mt-[24px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
                 {errorMsg && (
-                  <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 line-clamp-1 mb-2">
-                    <AlertCircle size={14} className="flex-shrink-0" />
-                    <span className="truncate">{errorMsg}</span>
+                  <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs rounded-xl border border-red-200 dark:border-red-800/50 mb-2 animate-fadeIn">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle size={14} className="flex-shrink-0 text-red-500" />
+                        <span className="font-[700] text-[11px]">Login Gagal</span>
+                      </div>
+                      <button onClick={() => setErrorMsg('')} className="text-red-400 hover:text-red-600 dark:hover:text-red-200 transition-colors p-0.5 -mr-1" aria-label="Tutup">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <p className="text-[11px] leading-relaxed ml-[20px] opacity-90">{errorMsg}</p>
                   </div>
                 )}
 
@@ -8670,9 +8811,17 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
               {/* Card Section */}
               <div className="bg-card rounded-[28px] border border-border shadow-theme p-[32px] mt-[28px] flex flex-col w-[86%] max-w-[420px] mx-auto transition-all duration-200">
                 {errorMsg && (
-                  <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs rounded-xl flex items-center gap-1.5 font-[600] border border-red-100 dark:border-red-900/30 line-clamp-1 mb-2">
-                    <AlertCircle size={14} className="flex-shrink-0" />
-                    <span className="truncate">{errorMsg}</span>
+                  <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-xs rounded-xl border border-red-200 dark:border-red-800/50 mb-2 animate-fadeIn">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle size={14} className="flex-shrink-0 text-red-500" />
+                        <span className="font-[700] text-[11px]">Login Gagal</span>
+                      </div>
+                      <button onClick={() => setErrorMsg('')} className="text-red-400 hover:text-red-600 dark:hover:text-red-200 transition-colors p-0.5 -mr-1" aria-label="Tutup">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <p className="text-[11px] leading-relaxed ml-[20px] opacity-90">{errorMsg}</p>
                   </div>
                 )}
 
