@@ -317,7 +317,7 @@ export default function App() {
 
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
+    if (hash && (hash.includes('type=recovery') || hash.includes('#recovery'))) {
       setIsRecoveringPassword(true);
     }
   }, []);
@@ -8398,7 +8398,7 @@ function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (userId: string) => Pr
     try {
       const email = `dosen${idDosen}@unpam.ac.id`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin
+        redirectTo: `${window.location.origin}/#recovery`
       });
 
       if (error) throw error;
