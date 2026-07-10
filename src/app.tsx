@@ -5741,6 +5741,9 @@ function Treasury({
   // Selected Grouped Iuran for detail modal
   const [selectedGroupedIuran, setSelectedGroupedIuran] = useState<any>(null);
 
+  // Filter for member histori kas view
+  const [historiFilter, setHistoriFilter] = useState<'semua' | 'masuk' | 'keluar' | 'donasi' | 'kas_wajib'>('semua');
+
   const monthNames = React.useMemo(() => [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
@@ -6329,7 +6332,201 @@ function Treasury({
             </div>
           )}
 
-          <div className="mt-5">{kasType === 'organisasi' ? (
+          {/* ============================================================ */}
+          {/* MEMBER VIEW — REDESIGNED HISTORI KAS (Fintech Modern Style)  */}
+          {/* ============================================================ */}
+          {!isAdmin ? (
+            <div className="space-y-5">
+              {/* === HERO SALDO CARD === */}
+              <div
+                className="relative rounded-3xl overflow-hidden p-6"
+                style={{
+                  background: 'linear-gradient(135deg, #00422c 0%, #005c3f 55%, #10B981 100%)',
+                }}
+              >
+                {/* Decorative circles */}
+                <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
+                <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-white/5 pointer-events-none" />
+                <div className="absolute top-4 right-12 w-12 h-12 rounded-full bg-white/5 pointer-events-none" />
+
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
+                      <Wallet size={14} className="text-white" />
+                    </div>
+                    <p className="text-white/70 text-[11px] font-bold uppercase tracking-widest">Saldo Kas</p>
+                  </div>
+                  <h2 className="text-[2rem] font-black text-white tracking-tight leading-none mb-1">
+                    {formatRp(saldoKas)}
+                  </h2>
+                  <p className="text-white/50 text-[10px] font-semibold">Total dana kas organisasi</p>
+                </div>
+              </div>
+
+              {/* === SUMMARY STRIP — 3 CARDS === */}
+              <div className="grid grid-cols-3 gap-2.5">
+                {/* Kas Masuk */}
+                <div className="bg-card border border-border rounded-2xl p-3.5 flex flex-col gap-1 shadow-theme">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="w-5 h-5 rounded-md bg-emerald-500/15 flex items-center justify-center">
+                      <TrendingUp size={11} className="text-emerald-500" strokeWidth={2.5} />
+                    </div>
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider leading-none">Masuk</p>
+                  </div>
+                  <p className="text-[13px] font-black text-emerald-500 leading-none tabular-nums">{formatRp(totalIncome)}</p>
+                </div>
+
+                {/* Kas Keluar */}
+                <div className="bg-card border border-border rounded-2xl p-3.5 flex flex-col gap-1 shadow-theme">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="w-5 h-5 rounded-md bg-red-500/15 flex items-center justify-center">
+                      <TrendingDown size={11} className="text-red-400" strokeWidth={2.5} />
+                    </div>
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider leading-none">Keluar</p>
+                  </div>
+                  <p className="text-[13px] font-black text-red-400 leading-none tabular-nums">{formatRp(totalExpense)}</p>
+                </div>
+
+                {/* Total Transaksi */}
+                <div className="bg-card border border-border rounded-2xl p-3.5 flex flex-col gap-1 shadow-theme">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="w-5 h-5 rounded-md bg-accent/15 flex items-center justify-center">
+                      <Activity size={11} className="text-accent" strokeWidth={2.5} />
+                    </div>
+                    <p className="text-[9px] font-bold text-secondary uppercase tracking-wider leading-none">Transaksi</p>
+                  </div>
+                  <p className="text-[13px] font-black text-primary leading-none tabular-nums">{orgLedger.length}</p>
+                </div>
+              </div>
+
+              {/* === FILTER CHIPS (HORIZONTAL SCROLL) === */}
+              <div className="-mx-4 px-4">
+                <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                  {([
+                    { key: 'semua',    label: 'Semua' },
+                    { key: 'masuk',    label: 'Masuk' },
+                    { key: 'keluar',   label: 'Keluar' },
+                    { key: 'donasi',   label: 'Donasi' },
+                    { key: 'kas_wajib', label: 'Kas Wajib' },
+                  ] as const).map((chip) => (
+                    <button
+                      key={chip.key}
+                      onClick={() => setHistoriFilter(chip.key)}
+                      className={`flex-shrink-0 px-4 py-2 rounded-full text-[11px] font-bold transition-all duration-200 border ${
+                        historiFilter === chip.key
+                          ? 'bg-accent text-white border-accent shadow-md shadow-emerald-900/20'
+                          : 'bg-card text-secondary border-border hover:border-accent/50 hover:text-primary'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* === TRANSACTION LIST === */}
+              <div className="space-y-2.5">
+                {(() => {
+                  const filtered = orgLedger.filter((evt: any) => {
+                    if (historiFilter === 'semua') return true;
+                    if (historiFilter === 'masuk') return evt.type === 'inflow' && !evt.isGroupedIuran;
+                    if (historiFilter === 'keluar') return evt.type === 'outflow';
+                    if (historiFilter === 'donasi') {
+                      const sub = (evt.sub || '').toLowerCase();
+                      const ket = (evt.keterangan || '').toLowerCase();
+                      return sub.includes('donasi') || ket.includes('donasi');
+                    }
+                    if (historiFilter === 'kas_wajib') return evt.isGroupedIuran === true;
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center gap-3 py-12 bg-card border border-dashed border-border rounded-3xl">
+                        <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center">
+                          <Receipt size={22} className="text-accent" strokeWidth={1.8} />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-bold text-primary">Tidak Ada Transaksi</p>
+                          <p className="text-[11px] text-secondary mt-0.5">Belum ada transaksi pada kategori ini.</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((evt: any) => {
+                    const isInflow = evt.type === 'inflow';
+                    const isKasWajib = evt.isGroupedIuran === true;
+
+                    // Choose icon
+                    let IconEl: React.ReactNode;
+                    let iconBg: string;
+                    if (isKasWajib) {
+                      IconEl = <CheckCircle size={17} strokeWidth={2} />;
+                      iconBg = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                    } else if (isInflow) {
+                      IconEl = <TrendingUp size={17} strokeWidth={2.2} />;
+                      iconBg = 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20';
+                    } else {
+                      IconEl = <TrendingDown size={17} strokeWidth={2.2} />;
+                      iconBg = 'bg-red-500/10 text-red-400 border border-red-500/20';
+                    }
+
+                    // Category badge color
+                    const subLower = (evt.sub || '').toLowerCase();
+                    let badgeCls = 'bg-background text-secondary';
+                    if (isKasWajib) badgeCls = 'bg-emerald-500/10 text-emerald-400';
+                    else if (subLower.includes('donasi')) badgeCls = 'bg-blue-500/10 text-blue-400';
+                    else if (!isInflow) badgeCls = 'bg-red-500/10 text-red-400';
+
+                    return (
+                      <div
+                        key={evt.id}
+                        onClick={() => isKasWajib && setSelectedGroupedIuran(evt)}
+                        className={`bg-card rounded-2xl border border-border shadow-theme transition-all duration-200 ${
+                          isKasWajib ? 'cursor-pointer hover:border-accent/30 active:scale-[0.99]' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5 p-4">
+                          {/* Icon */}
+                          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+                            {IconEl}
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-[13px] text-primary truncate leading-tight">{evt.keterangan}</p>
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeCls}`}>
+                                {isKasWajib ? 'Kas Wajib' : evt.sub}
+                              </span>
+                              <span className="text-[10px] text-secondary font-semibold">{formatDate(evt.tanggal)}</span>
+                              {isKasWajib && (
+                                <span className="text-[10px] text-secondary font-semibold flex items-center gap-0.5">
+                                  <ChevronRight size={10} /> Detail
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Amount */}
+                          <div className="text-right flex-shrink-0">
+                            <p className={`text-sm font-black tabular-nums ${
+                              isInflow ? 'text-emerald-500' : 'text-red-400'
+                            }`}>
+                              {isInflow ? '+' : '-'}{formatRp(evt.nominal)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          ) : (
+            /* ADMIN VIEW — preserved exactly */
+            <div className="mt-5">{kasType === 'organisasi' ? (
             <div className="bg-card rounded-[2rem] p-6 text-center border border-border shadow-theme relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-5 text-secondary">
                 <Wallet size={100} />
@@ -6374,7 +6571,10 @@ function Treasury({
           )}
 
           </div>
+          )}
 
+          {/* Admin transaction list (only shown to admins) */}
+          {isAdmin && (
           <div className="space-y-4">
             <h2 className="text-sm font-black text-primary uppercase tracking-wider">
               {kasType === 'organisasi' ? 'Histori Transaksi Kas' : 'Histori Sewa Lapangan'}
@@ -6470,6 +6670,7 @@ function Treasury({
               )
             )}
           </div>
+          )}
         </>
       )}
 
