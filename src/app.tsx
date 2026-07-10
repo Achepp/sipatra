@@ -2790,6 +2790,10 @@ export default function App() {
               updateProfile={updateProfile} 
               profilePhoto={profilePhoto}
               showToast={showToast}
+              memberRecord={memberRecord}
+              payments={payments}
+              attendees={attendees}
+              sessions={sessions}
             />
           )}
 
@@ -7633,12 +7637,20 @@ function ProfileMember({
   profile, 
   updateProfile, 
   profilePhoto,
-  showToast
+  showToast,
+  memberRecord,
+  payments = [],
+  attendees = [],
+  sessions = []
 }: { 
   profile: any; 
   updateProfile: (nama: string, nomor_hp: string, fileToUpload: File | Blob | null, isPhotoRemoved?: boolean) => Promise<void>; 
   profilePhoto: string | null; 
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+  memberRecord: any;
+  payments?: any[];
+  attendees?: any[];
+  sessions?: any[];
 }) {
   const [nama, setNama] = useState(profile.nama);
   const [nomorHp, setNomorHp] = useState(profile.nomor_hp || '');
@@ -7646,6 +7658,9 @@ function ProfileMember({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | Blob | null>(null);
   const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
+  const [editingField, setEditingField] = useState<'nama' | 'nomor_hp' | null>(null);
+  const [editNama, setEditNama] = useState(profile.nama);
+  const [editNomorHp, setEditNomorHp] = useState(profile.nomor_hp || '');
 
   useEffect(() => {
     setPhoto(profilePhoto);
@@ -7698,108 +7713,380 @@ function ProfileMember({
     }
   };
 
+  const handleSaveField = async (field: 'nama' | 'nomor_hp') => {
+    setIsSubmitting(true);
+    try {
+      const newNama = field === 'nama' ? editNama : nama;
+      const newHp = field === 'nomor_hp' ? editNomorHp : nomorHp;
+      await updateProfile(newNama, newHp, selectedFile, isPhotoRemoved);
+      if (field === 'nama') setNama(editNama);
+      if (field === 'nomor_hp') setNomorHp(editNomorHp);
+      setSelectedFile(null);
+      setIsPhotoRemoved(false);
+      setEditingField(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const idDosen = profile.email ? (profile.email.match(/dosen(\d{5})@/i)?.[1] || '-') : '-';
+  const idAnggota = idDosen !== '-' ? `#${idDosen}` : '-';
+
+  // ── Ringkasan Stats ──────────────────────────────────────────────
+  const memberId = memberRecord?.id;
+
+  const sesiHadir = memberId
+    ? attendees.filter((a: any) => a.member_id === memberId).length
+    : 0;
+
+  const totalIuranVerified = memberId
+    ? payments
+        .filter((p: any) => p.member_id === memberId && p.status_pembayaran === 'verified')
+        .reduce((sum: number, p: any) => sum + (p.nominal_tagihan || 0), 0)
+    : 0;
+
+  const tunggakanCount = memberId
+    ? payments.filter(
+        (p: any) =>
+          p.member_id === memberId &&
+          (p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated')
+      ).length
+    : 0;
+
+  const tunggakanTotal = memberId
+    ? payments
+        .filter(
+          (p: any) =>
+            p.member_id === memberId &&
+            (p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated')
+        )
+        .reduce((sum: number, p: any) => sum + (p.nominal_tagihan || 0), 0)
+    : 0;
+
+  const formatRpShort = (num: number) => {
+    if (num >= 1_000_000) return `Rp ${(num / 1_000_000).toFixed(1)}jt`;
+    if (num >= 1_000) return `Rp ${(num / 1_000).toFixed(0)}rb`;
+    return `Rp ${num}`;
+  };
+
+  const joinedDate = profile.created_at
+    ? new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(profile.created_at))
+    : '-';
+
+  const roleLabel = profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA';
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* PROFILE HEADER CARD */}
-      <div className="flex items-center gap-4 bg-card p-5 rounded-3xl border border-border shadow-theme relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+    <div className="space-y-5 animate-fadeIn pb-4">
 
-        <div className="relative flex-shrink-0">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#10B981] to-[#059669] text-white rounded-full flex items-center justify-center font-black text-xl shadow-inner border border-border overflow-hidden">
-            {photo ? (
-              <img src={photo} alt="Foto Profil" className="w-full h-full object-cover" />
-            ) : (
-              getInitials(nama)
-            )}
+      {/* ── PAGE SUB-HEADER ── */}
+      <div className="pt-1 pb-1">
+        <h1 className="text-xl font-black text-primary tracking-tight leading-tight">Profil Saya</h1>
+        <p className="text-xs text-secondary font-medium mt-0.5">Kelola informasi akun Anda</p>
+      </div>
+
+      {/* ── HERO PROFILE CARD ── */}
+      <div className="relative rounded-[28px] overflow-hidden shadow-[0_8px_32px_rgba(16,185,129,0.25)]">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#059669] via-[#10B981] to-[#34D399]" />
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-sm pointer-events-none" />
+        <div className="absolute -bottom-12 -left-10 w-48 h-48 bg-black/10 rounded-full blur-md pointer-events-none" />
+        <div className="absolute top-4 left-4 w-16 h-16 bg-white/5 rounded-full pointer-events-none" />
+
+        <div className="relative p-6 flex flex-col items-center text-center gap-4">
+          {/* Avatar with camera button */}
+          <div className="relative mt-1">
+            <div className="w-24 h-24 rounded-full border-[3px] border-white/60 shadow-[0_4px_20px_rgba(0,0,0,0.25)] overflow-hidden bg-white/20 flex items-center justify-center">
+              {photo ? (
+                <img src={photo} alt="Foto Profil" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white font-black text-3xl select-none">{getInitials(nama)}</span>
+              )}
+            </div>
+            {/* Camera button */}
+            <label className="absolute bottom-0 right-0 w-8 h-8 bg-white text-emerald-700 rounded-full shadow-lg border-2 border-white cursor-pointer flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+              <Camera size={14} strokeWidth={2.5} />
+              <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden" onChange={handlePhotoChange} />
+            </label>
           </div>
-          <label className="absolute -bottom-1 -right-1 bg-accent hover:bg-accent/90 text-white p-1 rounded-full shadow-lg border border-border cursor-pointer flex items-center justify-center transition-all hover:scale-105 active:scale-95">
-            <Camera size={12} />
-            <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden" onChange={handlePhotoChange} />
-          </label>
-        </div>
 
-        <div className="flex-1 min-w-0">
-          <h3 className="font-black text-base text-primary truncate leading-tight">{nama || 'Anggota Baru'}</h3>
-          <p className="text-xs text-secondary font-bold truncate mt-1 leading-none">{profile.email}</p>
-          <div className="mt-2.5">
-            <span className={`inline-block text-[8px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-              profile.role === 'superadmin'
-                ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
-                : profile.role === 'admin'
-                  ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                  : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-            }`}>
-              {profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA'}
+          {/* Name */}
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-black text-white leading-tight drop-shadow-sm">
+              {nama || 'Anggota Baru'}
+            </h2>
+
+            {/* Role badge */}
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/20 border border-white/30 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest">
+              <Shield size={9} />
+              {roleLabel}
             </span>
           </div>
+
+          {/* Info row */}
+          <div className="w-full grid grid-cols-2 gap-2 mt-1">
+            <div className="bg-black/15 backdrop-blur-sm rounded-2xl px-3 py-2.5 flex items-center gap-2 text-left">
+              <Mail size={12} className="text-white/70 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[8px] text-white/60 font-bold uppercase tracking-wider">Email</p>
+                <p className="text-[10px] text-white font-bold truncate leading-tight mt-0.5">{profile.email}</p>
+              </div>
+            </div>
+            <div className="bg-black/15 backdrop-blur-sm rounded-2xl px-3 py-2.5 flex items-center gap-2 text-left">
+              <UserIcon size={12} className="text-white/70 flex-shrink-0" />
+              <div>
+                <p className="text-[8px] text-white/60 font-bold uppercase tracking-wider">ID Anggota</p>
+                <p className="text-[10px] text-white font-black leading-tight mt-0.5">{idAnggota}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Remove photo button (only when photo exists) */}
+          {photo && (
+            <button
+              type="button"
+              onClick={handleRemovePhoto}
+              className="flex items-center gap-1.5 text-white/70 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors"
+            >
+              <Trash2 size={10} />
+              Hapus Foto
+            </button>
+          )}
         </div>
       </div>
 
-      {/* EDIT PROFILE CARD */}
-      <div className="bg-card p-5 rounded-3xl border border-border shadow-theme space-y-4">
-        <h4 className="font-black text-xs uppercase tracking-wider text-secondary flex items-center gap-1.5">
-          <Edit size={14} className="text-accent" />
-          <span>Edit Profil</span>
-        </h4>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nama Lengkap</label>
-            <input 
-              type="text" 
-              required 
-              value={nama} 
-              onChange={e => setNama(e.target.value)} 
-              placeholder="Masukkan nama lengkap Anda"
-              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-            />
-          </div>
-          <div>
-            <label className="block text-[9px] font-black text-secondary uppercase tracking-wider mb-1.5">Nomor Handphone (Opsional)</label>
-            <input 
-              type="text" 
-              value={nomorHp} 
-              onChange={e => setNomorHp(e.target.value)} 
-              placeholder="08123456789" 
-              className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 outline-none text-primary font-bold text-xs" 
-            />
-          </div>
-
-          {photo && (
-            <div className="pt-1.5">
-              <button
-                type="button"
-                onClick={handleRemovePhoto}
-                className="w-full flex items-center justify-center gap-1.5 py-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-500 dark:text-red-400 font-extrabold text-[10px] rounded-xl uppercase tracking-wider transition-all"
-              >
-                <Trash2 size={12} /> Hapus Foto Profil
-              </button>
+      {/* ── RINGKASAN SAYA ── */}
+      <div className="space-y-3">
+        <h3 className="text-[10px] font-black text-secondary uppercase tracking-widest px-1 flex items-center gap-1.5">
+          <Activity size={12} className="text-accent" />
+          Ringkasan Saya
+        </h3>
+        <div className="grid grid-cols-3 gap-2.5">
+          {/* Sesi Hadir */}
+          <div className="relative bg-card border border-border rounded-2xl p-3.5 overflow-hidden shadow-theme group hover:border-emerald-500/30 transition-all">
+            <div className="absolute -right-3 -top-3 w-12 h-12 bg-emerald-500/8 rounded-full pointer-events-none" />
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2.5">
+              <Calendar size={16} className="text-emerald-500" />
             </div>
-          )}
+            <p className="text-xl font-black text-primary leading-none">{sesiHadir}</p>
+            <p className="text-[9px] text-secondary font-semibold mt-1 leading-tight">Sesi<br/>Hadir</p>
+          </div>
 
-          <button 
-            type="submit" 
-            disabled={isSubmitting}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3 rounded-2xl transition-all text-xs active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50"
-          >
-            {isSubmitting ? (
-              <>
-                <RefreshCw size={14} className="animate-spin" />
-                <span>Menyimpan perubahan...</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle size={14} />
-                <span>Simpan Perubahan</span>
-              </>
-            )}
-          </button>
-        </form>
+          {/* Total Iuran */}
+          <div className="relative bg-card border border-border rounded-2xl p-3.5 overflow-hidden shadow-theme group hover:border-blue-500/30 transition-all">
+            <div className="absolute -right-3 -top-3 w-12 h-12 bg-blue-500/8 rounded-full pointer-events-none" />
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center mb-2.5">
+              <Wallet size={16} className="text-blue-500" />
+            </div>
+            <p className="text-sm font-black text-primary leading-none">{formatRpShort(totalIuranVerified)}</p>
+            <p className="text-[9px] text-secondary font-semibold mt-1 leading-tight">Total<br/>Iuran</p>
+          </div>
+
+          {/* Tunggakan */}
+          <div className="relative bg-card border border-border rounded-2xl p-3.5 overflow-hidden shadow-theme group hover:border-red-500/30 transition-all">
+            <div className="absolute -right-3 -top-3 w-12 h-12 bg-red-500/8 rounded-full pointer-events-none" />
+            <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center mb-2.5">
+              <AlertTriangle size={16} className="text-red-500" />
+            </div>
+            <p className="text-xl font-black text-primary leading-none">{tunggakanCount}</p>
+            <p className="text-[9px] text-secondary font-semibold mt-1 leading-tight">
+              {tunggakanCount > 0 ? `${formatRpShort(tunggakanTotal)}` : 'Lunas'}<br/>
+              Tunggakan
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* ── INFORMASI AKUN ── */}
+      <div className="space-y-3">
+        <h3 className="text-[10px] font-black text-secondary uppercase tracking-widest px-1 flex items-center gap-1.5">
+          <UserIcon size={12} className="text-accent" />
+          Informasi Akun
+        </h3>
+        <div className="bg-card border border-border rounded-[24px] overflow-hidden shadow-theme divide-y divide-border">
+
+          {/* Nama Lengkap — Editable */}
+          <div className="px-4 py-3.5">
+            {editingField === 'nama' ? (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                    <UserIcon size={13} className="text-emerald-500" />
+                  </div>
+                  <p className="text-[9px] font-black text-secondary uppercase tracking-wider">Nama Lengkap</p>
+                </div>
+                <input
+                  type="text"
+                  value={editNama}
+                  onChange={e => setEditNama(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 focus:border-accent/50 outline-none text-primary font-bold text-xs transition-all"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveField('nama')}
+                    disabled={isSubmitting}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[10px] rounded-xl uppercase tracking-wider transition-all disabled:opacity-50"
+                  >
+                    {isSubmitting ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+                    Simpan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingField(null); setEditNama(nama); }}
+                    className="px-4 py-2 border border-border text-secondary hover:text-primary font-extrabold text-[10px] rounded-xl uppercase tracking-wider transition-all"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-3 cursor-pointer group"
+                onClick={() => { setEditNama(nama); setEditingField('nama'); }}
+              >
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                  <UserIcon size={13} className="text-emerald-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Nama Lengkap</p>
+                  <p className="text-xs font-extrabold text-primary mt-0.5 truncate">{nama || '—'}</p>
+                </div>
+                <div className="w-6 h-6 rounded-lg bg-background border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <Edit size={11} className="text-accent" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ID Dosen — Readonly */}
+          <div className="px-4 py-3.5 flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+              <Key size={13} className="text-indigo-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">ID Dosen</p>
+              <p className="text-xs font-extrabold text-primary mt-0.5">{idDosen !== '-' ? idDosen : '—'}</p>
+            </div>
+            <Lock size={12} className="text-secondary/40 flex-shrink-0" />
+          </div>
+
+          {/* Email — Readonly */}
+          <div className="px-4 py-3.5 flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-sky-500/10 flex items-center justify-center flex-shrink-0">
+              <Mail size={13} className="text-sky-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Email</p>
+              <p className="text-xs font-extrabold text-primary mt-0.5 truncate">{profile.email}</p>
+            </div>
+            <Lock size={12} className="text-secondary/40 flex-shrink-0" />
+          </div>
+
+          {/* Nomor HP — Editable */}
+          <div className="px-4 py-3.5">
+            {editingField === 'nomor_hp' ? (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                    <Smartphone size={13} className="text-violet-500" />
+                  </div>
+                  <p className="text-[9px] font-black text-secondary uppercase tracking-wider">Nomor HP</p>
+                </div>
+                <input
+                  type="text"
+                  value={editNomorHp}
+                  onChange={e => setEditNomorHp(e.target.value)}
+                  placeholder="08123456789"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-accent/20 focus:border-accent/50 outline-none text-primary font-bold text-xs transition-all"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveField('nomor_hp')}
+                    disabled={isSubmitting}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[10px] rounded-xl uppercase tracking-wider transition-all disabled:opacity-50"
+                  >
+                    {isSubmitting ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+                    Simpan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingField(null); setEditNomorHp(nomorHp); }}
+                    className="px-4 py-2 border border-border text-secondary hover:text-primary font-extrabold text-[10px] rounded-xl uppercase tracking-wider transition-all"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-3 cursor-pointer group"
+                onClick={() => { setEditNomorHp(nomorHp); setEditingField('nomor_hp'); }}
+              >
+                <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                  <Smartphone size={13} className="text-violet-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Nomor HP</p>
+                  <p className="text-xs font-extrabold text-primary mt-0.5">{nomorHp || '— Belum diatur'}</p>
+                </div>
+                <div className="w-6 h-6 rounded-lg bg-background border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <Edit size={11} className="text-accent" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Peran — Readonly */}
+          <div className="px-4 py-3.5 flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <Shield size={13} className="text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Peran</p>
+              <div className="mt-1">
+                <span className={`inline-flex items-center text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                  profile.role === 'superadmin'
+                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    : profile.role === 'admin'
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                }`}>
+                  {roleLabel}
+                </span>
+              </div>
+            </div>
+            <Lock size={12} className="text-secondary/40 flex-shrink-0" />
+          </div>
+
+          {/* Bergabung Sejak — Readonly */}
+          <div className="px-4 py-3.5 flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+              <Calendar size={13} className="text-rose-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-secondary uppercase tracking-wider">Bergabung Sejak</p>
+              <p className="text-xs font-extrabold text-primary mt-0.5">{joinedDate}</p>
+            </div>
+            <Lock size={12} className="text-secondary/40 flex-shrink-0" />
+          </div>
+        </div>
+
+        {/* Helper hint */}
+        <p className="text-[9px] text-secondary/60 text-center font-medium px-2">
+          Ketuk nama atau nomor HP untuk mengedit
+        </p>
+      </div>
+
     </div>
   );
 }
+
 
 // --- SETTINGS ADMIN COMPONENT ---
 function SettingsAdmin({ 
