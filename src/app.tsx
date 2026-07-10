@@ -7786,74 +7786,76 @@ function ProfileMember({
         <p className="text-xs text-secondary font-medium mt-0.5">Kelola informasi akun Anda</p>
       </div>
 
-      {/* ── HERO PROFILE CARD ── */}
-      <div className="relative rounded-[28px] overflow-hidden shadow-[0_8px_32px_rgba(16,185,129,0.25)]">
+      {/* ── HERO PROFILE CARD — horizontal layout ── */}
+      <div className="relative rounded-[20px] overflow-hidden shadow-[0_6px_24px_rgba(16,185,129,0.22)]">
         {/* Gradient background */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#059669] via-[#10B981] to-[#34D399]" />
-        {/* Decorative circles */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-sm pointer-events-none" />
-        <div className="absolute -bottom-12 -left-10 w-48 h-48 bg-black/10 rounded-full blur-md pointer-events-none" />
-        <div className="absolute top-4 left-4 w-16 h-16 bg-white/5 rounded-full pointer-events-none" />
+        {/* Decorative subtle blob */}
+        <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/8 rounded-full blur-md pointer-events-none" />
+        <div className="absolute -bottom-6 left-1/2 w-24 h-24 bg-black/8 rounded-full blur-lg pointer-events-none" />
 
-        <div className="relative p-6 flex flex-col items-center text-center gap-4">
-          {/* Avatar with camera button */}
-          <div className="relative mt-1">
-            <div className="w-24 h-24 rounded-full border-[3px] border-white/60 shadow-[0_4px_20px_rgba(0,0,0,0.25)] overflow-hidden bg-white/20 flex items-center justify-center">
-              {photo ? (
-                <img src={photo} alt="Foto Profil" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-white font-black text-3xl select-none">{getInitials(nama)}</span>
-              )}
+        <div className="relative px-4 py-4 flex flex-row items-center gap-4">
+
+          {/* LEFT — Avatar column */}
+          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+            <div className="relative">
+              <div className="w-[72px] h-[72px] rounded-full border-[2.5px] border-white/60 shadow-[0_4px_14px_rgba(0,0,0,0.25)] overflow-hidden bg-white/20 flex items-center justify-center">
+                {photo ? (
+                  <img src={photo} alt="Foto Profil" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white font-black text-xl select-none">{getInitials(nama)}</span>
+                )}
+              </div>
+              {/* Camera button */}
+              <label className="absolute bottom-0 right-0 w-6 h-6 bg-white text-emerald-700 rounded-full shadow-md border-[1.5px] border-white cursor-pointer flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+                <Camera size={11} strokeWidth={2.5} />
+                <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden" onChange={handlePhotoChange} />
+              </label>
             </div>
-            {/* Camera button */}
-            <label className="absolute bottom-0 right-0 w-8 h-8 bg-white text-emerald-700 rounded-full shadow-lg border-2 border-white cursor-pointer flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
-              <Camera size={14} strokeWidth={2.5} />
-              <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden" onChange={handlePhotoChange} />
-            </label>
+            {/* Hapus Foto — hanya muncul jika ada foto, sangat kecil */}
+            {photo && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="text-white/50 hover:text-white/80 text-[8px] font-semibold uppercase tracking-wide transition-colors flex items-center gap-0.5"
+              >
+                <Trash2 size={8} />
+                Hapus
+              </button>
+            )}
           </div>
 
-          {/* Name */}
-          <div className="space-y-1.5">
-            <h2 className="text-xl font-black text-white leading-tight drop-shadow-sm">
-              {nama || 'Anggota Baru'}
-            </h2>
+          {/* RIGHT — Info column */}
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            {/* Name + Badge */}
+            <div>
+              <h2 className="text-xl font-black text-white leading-tight drop-shadow-sm truncate">
+                {nama || 'Anggota Baru'}
+              </h2>
+              <span className="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-md bg-white/25 border border-white/30 text-white text-[9px] font-black uppercase tracking-widest">
+                {roleLabel}
+              </span>
+            </div>
 
-            {/* Role badge */}
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/20 border border-white/30 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest">
-              <Shield size={9} />
-              {roleLabel}
-            </span>
-          </div>
-
-          {/* Info row */}
-          <div className="w-full grid grid-cols-2 gap-2 mt-1">
-            <div className="bg-black/15 backdrop-blur-sm rounded-2xl px-3 py-2.5 flex items-center gap-2 text-left">
-              <Mail size={12} className="text-white/70 flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[8px] text-white/60 font-bold uppercase tracking-wider">Email</p>
-                <p className="text-[10px] text-white font-bold truncate leading-tight mt-0.5">{profile.email}</p>
+            {/* Email + ID Anggota pills — side by side */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="bg-black/20 backdrop-blur-sm rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                <Mail size={10} className="text-white/65 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[7px] text-white/55 font-bold uppercase tracking-wider leading-none">Email</p>
+                  <p className="text-[9px] text-white font-bold truncate leading-tight mt-0.5">{profile.email}</p>
+                </div>
+              </div>
+              <div className="bg-black/20 backdrop-blur-sm rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                <UserIcon size={10} className="text-white/65 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[7px] text-white/55 font-bold uppercase tracking-wider leading-none">ID Anggota</p>
+                  <p className="text-[9px] text-white font-black leading-tight mt-0.5">{idAnggota}</p>
+                </div>
               </div>
             </div>
-            <div className="bg-black/15 backdrop-blur-sm rounded-2xl px-3 py-2.5 flex items-center gap-2 text-left">
-              <UserIcon size={12} className="text-white/70 flex-shrink-0" />
-              <div>
-                <p className="text-[8px] text-white/60 font-bold uppercase tracking-wider">ID Anggota</p>
-                <p className="text-[10px] text-white font-black leading-tight mt-0.5">{idAnggota}</p>
-              </div>
-            </div>
           </div>
 
-          {/* Remove photo button (only when photo exists) */}
-          {photo && (
-            <button
-              type="button"
-              onClick={handleRemovePhoto}
-              className="flex items-center gap-1.5 text-white/70 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors"
-            >
-              <Trash2 size={10} />
-              Hapus Foto
-            </button>
-          )}
         </div>
       </div>
 
