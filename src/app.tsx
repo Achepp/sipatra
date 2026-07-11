@@ -7780,11 +7780,6 @@ function ProfileMember({
   return (
     <div className="space-y-5 animate-fadeIn pb-4">
 
-      {/* ── PAGE SUB-HEADER ── */}
-      <div className="pt-1 pb-1">
-        <h1 className="text-xl font-black text-primary tracking-tight leading-tight">Profil Saya</h1>
-        <p className="text-xs text-secondary font-medium mt-0.5">Kelola informasi akun Anda</p>
-      </div>
 
       {/* ── HERO PROFILE CARD — horizontal layout ── */}
       <div className="relative rounded-[20px] overflow-hidden shadow-[0_6px_24px_rgba(16,185,129,0.22)]">
