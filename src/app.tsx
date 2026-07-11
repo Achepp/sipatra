@@ -7866,38 +7866,55 @@ function ProfileMember({
           Ringkasan Saya
         </h3>
         <div className="grid grid-cols-3 gap-2.5">
-          {/* Sesi Hadir */}
-          <div className="relative bg-card border border-border rounded-2xl p-3.5 overflow-hidden shadow-theme group hover:border-emerald-500/30 transition-all">
-            <div className="absolute -right-3 -top-3 w-12 h-12 bg-emerald-500/8 rounded-full pointer-events-none" />
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2.5">
-              <Calendar size={16} className="text-emerald-500" />
+
+          {/* ── Sesi Hadir ── */}
+          <div className="relative rounded-[18px] overflow-hidden border border-emerald-500/20 shadow-[0_2px_12px_rgba(16,185,129,0.08)] bg-[radial-gradient(ellipse_at_top_left,rgba(16,185,129,0.12)_0%,transparent_70%)] bg-card transition-all hover:border-emerald-500/40">
+            {/* Top row: icon | divider | title */}
+            <div className="flex items-center gap-0 px-3.5 pt-3.5 pb-2">
+              <div className="w-9 h-9 rounded-[10px] bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                <Calendar size={17} className="text-emerald-400" />
+              </div>
+              <div className="w-px h-6 bg-emerald-500/20 mx-2.5 flex-shrink-0" />
+              <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest leading-tight">Sesi<br/>Hadir</p>
             </div>
-            <p className="text-xl font-black text-primary leading-none">{sesiHadir}</p>
-            <p className="text-[9px] text-secondary font-semibold mt-1 leading-tight">Sesi<br/>Hadir</p>
+            {/* Value */}
+            <div className="px-3.5 pb-3.5">
+              <p className="text-2xl font-black text-white leading-none">{sesiHadir}</p>
+            </div>
           </div>
 
-          {/* Total Iuran */}
-          <div className="relative bg-card border border-border rounded-2xl p-3.5 overflow-hidden shadow-theme group hover:border-blue-500/30 transition-all">
-            <div className="absolute -right-3 -top-3 w-12 h-12 bg-blue-500/8 rounded-full pointer-events-none" />
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center mb-2.5">
-              <Wallet size={16} className="text-blue-500" />
+          {/* ── Total Iuran ── */}
+          <div className="relative rounded-[18px] overflow-hidden border border-blue-500/20 shadow-[0_2px_12px_rgba(59,130,246,0.08)] bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.12)_0%,transparent_70%)] bg-card transition-all hover:border-blue-500/40">
+            {/* Top row: icon | divider | title */}
+            <div className="flex items-center gap-0 px-3.5 pt-3.5 pb-2">
+              <div className="w-9 h-9 rounded-[10px] bg-blue-500/15 flex items-center justify-center flex-shrink-0">
+                <Wallet size={17} className="text-blue-400" />
+              </div>
+              <div className="w-px h-6 bg-blue-500/20 mx-2.5 flex-shrink-0" />
+              <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest leading-tight">Total<br/>Iuran</p>
             </div>
-            <p className="text-sm font-black text-primary leading-none">{formatRpShort(totalIuranVerified)}</p>
-            <p className="text-[9px] text-secondary font-semibold mt-1 leading-tight">Total<br/>Iuran</p>
+            {/* Value */}
+            <div className="px-3.5 pb-3.5">
+              <p className="text-base font-black text-white leading-none">{formatRpShort(totalIuranVerified)}</p>
+            </div>
           </div>
 
-          {/* Tunggakan */}
-          <div className="relative bg-card border border-border rounded-2xl p-3.5 overflow-hidden shadow-theme group hover:border-red-500/30 transition-all">
-            <div className="absolute -right-3 -top-3 w-12 h-12 bg-red-500/8 rounded-full pointer-events-none" />
-            <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center mb-2.5">
-              <AlertTriangle size={16} className="text-red-500" />
+          {/* ── Tunggakan ── */}
+          <div className="relative rounded-[18px] overflow-hidden border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.08)] bg-[radial-gradient(ellipse_at_top_left,rgba(239,68,68,0.12)_0%,transparent_70%)] bg-card transition-all hover:border-red-500/40">
+            {/* Top row: icon | divider | title */}
+            <div className="flex items-center gap-0 px-3.5 pt-3.5 pb-2">
+              <div className="w-9 h-9 rounded-[10px] bg-red-500/15 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={17} className="text-red-400" />
+              </div>
+              <div className="w-px h-6 bg-red-500/20 mx-2.5 flex-shrink-0" />
+              <p className="text-[9px] font-black text-red-400 uppercase tracking-widest leading-tight">Tung-<br/>gakan</p>
             </div>
-            <p className="text-xl font-black text-primary leading-none">{tunggakanCount}</p>
-            <p className="text-[9px] text-secondary font-semibold mt-1 leading-tight">
-              {tunggakanCount > 0 ? `${formatRpShort(tunggakanTotal)}` : 'Lunas'}<br/>
-              Tunggakan
-            </p>
+            {/* Value */}
+            <div className="px-3.5 pb-3.5">
+              <p className="text-2xl font-black text-white leading-none">{tunggakanCount}</p>
+            </div>
           </div>
+
         </div>
       </div>
 
