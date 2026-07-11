@@ -7874,7 +7874,7 @@ function ProfileMember({
             </div>
             {/* Value */}
             <div className="px-3.5 pb-3.5">
-              <p className="text-2xl font-black text-white leading-none">{sesiHadir}</p>
+              <p className="text-2xl font-black text-primary leading-none">{sesiHadir}</p>
             </div>
           </div>
 
@@ -7890,7 +7890,7 @@ function ProfileMember({
             </div>
             {/* Value */}
             <div className="px-3.5 pb-3.5">
-              <p className="text-base font-black text-white leading-none">{formatRpShort(totalIuranVerified)}</p>
+              <p className="text-base font-black text-primary leading-none">{formatRpShort(totalIuranVerified)}</p>
             </div>
           </div>
 
@@ -7906,7 +7906,7 @@ function ProfileMember({
             </div>
             {/* Value */}
             <div className="px-3.5 pb-3.5">
-              <p className="text-2xl font-black text-white leading-none">{tunggakanCount}</p>
+              <p className="text-2xl font-black text-primary leading-none">{tunggakanCount}</p>
             </div>
           </div>
 
