@@ -7675,20 +7675,26 @@ function ProfileMember({
         return;
       }
 
+      setIsSubmitting(true);
       try {
         const localPreviewUrl = URL.createObjectURL(file);
         setPhoto(localPreviewUrl);
         setIsPhotoRemoved(false);
 
+        let fileToUpload: File | Blob = file;
         if (file.size > 2 * 1024 * 1024) {
-          const compressedBlob = await compressImageToBlob(file);
-          setSelectedFile(compressedBlob);
-        } else {
-          setSelectedFile(file);
+          fileToUpload = await compressImageToBlob(file);
         }
+
+        // Auto-save: upload immediately so no separate "Save" button is needed
+        await updateProfile(nama, nomorHp, fileToUpload, false);
+        setSelectedFile(null);
+        setIsPhotoRemoved(false);
       } catch (err: any) {
         console.error(err);
         showToast('Gagal memproses gambar.', 'error');
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
