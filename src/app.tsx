@@ -1836,6 +1836,18 @@ export default function App() {
 
   const deleteAttendanceRecord = async (sessionId: number, memberId: number) => {
     try {
+      // 1. Hapus tagihan (payments) member di sesi ini terlebih dahulu,
+      //    kecuali yang sudah verified/lunas (uang sudah masuk, jangan dihapus)
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .delete()
+        .eq('session_id', sessionId)
+        .eq('member_id', memberId)
+        .in('status_pembayaran', ['unpaid', 'uploaded', 'rejected', 'generated', 'pending']);
+
+      if (paymentError) throw paymentError;
+
+      // 2. Hapus data kehadiran dari session_attendees
       const { error } = await supabase
         .from('session_attendees')
         .delete()
@@ -1843,8 +1855,11 @@ export default function App() {
         .eq('member_id', memberId);
       
       if (error) throw error;
+
+      // 3. Update state lokal
       setAttendees(prev => prev.filter(a => !(a.session_id === sessionId && a.member_id === memberId)));
-      showToast('✅ Data berhasil dihapus', 'success');
+      setPayments(prev => prev.filter(p => !(p.session_id === sessionId && p.member_id === memberId && p.status_pembayaran !== 'verified' && p.status_pembayaran !== 'lunas' && p.status_pembayaran !== 'paid')));
+      showToast('✅ Data kehadiran & tagihan berhasil dihapus', 'success');
     } catch (err: any) {
       console.error('Error deleting attendance record:', err);
       showToast(`❌ Gagal menghapus data${err?.message ? `: ${err.message}` : ''}`, 'error');
