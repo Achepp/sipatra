@@ -5290,28 +5290,55 @@ function MyBillsMember({
           </div>
 
           {/* Filter Tanggal */}
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            <input
-              type="month"
-              value={filterDate}
-              onChange={e => setFilterDate(e.target.value)}
-              style={{
-                appearance: 'none',
-                background: filterDate ? '#22C55E' : 'var(--card)',
-                color: filterDate ? '#fff' : 'var(--text-secondary)',
-                border: filterDate ? '1.5px solid #22C55E' : '1.5px solid var(--border)',
-                borderRadius: 12,
-                padding: '7px 12px',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer',
-                outline: 'none',
-                fontFamily: 'inherit',
-                boxShadow: 'var(--shadow)',
-              }}
-              placeholder="Bulan"
-            />
-          </div>
+          {(() => {
+            // Kumpulkan bulan unik dari sesi anggota, urutkan terbaru
+            const monthSet = new Set<string>();
+            myPayments.forEach((p: any) => {
+              const s = sessions?.find((ss: any) => ss.id === p.session_id);
+              const d = s?.tanggal_main || '';
+              if (d) {
+                const ym = d.slice(0, 7); // "YYYY-MM"
+                monthSet.add(ym);
+              }
+            });
+            const monthOptions = Array.from(monthSet).sort((a, b) => b.localeCompare(a));
+            const formatMonthLabel = (ym: string) => {
+              const [y, m] = ym.split('-');
+              const names = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+              return `${names[parseInt(m) - 1]} ${y}`;
+            };
+            return (
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <select
+                  value={filterDate}
+                  onChange={e => setFilterDate(e.target.value)}
+                  style={{
+                    appearance: 'none',
+                    background: filterDate ? '#22C55E' : 'var(--card)',
+                    color: filterDate ? '#fff' : 'var(--text-secondary)',
+                    border: filterDate ? '1.5px solid #22C55E' : '1.5px solid var(--border)',
+                    borderRadius: 12,
+                    padding: '7px 28px 7px 12px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    boxShadow: 'var(--shadow)',
+                  }}
+                >
+                  <option value="">Semua Bulan</option>
+                  {monthOptions.map(ym => (
+                    <option key={ym} value={ym}>{formatMonthLabel(ym)}</option>
+                  ))}
+                </select>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: filterDate ? '#fff' : 'var(--text-secondary)' }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </div>
+            );
+          })()}
 
           {/* Sort button */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
