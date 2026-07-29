@@ -2763,6 +2763,8 @@ export default function App() {
                 setSelectedPayment={setSelectedPayment}
                 submitPaymentWithProof={submitPaymentWithProof}
                 submitCashPayment={submitCashPayment}
+                profile={profile}
+                profilePhoto={profilePhoto}
               />
             )
           )}
@@ -3378,7 +3380,31 @@ function Dashboard({
   
   // Member specific active bills
   const myPayments = memberRecord ? payments.filter((p: any) => p.member_id === memberRecord.id) : [];
-  const myActiveBills = myPayments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected' || p.status_pembayaran === 'Menunggu Verifikasi Cash' || p.status_pembayaran === 'uploaded' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated');
+  const myActiveBills = [...myPayments]
+    .filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'rejected' || p.status_pembayaran === 'Menunggu Verifikasi Cash' || p.status_pembayaran === 'uploaded' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'generated')
+    .sort((a: any, b: any) => {
+      const sessionA = sessions?.find((s: any) => s.id === a.session_id);
+      const sessionB = sessions?.find((s: any) => s.id === b.session_id);
+
+      const dateAStr = sessionA?.tanggal_main || a.created_at || sessionA?.created_at || '';
+      const dateBStr = sessionB?.tanggal_main || b.created_at || sessionB?.created_at || '';
+
+      const timeA = dateAStr ? new Date(dateAStr).getTime() : 0;
+      const timeB = dateBStr ? new Date(dateBStr).getTime() : 0;
+
+      if (timeB !== timeA) {
+        return timeB - timeA;
+      }
+
+      const createdA = a.created_at ? new Date(a.created_at).getTime() : (sessionA?.created_at ? new Date(sessionA.created_at).getTime() : 0);
+      const createdB = b.created_at ? new Date(b.created_at).getTime() : (sessionB?.created_at ? new Date(sessionB.created_at).getTime() : 0);
+
+      if (createdB !== createdA) {
+        return createdB - createdA;
+      }
+
+      return (b.id || 0) - (a.id || 0);
+    });
   const myPaidCount = myPayments.filter((p: any) => p.status_pembayaran === 'verified' || p.status_pembayaran === 'paid' || p.status_pembayaran === 'lunas').length;
   const myPendingCount = myPayments.filter((p: any) => p.status_pembayaran === 'pending' || p.status_pembayaran === 'uploaded' || p.status_pembayaran === 'Menunggu Verifikasi Cash').length;
   const myTotalPaidAmount = myPayments.filter((p: any) => p.status_pembayaran === 'verified' || p.status_pembayaran === 'paid' || p.status_pembayaran === 'lunas').reduce((sum: number, p: any) => sum + p.nominal_tagihan, 0);
@@ -5076,100 +5102,493 @@ function SessionsAdmin({
 
 // --- MEMBER MY BILLS COMPONENT ---
 function MyBillsMember({ 
-  user, sessions, payments, setSelectedPayment 
+  user, sessions, payments, setSelectedPayment, profile, profilePhoto
 }: any) {
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [filterStatus, setFilterStatus] = React.useState('all');
+  const [filterMethod, setFilterMethod] = React.useState('all');
+  const [filterDate, setFilterDate] = React.useState('');
+  const [sortOrder, setSortOrder] = React.useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+  const [showSortMenu, setShowSortMenu] = React.useState(false);
+
   const myPayments = user ? payments.filter((p: any) => p.member_id === user.id) : [];
 
+  const sortedAndFiltered = React.useMemo(() => {
+    let result = [...myPayments];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((p: any) => {
+        const session = sessions?.find((s: any) => s.id === p.session_id);
+        return session?.nama_sesi?.toLowerCase().includes(q);
+      });
+    }
+
+    // Status filter
+    if (filterStatus !== 'all') {
+      result = result.filter((p: any) => {
+        if (filterStatus === 'lunas') return p.status_pembayaran === 'verified';
+        if (filterStatus === 'belum') return p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid';
+        if (filterStatus === 'pending') return p.status_pembayaran === 'uploaded' || p.status_pembayaran === 'Menunggu Verifikasi Cash';
+        if (filterStatus === 'ditolak') return p.status_pembayaran === 'rejected';
+        return true;
+      });
+    }
+
+    // Method filter
+    if (filterMethod !== 'all') {
+      result = result.filter((p: any) => {
+        if (filterMethod === 'cash') return p.bukti_transfer === 'CASH';
+        if (filterMethod === 'qris') return p.bukti_transfer && p.bukti_transfer !== 'CASH';
+        if (filterMethod === 'transfer') return p.status_pembayaran === 'uploaded' && p.bukti_transfer !== 'CASH';
+        return true;
+      });
+    }
+
+    // Date filter
+    if (filterDate) {
+      result = result.filter((p: any) => {
+        const session = sessions?.find((s: any) => s.id === p.session_id);
+        const dateStr = session?.tanggal_main || '';
+        return dateStr.startsWith(filterDate);
+      });
+    }
+
+    // Sort
+    result.sort((a: any, b: any) => {
+      const sessionA = sessions?.find((s: any) => s.id === a.session_id);
+      const sessionB = sessions?.find((s: any) => s.id === b.session_id);
+      const dateAStr = sessionA?.tanggal_main || a.created_at || '';
+      const dateBStr = sessionB?.tanggal_main || b.created_at || '';
+      const timeA = dateAStr ? new Date(dateAStr).getTime() : 0;
+      const timeB = dateBStr ? new Date(dateBStr).getTime() : 0;
+
+      if (sortOrder === 'newest') return timeB - timeA;
+      if (sortOrder === 'oldest') return timeA - timeB;
+      if (sortOrder === 'highest') return b.nominal_tagihan - a.nominal_tagihan;
+      if (sortOrder === 'lowest') return a.nominal_tagihan - b.nominal_tagihan;
+      return 0;
+    });
+
+    return result;
+  }, [myPayments, sessions, searchQuery, filterStatus, filterMethod, filterDate, sortOrder]);
+
+  const totalTagihan = myPayments.reduce((sum: number, p: any) => sum + (p.nominal_tagihan || 0), 0);
+  const totalLunas = myPayments.filter((p: any) => p.status_pembayaran === 'verified').reduce((sum: number, p: any) => sum + (p.nominal_tagihan || 0), 0);
+  const totalBelum = totalTagihan - totalLunas;
+
+  const sortLabels = {
+    newest: 'Terbaru',
+    oldest: 'Terlama',
+    highest: 'Tertinggi',
+    lowest: 'Terendah',
+  };
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-black tracking-wide text-primary uppercase mb-2">Tagihan Sesi Saya</h2>
-
-      {myPayments.length === 0 ? (
-        <div className="text-center p-8 bg-card border border-dashed border-border rounded-3xl text-secondary text-xs font-bold">
-          Anda tidak memiliki tagihan sesi badminton.
+    <div className="space-y-0">
+      {/* ── SEARCH + FILTERS ────────────────────────────────── */}
+      <div style={{ padding: '0 0 0', position: 'relative', zIndex: 2 }}>
+        {/* Search bar */}
+        <div className="bg-card border border-border" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          borderRadius: 16,
+          padding: '10px 14px',
+          marginBottom: 10,
+          boxShadow: 'var(--shadow)',
+        }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#9CA3AF', flexShrink: 0 }}>
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            placeholder="Cari nama sesi..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="text-primary"
+            style={{
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              fontSize: 13,
+              fontWeight: 600,
+              flex: 1,
+              fontFamily: 'inherit',
+            }}
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0, display: 'flex', alignItems: 'center' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {myPayments.map((p: any) => {
-            const session = sessions.find((s: any) => s.id === p.session_id);
-            const isVerified = p.status_pembayaran === 'verified';
-            const isUploaded = p.status_pembayaran === 'uploaded';
-            const isRejected = p.status_pembayaran === 'rejected';
-            
-            return (
-              <div key={p.id} className="bg-card rounded-3xl border border-border shadow-theme overflow-hidden">
-                <div className="p-5">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[9px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-355 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                        Sesi Kehadiran
-                      </span>
-                      {p.bukti_transfer === 'CASH' ? (
-                        <span className="bg-orange-500/10 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
-                          CASH
-                        </span>
-                      ) : p.bukti_transfer || isUploaded ? (
-                        <span className="bg-emerald-500/10 text-accent border border-emerald-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
-                          QRIS
-                        </span>
-                      ) : null}
-                    </div>
-                    <span className={`text-[8px] font-black px-2.5 py-0.5 rounded uppercase tracking-wider ${
-                      isVerified ? 'bg-emerald-500/20 text-emerald-355 border border-emerald-500/30' :
-                      isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                      p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid'
-                        ? 'bg-background text-secondary border border-border'
-                        : 'bg-orange-500/20 text-orange-400 border border-orange-500/30 animate-pulse'
-                    }`}>
-                      {isVerified ? '🟢 Lunas' : 
-                       isRejected ? '🔴 Ditolak' : 
-                       p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' ? '🔴 Belum Bayar' : 
-                       p.status_pembayaran === 'Menunggu Verifikasi Cash' ? '🟠 Menunggu Konfirmasi' :
-                       '🟡 Menunggu Verifikasi'}
-                    </span>
-                  </div>
 
-                  <h3 className="font-extrabold text-sm text-primary leading-snug">{session?.nama_sesi}</h3>
-                  
-                  {/* Breakdown details */}
-                  <div className="mt-3.5 space-y-1.5 border-t border-border/40 pt-3 text-[10px] font-semibold text-secondary">
-                    <div className="flex justify-between">
-                      <span>Biaya Sesi:</span>
-                      <span className="text-primary">{formatRp(session?.biaya_per_orang || 0)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Iuran Kas:</span>
-                      <span className="text-primary">{formatRp(Math.max(0, p.nominal_tagihan - (session?.biaya_per_orang || 0)))}</span>
-                    </div>
-                  </div>
+        {/* Filter row */}
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+          {/* Filter Status */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              style={{
+                appearance: 'none',
+                background: filterStatus !== 'all' ? '#22C55E' : 'var(--card)',
+                color: filterStatus !== 'all' ? '#fff' : 'var(--text-secondary)',
+                border: filterStatus !== 'all' ? '1.5px solid #22C55E' : '1.5px solid var(--border)',
+                borderRadius: 12,
+                padding: '7px 28px 7px 12px',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxShadow: 'var(--shadow)',
+              }}
+            >
+              <option value="all">Semua Status</option>
+              <option value="lunas">Lunas</option>
+              <option value="belum">Belum Bayar</option>
+              <option value="pending">Menunggu</option>
+              <option value="ditolak">Ditolak</option>
+            </select>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: filterStatus !== 'all' ? '#fff' : '#9CA3AF' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
 
-                  <div className="flex items-center justify-between mt-4 text-xs border-t border-border/40 pt-3">
-                    <div className="flex items-center gap-1.5 text-secondary font-bold">
-                      <Calendar size={13} />
-                      <span>{formatDate(session?.tanggal_main || '')}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[9px] font-bold text-secondary block uppercase tracking-wider">Total Tagihan</span>
-                      <div className="font-black text-primary text-base">{formatRp(p.nominal_tagihan)}</div>
-                    </div>
-                  </div>
-                </div>
+          {/* Filter Metode */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <select
+              value={filterMethod}
+              onChange={e => setFilterMethod(e.target.value)}
+              style={{
+                appearance: 'none',
+                background: filterMethod !== 'all' ? '#22C55E' : 'var(--card)',
+                color: filterMethod !== 'all' ? '#fff' : 'var(--text-secondary)',
+                border: filterMethod !== 'all' ? '1.5px solid #22C55E' : '1.5px solid var(--border)',
+                borderRadius: 12,
+                padding: '7px 28px 7px 12px',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxShadow: 'var(--shadow)',
+              }}
+            >
+              <option value="all">Semua Metode</option>
+              <option value="cash">Cash</option>
+              <option value="qris">QRIS</option>
+            </select>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: filterMethod !== 'all' ? '#fff' : '#9CA3AF' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
 
-                {(p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'rejected') && (
-                  <div className="bg-background/30 px-5 py-4 border-t border-border flex justify-between items-center">
-                    <button 
-                      onClick={() => setSelectedPayment(p)} 
-                      className="w-full py-3 rounded-2xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs active:scale-[0.98] bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/20"
-                    >
-                      <QrCode size={15} />
-                      Bayar Sekarang
-                    </button>
-                  </div>
-                )}
+          {/* Filter Tanggal */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <input
+              type="month"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              style={{
+                appearance: 'none',
+                background: filterDate ? '#22C55E' : 'var(--card)',
+                color: filterDate ? '#fff' : 'var(--text-secondary)',
+                border: filterDate ? '1.5px solid #22C55E' : '1.5px solid var(--border)',
+                borderRadius: 12,
+                padding: '7px 12px',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxShadow: 'var(--shadow)',
+              }}
+              placeholder="Bulan"
+            />
+          </div>
+
+          {/* Sort button */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              onClick={() => setShowSortMenu(v => !v)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                background: sortOrder !== 'newest' ? '#22C55E' : 'var(--card)',
+                color: sortOrder !== 'newest' ? '#fff' : 'var(--text-secondary)',
+                border: sortOrder !== 'newest' ? '1.5px solid #22C55E' : '1.5px solid var(--border)',
+                borderRadius: 12,
+                padding: '7px 12px',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: 'inherit',
+                boxShadow: 'var(--shadow)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/>
+              </svg>
+              {sortLabels[sortOrder]}
+            </button>
+            {showSortMenu && (
+              <div className="bg-card border border-border" style={{
+                position: 'absolute',
+                top: '110%',
+                right: 0,
+                borderRadius: 16,
+                boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                zIndex: 50,
+                overflow: 'hidden',
+                minWidth: 150,
+              }}>
+                {(['newest', 'oldest', 'highest', 'lowest'] as const).map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => { setSortOrder(opt); setShowSortMenu(false); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '10px 16px',
+                      background: sortOrder === opt ? 'rgba(34,197,94,0.1)' : 'transparent',
+                      color: sortOrder === opt ? '#22C55E' : 'var(--text-primary)',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      textAlign: 'left',
+                    }}
+                  >
+                    {sortLabels[opt]}
+                    {sortOrder === opt && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    )}
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* ── SESSION CARDS ────────────────────────────────────── */}
+      <div style={{ padding: '16px 16px 8px' }}>
+        {sortedAndFiltered.length === 0 ? (
+          <div className="bg-card border-border" style={{
+            textAlign: 'center',
+            padding: '40px 24px',
+            borderRadius: 24,
+            border: '1.5px dashed var(--border)',
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
+            <p className="text-primary" style={{ fontWeight: 800, fontSize: 14, margin: 0 }}>
+              {myPayments.length === 0 ? 'Belum Ada Tagihan' : 'Tidak Ada Hasil'}
+            </p>
+            <p className="text-secondary" style={{ fontWeight: 600, fontSize: 12, margin: '4px 0 0' }}>
+              {myPayments.length === 0 ? 'Anda belum memiliki tagihan sesi.' : 'Coba ubah filter atau kata kunci pencarian.'}
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {sortedAndFiltered.map((p: any, idx: number) => {
+              const session = sessions.find((s: any) => s.id === p.session_id);
+              const isVerified = p.status_pembayaran === 'verified';
+              const isUploaded = p.status_pembayaran === 'uploaded';
+              const isRejected = p.status_pembayaran === 'rejected';
+              const isPending = p.status_pembayaran === 'Menunggu Verifikasi Cash';
+              const isBelum = p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid';
+              const isActionable = isBelum || isRejected;
+
+              const iuranKas = Math.max(0, p.nominal_tagihan - (session?.biaya_per_orang || 0));
+
+              const methodLabel = p.bukti_transfer === 'CASH' ? 'Cash' : (p.bukti_transfer || isUploaded) ? 'QRIS' : null;
+              const methodColor = p.bukti_transfer === 'CASH' ? { bg: 'rgba(249,115,22,0.1)', text: '#F97316', border: 'rgba(249,115,22,0.25)' } : { bg: 'rgba(34,197,94,0.1)', text: '#22C55E', border: 'rgba(34,197,94,0.25)' };
+              const statusColor = isVerified ? { bg: 'rgba(16,185,129,0.1)', text: '#10B981', border: 'rgba(16,185,129,0.25)' }
+                : isRejected ? { bg: 'rgba(239,68,68,0.1)', text: '#EF4444', border: 'rgba(239,68,68,0.25)' }
+                : isBelum ? { bg: 'rgba(239,68,68,0.08)', text: '#EF4444', border: 'rgba(239,68,68,0.2)' }
+                : { bg: 'rgba(245,158,11,0.1)', text: '#F59E0B', border: 'rgba(245,158,11,0.25)' };
+
+              const statusLabel = isVerified ? 'Lunas' : isRejected ? 'Ditolak' : isBelum ? 'Belum Bayar' : isPending ? 'Menunggu' : 'Verifikasi';
+              const statusDot = isVerified ? '🟢' : isRejected ? '🔴' : isBelum ? '🔴' : '🟠';
+
+              return (
+                <div
+                  key={p.id}
+                  onClick={isActionable ? () => setSelectedPayment(p) : undefined}
+                  className="bg-card border border-border"
+                  style={{
+                    borderRadius: 24,
+                    boxShadow: 'var(--shadow)',
+                    overflow: 'hidden',
+                    cursor: isActionable ? 'pointer' : 'default',
+                    transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.18)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow)';
+                  }}
+                >
+                  <div style={{ padding: '18px 18px 0' }}>
+                    {/* TOP ROW — badges */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {/* Session badge */}
+                        <span style={{
+                          fontSize: 9, fontWeight: 800, letterSpacing: '0.6px', textTransform: 'uppercase',
+                          background: 'rgba(34,197,94,0.1)', color: '#16a34a',
+                          border: '1px solid rgba(34,197,94,0.25)', borderRadius: 100,
+                          padding: '3px 9px',
+                        }}>
+                          #{String(idx + 1).padStart(2, '0')} Sesi
+                        </span>
+                        {/* Payment method badge */}
+                        {methodLabel && (
+                          <span style={{
+                            fontSize: 9, fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase',
+                            background: methodColor.bg, color: methodColor.text,
+                            border: `1px solid ${methodColor.border}`, borderRadius: 8,
+                            padding: '3px 8px',
+                          }}>
+                            {methodLabel}
+                          </span>
+                        )}
+                      </div>
+                      {/* Status badge */}
+                      <span style={{
+                        fontSize: 9, fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase',
+                        background: statusColor.bg, color: statusColor.text,
+                        border: `1px solid ${statusColor.border}`, borderRadius: 8,
+                        padding: '3px 9px',
+                        animation: (isUploaded || isPending) ? 'pulse 2s infinite' : 'none',
+                      }}>
+                        {statusDot} {statusLabel}
+                      </span>
+                    </div>
+
+                    {/* MIDDLE — session title */}
+                    <h3 className="text-primary" style={{
+                      fontSize: 15,
+                      fontWeight: 900,
+                      margin: '0 0 14px',
+                      lineHeight: 1.3,
+                      letterSpacing: '-0.2px',
+                    }}>
+                      {session?.nama_sesi || 'Sesi Badminton'}
+                    </h3>
+
+                    {/* DIVIDER */}
+                    <div className="border-t border-border" style={{ marginBottom: 12 }} />
+
+                    {/* PAYMENT DETAIL */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 14 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="text-secondary" style={{ fontSize: 11, fontWeight: 600 }}>Biaya Sesi</span>
+                        <span className="text-primary" style={{ fontSize: 11, fontWeight: 800 }}>{formatRp(session?.biaya_per_orang || 0)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="text-secondary" style={{ fontSize: 11, fontWeight: 600 }}>Iuran Kas</span>
+                        <span className="text-primary" style={{ fontSize: 11, fontWeight: 800 }}>{formatRp(iuranKas)}</span>
+                      </div>
+                    </div>
+
+                    {/* BOTTOM ROW */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 18 }}>
+                      {/* Left — date */}
+                      <div className="text-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        <span style={{ fontSize: 11, fontWeight: 700 }}>{formatDate(session?.tanggal_main || '')}</span>
+                      </div>
+                      {/* Right — total + chevron */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <span className="text-secondary" style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.6px', textTransform: 'uppercase', display: 'block' }}>
+                            Total Tagihan
+                          </span>
+                          <span className="text-primary" style={{ fontSize: 17, fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                            {formatRp(p.nominal_tagihan)}
+                          </span>
+                        </div>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: '50%',
+                          background: isActionable ? 'rgba(34,197,94,0.12)' : 'rgba(148,163,184,0.12)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={isActionable ? '#22C55E' : 'var(--text-secondary)'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ACTION BUTTON */}
+                  {isActionable && (
+                    <div style={{ padding: '0 18px 18px' }}>
+                      <div className="border-t border-border" style={{ marginBottom: 14 }} />
+                      <button
+                        onClick={e => { e.stopPropagation(); setSelectedPayment(p); }}
+                        style={{
+                          width: '100%',
+                          padding: '13px',
+                          borderRadius: 16,
+                          background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+                          color: '#fff',
+                          fontSize: 13,
+                          fontWeight: 800,
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 7,
+                          boxShadow: '0 4px 14px rgba(34,197,94,0.35)',
+                          transition: 'opacity 0.15s ease, transform 0.15s ease',
+                          fontFamily: 'inherit',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.9'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+                        onMouseDown={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(0.98)'; }}
+                        onMouseUp={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        {isRejected ? 'Upload Ulang Bukti' : 'Bayar Sekarang'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Close sort menu on outside click */}
+      {showSortMenu && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+          onClick={() => setShowSortMenu(false)}
+        />
       )}
     </div>
   );
