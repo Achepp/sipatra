@@ -5442,13 +5442,20 @@ function MyBillsMember({
 
               const methodLabel = p.bukti_transfer === 'CASH' ? 'Cash' : (p.bukti_transfer || isUploaded) ? 'QRIS' : null;
               const methodColor = p.bukti_transfer === 'CASH' ? { bg: 'rgba(249,115,22,0.1)', text: '#F97316', border: 'rgba(249,115,22,0.25)' } : { bg: 'rgba(34,197,94,0.1)', text: '#22C55E', border: 'rgba(34,197,94,0.25)' };
-              const statusColor = isVerified ? { bg: 'rgba(16,185,129,0.1)', text: '#10B981', border: 'rgba(16,185,129,0.25)' }
-                : isRejected ? { bg: 'rgba(239,68,68,0.1)', text: '#EF4444', border: 'rgba(239,68,68,0.25)' }
-                : isBelum ? { bg: 'rgba(239,68,68,0.08)', text: '#EF4444', border: 'rgba(239,68,68,0.2)' }
-                : { bg: 'rgba(245,158,11,0.1)', text: '#F59E0B', border: 'rgba(245,158,11,0.25)' };
 
-              const statusLabel = isVerified ? 'Lunas' : isRejected ? 'Ditolak' : isBelum ? 'Belum Bayar' : isPending ? 'Menunggu' : 'Verifikasi';
-              const statusDot = isVerified ? '🟢' : isRejected ? '🔴' : isBelum ? '🔴' : '🟠';
+              const ribbonConfig = isVerified ? {
+                label: 'LUNAS',
+                gradient: 'linear-gradient(180deg, #22C55E 0%, #16A34A 100%)',
+                foldColor: '#15803D',
+              } : (isBelum || isRejected) ? {
+                label: 'BELUM BAYAR',
+                gradient: 'linear-gradient(180deg, #F87171 0%, #EF4444 100%)',
+                foldColor: '#B91C1C',
+              } : {
+                label: 'VERIFIKASI',
+                gradient: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)',
+                foldColor: '#D97706',
+              };
 
               return (
                 <div
@@ -5458,7 +5465,8 @@ function MyBillsMember({
                   style={{
                     borderRadius: 24,
                     boxShadow: 'var(--shadow)',
-                    overflow: 'hidden',
+                    position: 'relative',
+                    overflow: 'visible',
                     cursor: isActionable ? 'pointer' : 'default',
                     transition: 'transform 0.18s ease, box-shadow 0.18s ease',
                   }}
@@ -5471,6 +5479,59 @@ function MyBillsMember({
                     (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow)';
                   }}
                 >
+                  {/* Top-Right Premium Ribbon Badge */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '16px',
+                      right: '-6px',
+                      zIndex: 10,
+                      filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.12))',
+                      animation: (isUploaded || isPending) ? 'pulse 2s infinite' : 'none',
+                    }}
+                  >
+                    {/* Main Ribbon Body */}
+                    <div
+                      style={{
+                        height: '36px',
+                        paddingLeft: '22px',
+                        paddingRight: '18px',
+                        background: ribbonConfig.gradient,
+                        color: '#FFFFFF',
+                        borderRadius: '0 12px 0 12px',
+                        clipPath: 'polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.5px',
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {/* White check-circle icon */}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.707 7.707a1 1 0 00-1.414-1.414L11 12.586l-1.707-1.707a1 1 0 00-1.414 1.414l2.414 2.414a1 1 0 001.414 0l5-5z" />
+                      </svg>
+                      <span>{ribbonConfig.label}</span>
+                    </div>
+
+                    {/* Subtle Folded Tail on Bottom-Right */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: '100%',
+                        width: 0,
+                        height: 0,
+                        borderStyle: 'solid',
+                        borderWidth: '6px 6px 0 0',
+                        borderColor: `${ribbonConfig.foldColor} transparent transparent transparent`,
+                      }}
+                    />
+                  </div>
+
                   <div style={{ padding: '18px 18px 0' }}>
                     {/* TOP ROW — badges */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -5496,16 +5557,6 @@ function MyBillsMember({
                           </span>
                         )}
                       </div>
-                      {/* Status badge */}
-                      <span style={{
-                        fontSize: 9, fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase',
-                        background: statusColor.bg, color: statusColor.text,
-                        border: `1px solid ${statusColor.border}`, borderRadius: 8,
-                        padding: '3px 9px',
-                        animation: (isUploaded || isPending) ? 'pulse 2s infinite' : 'none',
-                      }}>
-                        {statusDot} {statusLabel}
-                      </span>
                     </div>
 
                     {/* MIDDLE — session title */}
