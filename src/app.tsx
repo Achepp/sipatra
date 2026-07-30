@@ -201,6 +201,103 @@ const formatRp = (num: number) => {
   }).format(num);
 };
 
+// --- SINGLE SOURCE OF TRUTH FOR PAYMENT STATUS RIBBON BADGE ---
+const getRibbonConfig = (p: any) => {
+  const status = p?.status_pembayaran;
+  const isVerified = status === 'verified' || status === 'paid' || status === 'lunas';
+  const isRejected = status === 'rejected';
+  const isBelum = status === 'generated' || status === 'unpaid';
+
+  if (isVerified) {
+    return {
+      label: 'LUNAS',
+      gradient: 'linear-gradient(180deg, #22C55E 0%, #16A34A 100%)',
+      foldColor: '#15803D',
+      isAnimated: false,
+    };
+  } else if (isRejected) {
+    return {
+      label: 'DITOLAK',
+      gradient: 'linear-gradient(180deg, #F87171 0%, #EF4444 100%)',
+      foldColor: '#B91C1C',
+      isAnimated: false,
+    };
+  } else if (isBelum) {
+    return {
+      label: 'BELUM BAYAR',
+      gradient: 'linear-gradient(180deg, #F87171 0%, #EF4444 100%)',
+      foldColor: '#B91C1C',
+      isAnimated: false,
+    };
+  } else {
+    // Waiting for admin verification: uploaded, pending, Menunggu Verifikasi Cash, etc.
+    return {
+      label: 'MENUNGGU VERIFIKASI',
+      gradient: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)',
+      foldColor: '#D97706',
+      isAnimated: true,
+    };
+  }
+};
+
+const PaymentStatusRibbon = ({ payment }: { payment: any }) => {
+  const ribbonConfig = getRibbonConfig(payment);
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '16px',
+        right: '-6px',
+        zIndex: 10,
+        filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.12))',
+        animation: ribbonConfig.isAnimated ? 'pulse 2s infinite' : 'none',
+      }}
+    >
+      {/* Main Ribbon Body */}
+      <div
+        style={{
+          height: '36px',
+          paddingLeft: '22px',
+          paddingRight: '18px',
+          background: ribbonConfig.gradient,
+          color: '#FFFFFF',
+          borderRadius: '0 12px 0 12px',
+          clipPath: 'polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontSize: '11px',
+          fontWeight: 700,
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {/* White check-circle icon */}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+          <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.707 7.707a1 1 0 00-1.414-1.414L11 12.586l-1.707-1.707a1 1 0 00-1.414 1.414l2.414 2.414a1 1 0 001.414 0l5-5z" />
+        </svg>
+        <span>{ribbonConfig.label}</span>
+      </div>
+
+      {/* Subtle Folded Tail on Bottom-Right */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: '100%',
+          width: 0,
+          height: 0,
+          borderStyle: 'solid',
+          borderWidth: '6px 6px 0 0',
+          borderColor: `${ribbonConfig.foldColor} transparent transparent transparent`,
+        }}
+      />
+    </div>
+  );
+};
+
 /**
  * Sumber kebenaran tunggal untuk menghitung biaya sewa lapangan sebuah sesi.
  * Selalu membaca dari session_expenses dengan kategori 'Sewa Lapangan' atau 'Lapangan'.
@@ -4077,11 +4174,19 @@ function Dashboard({
           <div className="space-y-3.5">
             {myActiveBills.map((p: any) => {
               const session = sessions.find((s: any) => s.id === p.session_id);
-              const isRejected = p.status_pembayaran === 'rejected';
-              const isCashPending = p.status_pembayaran === 'Menunggu Verifikasi Cash';
+              const isActionable = p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'rejected';
+
               return (
-                <div key={p.id} className={`bg-card p-4 rounded-[20px] border shadow-theme transition-all duration-200 flex justify-between items-center gap-3 ${isRejected ? 'border-red-500/30 bg-red-500/5' : isCashPending ? 'border-orange-500/30 bg-orange-500/5' : 'border-border'}`}>
-                  <div className="flex-1 min-w-0">
+                <div 
+                  key={p.id} 
+                  className="bg-card p-4 rounded-[20px] border border-border shadow-theme transition-all duration-200 flex justify-between items-center gap-3 relative overflow-visible"
+                  onClick={isActionable ? () => setSelectedPayment(p) : undefined}
+                  style={{ cursor: isActionable ? 'pointer' : 'default' }}
+                >
+                  {/* Top-Right Unified Premium Ribbon Badge */}
+                  <PaymentStatusRibbon payment={p} />
+
+                  <div className="flex-1 min-w-0 pr-2">
                     <p className="font-extrabold text-sm text-primary truncate">{session?.nama_sesi || 'Sesi Badminton'}</p>
                     <div className="flex items-center gap-1.5 text-secondary mt-1">
                       <Calendar size={11} />
@@ -4089,32 +4194,12 @@ function Dashboard({
                     </div>
                     <p className="text-sm font-black text-red-505 dark:text-red-404 mt-1">{formatRp(p.nominal_tagihan)}</p>
                   </div>
-                  <div className="text-right flex flex-col items-end gap-1.5">
-                    {p.status_pembayaran === 'verified' || p.status_pembayaran === 'paid' || p.status_pembayaran === 'lunas' ? (
-                      <span className="bg-emerald-500/15 text-accent border border-emerald-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🟢 Lunas
-                      </span>
-                    ) : p.status_pembayaran === 'rejected' ? (
-                      <span className="bg-red-500/15 text-red-500 border border-red-500/35 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🔴 Ditolak
-                      </span>
-                    ) : p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' ? (
-                      <span className="bg-background text-secondary border border-border text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🔴 Belum Bayar
-                      </span>
-                    ) : p.status_pembayaran === 'Menunggu Verifikasi Cash' ? (
-                      <span className="bg-orange-500/15 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🟠 Menunggu Konfirmasi
-                      </span>
-                    ) : (
-                      <span className="bg-orange-500/15 text-orange-500 border border-orange-500/20 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                        🟡 Menunggu Verifikasi
-                      </span>
-                    )}
-                    
-                    {(p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'rejected') && (
+
+                  <div className="text-right flex flex-col items-end gap-1.5 flex-shrink-0">
+                    {isActionable && (
                       <button 
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedPayment(p);
                         }}
                         className="px-4 py-1.5 bg-accent hover:opacity-90 text-white font-extrabold rounded-xl text-[10px] transition-all active:scale-[0.97]"
@@ -5443,20 +5528,6 @@ function MyBillsMember({
               const methodLabel = p.bukti_transfer === 'CASH' ? 'Cash' : (p.bukti_transfer || isUploaded) ? 'QRIS' : null;
               const methodColor = p.bukti_transfer === 'CASH' ? { bg: 'rgba(249,115,22,0.1)', text: '#F97316', border: 'rgba(249,115,22,0.25)' } : { bg: 'rgba(34,197,94,0.1)', text: '#22C55E', border: 'rgba(34,197,94,0.25)' };
 
-              const ribbonConfig = isVerified ? {
-                label: 'LUNAS',
-                gradient: 'linear-gradient(180deg, #22C55E 0%, #16A34A 100%)',
-                foldColor: '#15803D',
-              } : (isBelum || isRejected) ? {
-                label: 'BELUM BAYAR',
-                gradient: 'linear-gradient(180deg, #F87171 0%, #EF4444 100%)',
-                foldColor: '#B91C1C',
-              } : {
-                label: 'VERIFIKASI',
-                gradient: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)',
-                foldColor: '#D97706',
-              };
-
               return (
                 <div
                   key={p.id}
@@ -5480,57 +5551,7 @@ function MyBillsMember({
                   }}
                 >
                   {/* Top-Right Premium Ribbon Badge */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '16px',
-                      right: '-6px',
-                      zIndex: 10,
-                      filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.12))',
-                      animation: (isUploaded || isPending) ? 'pulse 2s infinite' : 'none',
-                    }}
-                  >
-                    {/* Main Ribbon Body */}
-                    <div
-                      style={{
-                        height: '36px',
-                        paddingLeft: '22px',
-                        paddingRight: '18px',
-                        background: ribbonConfig.gradient,
-                        color: '#FFFFFF',
-                        borderRadius: '0 12px 0 12px',
-                        clipPath: 'polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.5px',
-                        textTransform: 'uppercase',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {/* White check-circle icon */}
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-                        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.707 7.707a1 1 0 00-1.414-1.414L11 12.586l-1.707-1.707a1 1 0 00-1.414 1.414l2.414 2.414a1 1 0 001.414 0l5-5z" />
-                      </svg>
-                      <span>{ribbonConfig.label}</span>
-                    </div>
-
-                    {/* Subtle Folded Tail on Bottom-Right */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: '100%',
-                        width: 0,
-                        height: 0,
-                        borderStyle: 'solid',
-                        borderWidth: '6px 6px 0 0',
-                        borderColor: `${ribbonConfig.foldColor} transparent transparent transparent`,
-                      }}
-                    />
-                  </div>
+                  <PaymentStatusRibbon payment={p} />
 
                   <div style={{ padding: '18px 18px 0' }}>
                     {/* TOP ROW — badges */}
