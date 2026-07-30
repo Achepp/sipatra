@@ -5259,9 +5259,23 @@ function MyBillsMember({
     return result;
   }, [myPayments, sessions, searchQuery, filterStatus, filterMethod, filterDate, sortOrder]);
 
-  const totalTagihan = myPayments.reduce((sum: number, p: any) => sum + (p.nominal_tagihan || 0), 0);
-  const totalLunas = myPayments.filter((p: any) => p.status_pembayaran === 'verified').reduce((sum: number, p: any) => sum + (p.nominal_tagihan || 0), 0);
-  const totalBelum = totalTagihan - totalLunas;
+  const pendingPayments = myPayments.filter((p: any) => 
+    p.status_pembayaran === 'uploaded' || p.status_pembayaran === 'Menunggu Verifikasi Cash' || p.status_pembayaran === 'pending'
+  );
+  const lunasPayments = myPayments.filter((p: any) => 
+    p.status_pembayaran === 'verified' || p.status_pembayaran === 'paid' || p.status_pembayaran === 'lunas'
+  );
+  const belumPayments = myPayments.filter((p: any) => 
+    p.status_pembayaran === 'generated' || p.status_pembayaran === 'unpaid' || p.status_pembayaran === 'rejected'
+  );
+
+  const pendingCount = pendingPayments.length;
+  const lunasCount = lunasPayments.length;
+  const belumCount = belumPayments.length;
+
+  const totalActiveAmount = [...pendingPayments, ...belumPayments].reduce(
+    (sum: number, p: any) => sum + (p.nominal_tagihan || 0), 0
+  );
 
   const sortLabels = {
     newest: 'Terbaru',
@@ -5272,6 +5286,183 @@ function MyBillsMember({
 
   return (
     <div className="space-y-0">
+      {/* ── PAYMENT SUMMARY CARD ────────────────────────────────── */}
+      <div
+        className="bg-card border border-border"
+        style={{
+          borderRadius: 24,
+          padding: '20px',
+          marginBottom: 16,
+          boxShadow: 'var(--shadow)',
+          position: 'relative',
+          overflow: 'hidden',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        {/* TOP ROW: Header Title & Large Amount + Monochrome Receipt Icon */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div>
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#64748B', display: 'block', marginBottom: 4 }}>
+              Total Tagihan Aktif
+            </span>
+            <span style={{ fontSize: 36, fontWeight: 800, color: '#16A34A', lineHeight: 1.1, display: 'block' }}>
+              {formatRp(totalActiveAmount)}
+            </span>
+          </div>
+
+          {/* Top Right: Translucent Mint Receipt Illustration */}
+          <div style={{ opacity: 0.85, flexShrink: 0 }}>
+            <svg width="56" height="56" viewBox="0 0 60 60" fill="none">
+              <rect x="10" y="8" width="38" height="44" rx="10" fill="#10B981" fillOpacity="0.12" stroke="#10B981" strokeOpacity="0.25" strokeWidth="2"/>
+              <rect x="18" y="18" width="22" height="4" rx="2" fill="#10B981" fillOpacity="0.4"/>
+              <rect x="18" y="26" width="16" height="4" rx="2" fill="#10B981" fillOpacity="0.4"/>
+              <rect x="18" y="34" width="12" height="4" rx="2" fill="#10B981" fillOpacity="0.4"/>
+              <path d="M 40 8 V 52" stroke="#10B981" strokeOpacity="0.2" strokeWidth="2" strokeDasharray="3 3"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* SUMMARY GRID: 1 Row with 3 Equal Columns */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* COLUMN 1: Menunggu Verifikasi */}
+          <button
+            type="button"
+            onClick={() => setFilterStatus(filterStatus === 'pending' ? 'all' : 'pending')}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 6px',
+              borderRadius: 16,
+              border: filterStatus === 'pending' ? '2px solid #F59E0B' : '2px solid transparent',
+              background: filterStatus === 'pending' ? '#FFF7ED' : 'transparent',
+              transform: filterStatus === 'pending' ? 'scale(1.03)' : 'scale(1)',
+              transition: 'all 0.18s ease',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+            }}
+          >
+            <div style={{
+              width: 38,
+              height: 38,
+              borderRadius: '50%',
+              background: '#FFF7ED',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div>
+              <span style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', display: 'block', lineHeight: 1.1 }}>
+                {pendingCount}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', lineHeight: 1.2, display: 'block' }}>
+                Menunggu<br />Verifikasi
+              </span>
+            </div>
+          </button>
+
+          {/* DIVIDER 1 */}
+          <div style={{ width: 1, height: 40, background: '#E5E7EB', margin: '0 2px', flexShrink: 0 }} />
+
+          {/* COLUMN 2: Lunas */}
+          <button
+            type="button"
+            onClick={() => setFilterStatus(filterStatus === 'lunas' ? 'all' : 'lunas')}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 6px',
+              borderRadius: 16,
+              border: filterStatus === 'lunas' ? '2px solid #22C55E' : '2px solid transparent',
+              background: filterStatus === 'lunas' ? '#ECFDF5' : 'transparent',
+              transform: filterStatus === 'lunas' ? 'scale(1.03)' : 'scale(1)',
+              transition: 'all 0.18s ease',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+            }}
+          >
+            <div style={{
+              width: 38,
+              height: 38,
+              borderRadius: '50%',
+              background: '#ECFDF5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <div>
+              <span style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', display: 'block', lineHeight: 1.1 }}>
+                {lunasCount}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', lineHeight: 1.2, display: 'block' }}>
+                Lunas
+              </span>
+            </div>
+          </button>
+
+          {/* DIVIDER 2 */}
+          <div style={{ width: 1, height: 40, background: '#E5E7EB', margin: '0 2px', flexShrink: 0 }} />
+
+          {/* COLUMN 3: Belum Bayar */}
+          <button
+            type="button"
+            onClick={() => setFilterStatus(filterStatus === 'belum' ? 'all' : 'belum')}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 6px',
+              borderRadius: 16,
+              border: filterStatus === 'belum' ? '2px solid #EF4444' : '2px solid transparent',
+              background: filterStatus === 'belum' ? '#FEF2F2' : 'transparent',
+              transform: filterStatus === 'belum' ? 'scale(1.03)' : 'scale(1)',
+              transition: 'all 0.18s ease',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontFamily: 'inherit',
+            }}
+          >
+            <div style={{
+              width: 38,
+              height: 38,
+              borderRadius: '50%',
+              background: '#FEF2F2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>
+              </svg>
+            </div>
+            <div>
+              <span style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', display: 'block', lineHeight: 1.1 }}>
+                {belumCount}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', lineHeight: 1.2, display: 'block' }}>
+                Belum Bayar
+              </span>
+            </div>
+          </button>
+        </div>
+      </div>
       {/* ── SEARCH + FILTERS ────────────────────────────────── */}
       <div style={{ padding: '0 0 0', position: 'relative', zIndex: 2 }}>
         {/* Search bar */}
