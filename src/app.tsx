@@ -5291,14 +5291,14 @@ function MyBillsMember({
         className="emerald-summary-card"
         style={{
           width: '100%',
-          height: 185,
+          height: 170,
           borderRadius: 24,
           boxShadow: '0 16px 40px rgba(22, 163, 74, 0.20)',
           overflow: 'hidden',
           position: 'relative',
           marginBottom: 16,
           boxSizing: 'border-box',
-          padding: '16px 20px',
+          padding: '14px 20px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -5401,7 +5401,7 @@ function MyBillsMember({
           </span>
           <span
             style={{
-              fontSize: 40,
+              fontSize: 32,
               fontWeight: 700,
               color: '#FFFFFF',
               lineHeight: 1.05,
@@ -5413,170 +5413,195 @@ function MyBillsMember({
           </span>
         </div>
 
-        {/* SUMMARY GRID: STRICT 3 EQUAL COLUMNS WITH 48PX WHITE ICONS & 12PX GAP */}
+        {/* SUMMARY GRID: repeat(3, 1fr) ─ perfectly equal columns */}
         <div
           style={{
             position: 'relative',
             zIndex: 1,
-            display: 'grid',
-            gridTemplateColumns: '1fr auto 1fr auto 1fr',
-            alignItems: 'center',
-            width: '100%',
           }}
         >
-          {/* COLUMN 1: Pending */}
-          <button
-            type="button"
-            onClick={() => setFilterStatus(filterStatus === 'pending' ? 'all' : 'pending')}
-            className="status-summary-btn"
+          {/* Row wrapper – holds columns + absolutely-positioned dividers */}
+          <div
             style={{
-              display: 'flex',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
               alignItems: 'center',
-              gap: 12,
-              padding: '2px 0',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              textAlign: 'left',
-              opacity: filterStatus !== 'all' && filterStatus !== 'pending' ? 0.65 : 1,
+              width: '100%',
+              position: 'relative',
             }}
           >
-            {/* 48x48 White Circular Container */}
+            {/* ── Divider 1 (after col 1) ── */}
             <div
-              className="emerald-glass-icon"
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: '#FFFFFF',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                position: 'absolute',
+                left: 'calc(33.333% - 0.5px)',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 1,
+                height: 32,
+                background: 'rgba(255, 255, 255, 0.18)',
+                pointerEvents: 'none',
+              }}
+            />
+            {/* ── Divider 2 (after col 2) ── */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 'calc(66.666% - 0.5px)',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 1,
+                height: 32,
+                background: 'rgba(255, 255, 255, 0.18)',
+                pointerEvents: 'none',
+              }}
+            />
+
+            {/* COLUMN 1: Pending */}
+            <button
+              type="button"
+              onClick={() => setFilterStatus(filterStatus === 'pending' ? 'all' : 'pending')}
+              className="status-summary-btn"
+              style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                gap: 8,
+                padding: '4px 0',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                opacity: filterStatus !== 'all' && filterStatus !== 'pending' ? 0.6 : 1,
+                minWidth: 0,
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-            </div>
-            {/* Text Stack: 14px SemiBold Label above, 22px Bold Value below */}
-            <div style={{ overflow: 'hidden' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
-                Pending
-              </span>
-              <span style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1, marginTop: 1, whiteSpace: 'nowrap' }}>
-                {pendingCount} Sesi
-              </span>
-            </div>
-          </button>
+              <div
+                className="emerald-glass-icon"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: '#FFFFFF',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.85)', display: 'block', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                  Pending
+                </span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+                  {pendingCount} Sesi
+                </span>
+              </div>
+            </button>
 
-          {/* SHORT VERTICAL DIVIDER 1 */}
-          <div style={{ width: 1, height: 36, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0, margin: '0 8px' }} />
-
-          {/* COLUMN 2: Lunas */}
-          <button
-            type="button"
-            onClick={() => setFilterStatus(filterStatus === 'lunas' ? 'all' : 'lunas')}
-            className="status-summary-btn"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '2px 0',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              textAlign: 'left',
-              opacity: filterStatus !== 'all' && filterStatus !== 'lunas' ? 0.65 : 1,
-            }}
-          >
-            {/* 48x48 White Circular Container */}
-            <div
-              className="emerald-glass-icon"
+            {/* COLUMN 2: Lunas */}
+            <button
+              type="button"
+              onClick={() => setFilterStatus(filterStatus === 'lunas' ? 'all' : 'lunas')}
+              className="status-summary-btn"
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: '#FFFFFF',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                gap: 8,
+                padding: '4px 0 4px 16px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                opacity: filterStatus !== 'all' && filterStatus !== 'lunas' ? 0.6 : 1,
+                minWidth: 0,
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-            </div>
-            {/* Text Stack: 14px SemiBold Label above, 22px Bold Value below */}
-            <div style={{ overflow: 'hidden' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
-                Lunas
-              </span>
-              <span style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1, marginTop: 1, whiteSpace: 'nowrap' }}>
-                {lunasCount} Sesi
-              </span>
-            </div>
-          </button>
+              <div
+                className="emerald-glass-icon"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: '#FFFFFF',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.85)', display: 'block', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                  Lunas
+                </span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+                  {lunasCount} Sesi
+                </span>
+              </div>
+            </button>
 
-          {/* SHORT VERTICAL DIVIDER 2 */}
-          <div style={{ width: 1, height: 36, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0, margin: '0 8px' }} />
-
-          {/* COLUMN 3: Belum Bayar */}
-          <button
-            type="button"
-            onClick={() => setFilterStatus(filterStatus === 'belum' ? 'all' : 'belum')}
-            className="status-summary-btn"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '2px 0',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              textAlign: 'left',
-              opacity: filterStatus !== 'all' && filterStatus !== 'belum' ? 0.65 : 1,
-            }}
-          >
-            {/* 48x48 White Circular Container */}
-            <div
-              className="emerald-glass-icon"
+            {/* COLUMN 3: Belum Bayar */}
+            <button
+              type="button"
+              onClick={() => setFilterStatus(filterStatus === 'belum' ? 'all' : 'belum')}
+              className="status-summary-btn"
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: '#FFFFFF',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                gap: 8,
+                padding: '4px 0 4px 16px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                opacity: filterStatus !== 'all' && filterStatus !== 'belum' ? 0.6 : 1,
+                minWidth: 0,
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
-                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
-                <path d="M18 12a2 2 0 0 0 0 4h4v-4z" />
-              </svg>
-            </div>
-            {/* Text Stack: 14px SemiBold Label above, 22px Bold Value below */}
-            <div style={{ overflow: 'hidden' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
-                Belum Bayar
-              </span>
-              <span style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1, marginTop: 1, whiteSpace: 'nowrap' }}>
-                {belumCount} Sesi
-              </span>
-            </div>
-          </button>
+              <div
+                className="emerald-glass-icon"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: '#FFFFFF',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                  <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                  <path d="M18 12a2 2 0 0 0 0 4h4v-4z" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.85)', display: 'block', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                  Belum Bayar
+                </span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+                  {belumCount} Sesi
+                </span>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
       {/* ── SEARCH + FILTERS ────────────────────────────────── */}
