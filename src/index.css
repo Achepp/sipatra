@@ -210,3 +210,31 @@ body {
 .animate-slide-up {
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Emerald Summary Card Fintech Styles */
+.emerald-summary-card {
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.emerald-summary-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 48px rgba(22, 163, 74, 0.28) !important;
+}
+
+.emerald-glass-col {
+  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.emerald-glass-col:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.emerald-glass-icon {
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease;
+}
+
+.emerald-glass-col:hover .emerald-glass-icon {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.28) !important;
+}

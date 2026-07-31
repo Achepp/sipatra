@@ -5288,175 +5288,299 @@ function MyBillsMember({
     <div className="space-y-0">
       {/* ── PAYMENT SUMMARY CARD ────────────────────────────────── */}
       <div
-        className="bg-card border border-border"
+        className="emerald-summary-card"
         style={{
+          width: '100%',
+          height: 180,
           borderRadius: 24,
-          padding: '20px',
-          marginBottom: 16,
-          boxShadow: 'var(--shadow)',
-          position: 'relative',
+          boxShadow: '0 16px 40px rgba(22, 163, 74, 0.20)',
           overflow: 'hidden',
-          transition: 'all 0.2s ease',
+          position: 'relative',
+          marginBottom: 16,
+          boxSizing: 'border-box',
+          padding: '16px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          background: 'linear-gradient(135deg, #0F766E 0%, #14866E 50%, #0E8B67 100%)',
+          cursor: 'default',
         }}
       >
-        {/* TOP ROW: Header Title & Large Amount + Monochrome Receipt Icon */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-          <div>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#64748B', display: 'block', marginBottom: 4 }}>
-              Total Tagihan Aktif
-            </span>
-            <span style={{ fontSize: 36, fontWeight: 800, color: '#16A34A', lineHeight: 1.1, display: 'block' }}>
-              {formatRp(totalActiveAmount)}
-            </span>
-          </div>
+        {/* BACKGROUND DECORATIONS */}
+        {/* Top Right: Large translucent organic blob - rgba(255,255,255,.08) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: -50,
+            right: -40,
+            width: 200,
+            height: 200,
+            borderRadius: '45% 55% 65% 35% / 45% 45% 55% 55%',
+            background: 'rgba(255, 255, 255, 0.08)',
+            pointerEvents: 'none',
+          }}
+        />
 
-          {/* Top Right: Translucent Mint Receipt Illustration */}
-          <div style={{ opacity: 0.85, flexShrink: 0 }}>
-            <svg width="56" height="56" viewBox="0 0 60 60" fill="none">
-              <rect x="10" y="8" width="38" height="44" rx="10" fill="#10B981" fillOpacity="0.12" stroke="#10B981" strokeOpacity="0.25" strokeWidth="2"/>
-              <rect x="18" y="18" width="22" height="4" rx="2" fill="#10B981" fillOpacity="0.4"/>
-              <rect x="18" y="26" width="16" height="4" rx="2" fill="#10B981" fillOpacity="0.4"/>
-              <rect x="18" y="34" width="12" height="4" rx="2" fill="#10B981" fillOpacity="0.4"/>
-              <path d="M 40 8 V 52" stroke="#10B981" strokeOpacity="0.2" strokeWidth="2" strokeDasharray="3 3"/>
-            </svg>
-          </div>
+        {/* Bottom Right: Behind the illustration - large blurred circle - Opacity 6% */}
+        <div
+          style={{
+            position: 'absolute',
+            right: -20,
+            bottom: -20,
+            width: 160,
+            height: 160,
+            borderRadius: '50%',
+            background: '#FFFFFF',
+            filter: 'blur(30px)',
+            opacity: 0.06,
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Bottom Right: Abstract receipt/payment illustration - White Opacity 8% Soft Light */}
+        <div
+          style={{
+            position: 'absolute',
+            right: 20,
+            bottom: 20,
+            opacity: 0.08,
+            mixBlendMode: 'soft-light',
+            pointerEvents: 'none',
+            color: '#FFFFFF',
+          }}
+        >
+          <svg width="68" height="68" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z" />
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+            <path d="M12 6v12" />
+          </svg>
         </div>
 
-        {/* SUMMARY GRID: 1 Row with 3 Equal Columns */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Bottom Left: Very subtle radial highlight - Opacity 5% */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: -40,
+            left: -40,
+            width: 180,
+            height: 180,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 70%)',
+            opacity: 0.05,
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Top Left: Very soft glossy highlight - Opacity 4% */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '45%',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
+            opacity: 0.04,
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* TOP ROW: TITLE & AMOUNT */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <span
+            style={{
+              fontSize: 14,
+              fontWeight: 500,
+              color: 'rgba(255, 255, 255, 0.85)',
+              display: 'block',
+              marginBottom: 2,
+              letterSpacing: '0.01em',
+            }}
+          >
+            Total Tagihan Aktif
+          </span>
+          <span
+            style={{
+              fontSize: 42,
+              fontWeight: 700,
+              color: '#FFFFFF',
+              lineHeight: 1.05,
+              display: 'block',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {formatRp(totalActiveAmount)}
+          </span>
+        </div>
+
+        {/* SUMMARY GRID: 3 EQUAL COLUMNS */}
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            width: '100%',
+          }}
+        >
           {/* COLUMN 1: Menunggu Verifikasi */}
           <button
             type="button"
             onClick={() => setFilterStatus(filterStatus === 'pending' ? 'all' : 'pending')}
+            className="emerald-glass-col"
             style={{
               flex: 1,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '8px 6px',
+              padding: '6px 8px',
               borderRadius: 16,
-              border: filterStatus === 'pending' ? '2px solid #F59E0B' : '2px solid transparent',
-              background: filterStatus === 'pending' ? '#FFF7ED' : 'transparent',
-              transform: filterStatus === 'pending' ? 'scale(1.03)' : 'scale(1)',
-              transition: 'all 0.18s ease',
+              background: filterStatus === 'pending' ? 'rgba(255, 255, 255, 0.24)' : 'rgba(255, 255, 255, 0.14)',
+              border: filterStatus === 'pending' ? '1px solid rgba(255, 255, 255, 0.45)' : '1px solid rgba(255, 255, 255, 0.18)',
+              backdropFilter: 'blur(18px)',
+              WebkitBackdropFilter: 'blur(18px)',
               cursor: 'pointer',
               textAlign: 'left',
               fontFamily: 'inherit',
+              transform: filterStatus === 'pending' ? 'scale(1.02)' : 'scale(1)',
             }}
           >
-            <div style={{
-              width: 38,
-              height: 38,
-              borderRadius: '50%',
-              background: '#FFF7ED',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            {/* Rounded Glass Icon: Orange Clock */}
+            <div
+              className="emerald-glass-icon"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
               </svg>
             </div>
-            <div>
-              <span style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', display: 'block', lineHeight: 1.1 }}>
+            <div style={{ overflow: 'hidden' }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1 }}>
                 {pendingCount}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', lineHeight: 1.2, display: 'block' }}>
-                Menunggu<br />Verifikasi
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.15, display: 'block', whiteSpace: 'nowrap' }}>
+                Menunggu Verifikasi
               </span>
             </div>
           </button>
 
-          {/* DIVIDER 1 */}
-          <div style={{ width: 1, height: 40, background: '#E5E7EB', margin: '0 2px', flexShrink: 0 }} />
+          {/* VERTICAL DIVIDER 1 */}
+          <div style={{ width: 1, height: 32, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0 }} />
 
           {/* COLUMN 2: Lunas */}
           <button
             type="button"
             onClick={() => setFilterStatus(filterStatus === 'lunas' ? 'all' : 'lunas')}
+            className="emerald-glass-col"
             style={{
               flex: 1,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '8px 6px',
+              padding: '6px 8px',
               borderRadius: 16,
-              border: filterStatus === 'lunas' ? '2px solid #22C55E' : '2px solid transparent',
-              background: filterStatus === 'lunas' ? '#ECFDF5' : 'transparent',
-              transform: filterStatus === 'lunas' ? 'scale(1.03)' : 'scale(1)',
-              transition: 'all 0.18s ease',
+              background: filterStatus === 'lunas' ? 'rgba(255, 255, 255, 0.24)' : 'rgba(255, 255, 255, 0.14)',
+              border: filterStatus === 'lunas' ? '1px solid rgba(255, 255, 255, 0.45)' : '1px solid rgba(255, 255, 255, 0.18)',
+              backdropFilter: 'blur(18px)',
+              WebkitBackdropFilter: 'blur(18px)',
               cursor: 'pointer',
               textAlign: 'left',
               fontFamily: 'inherit',
+              transform: filterStatus === 'lunas' ? 'scale(1.02)' : 'scale(1)',
             }}
           >
-            <div style={{
-              width: 38,
-              height: 38,
-              borderRadius: '50%',
-              background: '#ECFDF5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            {/* Rounded Glass Icon: Green Check */}
+            <div
+              className="emerald-glass-icon"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <div>
-              <span style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', display: 'block', lineHeight: 1.1 }}>
+            <div style={{ overflow: 'hidden' }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1 }}>
                 {lunasCount}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', lineHeight: 1.2, display: 'block' }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.15, display: 'block', whiteSpace: 'nowrap' }}>
                 Lunas
               </span>
             </div>
           </button>
 
-          {/* DIVIDER 2 */}
-          <div style={{ width: 1, height: 40, background: '#E5E7EB', margin: '0 2px', flexShrink: 0 }} />
+          {/* VERTICAL DIVIDER 2 */}
+          <div style={{ width: 1, height: 32, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0 }} />
 
           {/* COLUMN 3: Belum Bayar */}
           <button
             type="button"
             onClick={() => setFilterStatus(filterStatus === 'belum' ? 'all' : 'belum')}
+            className="emerald-glass-col"
             style={{
               flex: 1,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '8px 6px',
+              padding: '6px 8px',
               borderRadius: 16,
-              border: filterStatus === 'belum' ? '2px solid #EF4444' : '2px solid transparent',
-              background: filterStatus === 'belum' ? '#FEF2F2' : 'transparent',
-              transform: filterStatus === 'belum' ? 'scale(1.03)' : 'scale(1)',
-              transition: 'all 0.18s ease',
+              background: filterStatus === 'belum' ? 'rgba(255, 255, 255, 0.24)' : 'rgba(255, 255, 255, 0.14)',
+              border: filterStatus === 'belum' ? '1px solid rgba(255, 255, 255, 0.45)' : '1px solid rgba(255, 255, 255, 0.18)',
+              backdropFilter: 'blur(18px)',
+              WebkitBackdropFilter: 'blur(18px)',
               cursor: 'pointer',
               textAlign: 'left',
               fontFamily: 'inherit',
+              transform: filterStatus === 'belum' ? 'scale(1.02)' : 'scale(1)',
             }}
           >
-            <div style={{
-              width: 38,
-              height: 38,
-              borderRadius: '50%',
-              background: '#FEF2F2',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>
+            {/* Rounded Glass Icon: Red Wallet */}
+            <div
+              className="emerald-glass-icon"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                <path d="M18 12a2 2 0 0 0 0 4h4v-4z" />
               </svg>
             </div>
-            <div>
-              <span style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', display: 'block', lineHeight: 1.1 }}>
+            <div style={{ overflow: 'hidden' }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1 }}>
                 {belumCount}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B', lineHeight: 1.2, display: 'block' }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.15, display: 'block', whiteSpace: 'nowrap' }}>
                 Belum Bayar
               </span>
             </div>
