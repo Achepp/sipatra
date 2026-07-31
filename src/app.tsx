@@ -8631,10 +8631,10 @@ function ProfileMember({
   const roleLabel = profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA';
 
   return (
-    <div className="space-y-6 px-1 animate-fadeIn pb-8" style={{ fontFamily: 'inherit' }}>
+    <div className="space-y-4 px-1 animate-fadeIn pb-8" style={{ fontFamily: 'inherit' }}>
 
       {/* ── PROFILE SECTION (Centered Avatar, Name, Badge) ── */}
-      <div className="flex flex-col items-center text-center pt-2 pb-4">
+      <div className="flex flex-col items-center text-center pt-2 pb-2">
         {/* Large Circular Avatar (88px) + Floating Camera Button */}
         <div className="relative">
           <div className="w-[88px] h-[88px] rounded-full border-2 border-border shadow-md overflow-hidden bg-emerald-500/10 flex items-center justify-center">
@@ -8675,7 +8675,7 @@ function ProfileMember({
         )}
 
         {/* Thin Divider below badge */}
-        <div className="w-full border-b border-border mt-5" />
+        <div className="w-full border-b border-border mt-4" />
       </div>
 
       {/* ── ACCOUNT QUICK INFO (Two Equal Columns) ── */}
@@ -8703,48 +8703,7 @@ function ProfileMember({
         </div>
       </div>
 
-      {/* ── RINGKASAN SAYA ── */}
-      <div className="space-y-3">
-        <h3 className="text-xs font-black text-secondary uppercase tracking-wider flex items-center gap-1.5">
-          <Activity size={14} className="text-accent" />
-          Ringkasan Saya
-        </h3>
-        
-        <div className="grid grid-cols-3 gap-3">
-          {/* Card 1: Sesi Hadir (Green) */}
-          <div className="bg-card border border-border/80 rounded-[18px] p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
-              <Calendar size={18} className="text-emerald-500" strokeWidth={2.2} />
-            </div>
-            <div className="mt-3">
-              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-none">{sesiHadir}</p>
-              <p className="text-[9px] font-black text-secondary uppercase tracking-wider mt-1">Sesi Hadir</p>
-            </div>
-          </div>
 
-          {/* Card 2: Total Iuran (Blue) */}
-          <div className="bg-card border border-border/80 rounded-[18px] p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0">
-              <Wallet size={18} className="text-blue-500" strokeWidth={2.2} />
-            </div>
-            <div className="mt-3">
-              <p className="text-base font-black text-blue-600 dark:text-blue-400 leading-none">{formatRpShort(totalIuranVerified)}</p>
-              <p className="text-[9px] font-black text-secondary uppercase tracking-wider mt-1">Total Iuran</p>
-            </div>
-          </div>
-
-          {/* Card 3: Tunggakan (Red) */}
-          <div className="bg-card border border-border/80 rounded-[18px] p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle size={18} className="text-red-500" strokeWidth={2.2} />
-            </div>
-            <div className="mt-3">
-              <p className="text-2xl font-black text-red-500 leading-none">{tunggakanCount}</p>
-              <p className="text-[9px] font-black text-secondary uppercase tracking-wider mt-1">Tunggakan</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ── INFORMASI AKUN (iOS Settings Style List) ── */}
       <div className="space-y-3">
