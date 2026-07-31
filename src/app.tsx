@@ -5291,7 +5291,7 @@ function MyBillsMember({
         className="emerald-summary-card"
         style={{
           width: '100%',
-          height: 180,
+          height: 185,
           borderRadius: 24,
           boxShadow: '0 16px 40px rgba(22, 163, 74, 0.20)',
           overflow: 'hidden',
@@ -5401,7 +5401,7 @@ function MyBillsMember({
           </span>
           <span
             style={{
-              fontSize: 42,
+              fontSize: 40,
               fontWeight: 700,
               color: '#FFFFFF',
               lineHeight: 1.05,
@@ -5413,28 +5413,26 @@ function MyBillsMember({
           </span>
         </div>
 
-        {/* SUMMARY GRID: 3 EQUAL COLUMNS WITH HORIZONTAL ICON & TEXT LAYOUT */}
+        {/* SUMMARY GRID: STRICT 3 EQUAL COLUMNS WITH 48PX WHITE ICONS & 12PX GAP */}
         <div
           style={{
             position: 'relative',
             zIndex: 1,
-            display: 'flex',
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr auto 1fr',
             alignItems: 'center',
-            justifyContent: 'space-between',
             width: '100%',
-            gap: 2,
           }}
         >
-          {/* COLUMN 1: Menunggu Verifikasi */}
+          {/* COLUMN 1: Pending */}
           <button
             type="button"
             onClick={() => setFilterStatus(filterStatus === 'pending' ? 'all' : 'pending')}
             className="status-summary-btn"
             style={{
-              flex: 1,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 12,
               padding: '2px 0',
               background: 'transparent',
               border: 'none',
@@ -5464,19 +5462,19 @@ function MyBillsMember({
                 <polyline points="12 6 12 12 16 14" />
               </svg>
             </div>
-            {/* Text Stack: Title above, Value below */}
+            {/* Text Stack: 14px SemiBold Label above, 22px Bold Value below */}
             <div style={{ overflow: 'hidden' }}>
-              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
-                Menunggu Verifikasi
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+                Pending
               </span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, marginTop: 1 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1, marginTop: 1, whiteSpace: 'nowrap' }}>
                 {pendingCount} Sesi
               </span>
             </div>
           </button>
 
           {/* SHORT VERTICAL DIVIDER 1 */}
-          <div style={{ width: 1, height: 32, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0, margin: '0 4px' }} />
+          <div style={{ width: 1, height: 36, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0, margin: '0 8px' }} />
 
           {/* COLUMN 2: Lunas */}
           <button
@@ -5484,10 +5482,9 @@ function MyBillsMember({
             onClick={() => setFilterStatus(filterStatus === 'lunas' ? 'all' : 'lunas')}
             className="status-summary-btn"
             style={{
-              flex: 1,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 12,
               padding: '2px 0',
               background: 'transparent',
               border: 'none',
@@ -5517,19 +5514,19 @@ function MyBillsMember({
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            {/* Text Stack: Title above, Value below */}
+            {/* Text Stack: 14px SemiBold Label above, 22px Bold Value below */}
             <div style={{ overflow: 'hidden' }}>
-              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
                 Lunas
               </span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, marginTop: 1 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1, marginTop: 1, whiteSpace: 'nowrap' }}>
                 {lunasCount} Sesi
               </span>
             </div>
           </button>
 
           {/* SHORT VERTICAL DIVIDER 2 */}
-          <div style={{ width: 1, height: 32, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0, margin: '0 4px' }} />
+          <div style={{ width: 1, height: 36, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0, margin: '0 8px' }} />
 
           {/* COLUMN 3: Belum Bayar */}
           <button
@@ -5537,10 +5534,9 @@ function MyBillsMember({
             onClick={() => setFilterStatus(filterStatus === 'belum' ? 'all' : 'belum')}
             className="status-summary-btn"
             style={{
-              flex: 1,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 12,
               padding: '2px 0',
               background: 'transparent',
               border: 'none',
@@ -5571,12 +5567,12 @@ function MyBillsMember({
                 <path d="M18 12a2 2 0 0 0 0 4h4v-4z" />
               </svg>
             </div>
-            {/* Text Stack: Title above, Value below */}
+            {/* Text Stack: 14px SemiBold Label above, 22px Bold Value below */}
             <div style={{ overflow: 'hidden' }}>
-              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
                 Belum Bayar
               </span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, marginTop: 1 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.1, marginTop: 1, whiteSpace: 'nowrap' }}>
                 {belumCount} Sesi
               </span>
             </div>
