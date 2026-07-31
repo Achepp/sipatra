@@ -221,20 +221,20 @@ body {
   box-shadow: 0 20px 48px rgba(22, 163, 74, 0.28) !important;
 }
 
-.emerald-glass-col {
-  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
+.status-summary-btn {
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
 }
 
-.emerald-glass-col:hover {
-  background: rgba(255, 255, 255, 0.22) !important;
-  border-color: rgba(255, 255, 255, 0.35) !important;
+.status-summary-btn:hover {
+  transform: translateY(-2px);
+  opacity: 1 !important;
 }
 
 .emerald-glass-icon {
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease, border-color 180ms ease;
 }
 
-.emerald-glass-col:hover .emerald-glass-icon {
-  transform: scale(1.08);
+.status-summary-btn:hover .emerald-glass-icon {
+  transform: scale(1.12);
   background: rgba(255, 255, 255, 0.28) !important;
 }
