@@ -5413,7 +5413,7 @@ function MyBillsMember({
           </span>
         </div>
 
-        {/* SUMMARY GRID: 3 EQUAL COLUMNS */}
+        {/* SUMMARY GRID: 3 EQUAL COLUMNS WITH HORIZONTAL ICON & TEXT LAYOUT */}
         <div
           style={{
             position: 'relative',
@@ -5422,6 +5422,7 @@ function MyBillsMember({
             alignItems: 'center',
             justifyContent: 'space-between',
             width: '100%',
+            gap: 2,
           }}
         >
           {/* COLUMN 1: Menunggu Verifikasi */}
@@ -5432,52 +5433,50 @@ function MyBillsMember({
             style={{
               flex: 1,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 8,
               padding: '2px 0',
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               fontFamily: 'inherit',
+              textAlign: 'left',
               opacity: filterStatus !== 'all' && filterStatus !== 'pending' ? 0.65 : 1,
             }}
           >
-            {/* 32px Circular Glass Icon: Orange Clock */}
+            {/* 48x48 White Circular Container */}
             <div
               className="emerald-glass-icon"
               style={{
-                width: 32,
-                height: 32,
+                width: 48,
+                height: 48,
                 borderRadius: '50%',
-                background: filterStatus === 'pending' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(255, 255, 255, 0.16)',
-                border: filterStatus === 'pending' ? '1px solid rgba(245, 158, 11, 0.6)' : '1px solid rgba(255, 255, 255, 0.25)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
+                background: '#FFFFFF',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: 6,
                 flexShrink: 0,
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
             </div>
-            {/* Number: 28px Bold */}
-            <span style={{ fontSize: 28, fontWeight: 700, color: '#FFFFFF', lineHeight: 1, marginBottom: 2 }}>
-              {pendingCount}
-            </span>
-            {/* Label: 12px Medium */}
-            <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.1, textAlign: 'center', whiteSpace: 'nowrap' }}>
-              Menunggu Verifikasi
-            </span>
+            {/* Text Stack: Title above, Value below */}
+            <div style={{ overflow: 'hidden' }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+                Menunggu Verifikasi
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, marginTop: 1 }}>
+                {pendingCount} Sesi
+              </span>
+            </div>
           </button>
 
-          {/* VERTICAL DIVIDER 1 */}
-          <div style={{ width: 1, height: 48, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0 }} />
+          {/* SHORT VERTICAL DIVIDER 1 */}
+          <div style={{ width: 1, height: 32, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0, margin: '0 4px' }} />
 
           {/* COLUMN 2: Lunas */}
           <button
@@ -5487,51 +5486,50 @@ function MyBillsMember({
             style={{
               flex: 1,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 8,
               padding: '2px 0',
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               fontFamily: 'inherit',
+              textAlign: 'left',
               opacity: filterStatus !== 'all' && filterStatus !== 'lunas' ? 0.65 : 1,
             }}
           >
-            {/* 32px Circular Glass Icon: Green Check */}
+            {/* 48x48 White Circular Container */}
             <div
               className="emerald-glass-icon"
               style={{
-                width: 32,
-                height: 32,
+                width: 48,
+                height: 48,
                 borderRadius: '50%',
-                background: filterStatus === 'lunas' ? 'rgba(34, 197, 94, 0.35)' : 'rgba(255, 255, 255, 0.16)',
-                border: filterStatus === 'lunas' ? '1px solid rgba(34, 197, 94, 0.6)' : '1px solid rgba(255, 255, 255, 0.25)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
+                background: '#FFFFFF',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: 6,
                 flexShrink: 0,
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            {/* Number: 28px Bold */}
-            <span style={{ fontSize: 28, fontWeight: 700, color: '#FFFFFF', lineHeight: 1, marginBottom: 2 }}>
-              {lunasCount}
-            </span>
-            {/* Label: 12px Medium */}
-            <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.1, textAlign: 'center', whiteSpace: 'nowrap' }}>
-              Lunas
-            </span>
+            {/* Text Stack: Title above, Value below */}
+            <div style={{ overflow: 'hidden' }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+                Lunas
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, marginTop: 1 }}>
+                {lunasCount} Sesi
+              </span>
+            </div>
           </button>
 
-          {/* VERTICAL DIVIDER 2 */}
-          <div style={{ width: 1, height: 48, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0 }} />
+          {/* SHORT VERTICAL DIVIDER 2 */}
+          <div style={{ width: 1, height: 32, background: 'rgba(255, 255, 255, 0.18)', flexShrink: 0, margin: '0 4px' }} />
 
           {/* COLUMN 3: Belum Bayar */}
           <button
@@ -5541,49 +5539,47 @@ function MyBillsMember({
             style={{
               flex: 1,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 8,
               padding: '2px 0',
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               fontFamily: 'inherit',
+              textAlign: 'left',
               opacity: filterStatus !== 'all' && filterStatus !== 'belum' ? 0.65 : 1,
             }}
           >
-            {/* 32px Circular Glass Icon: Red Wallet */}
+            {/* 48x48 White Circular Container */}
             <div
               className="emerald-glass-icon"
               style={{
-                width: 32,
-                height: 32,
+                width: 48,
+                height: 48,
                 borderRadius: '50%',
-                background: filterStatus === 'belum' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.16)',
-                border: filterStatus === 'belum' ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(255, 255, 255, 0.25)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
+                background: '#FFFFFF',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: 6,
                 flexShrink: 0,
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
                 <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
                 <path d="M18 12a2 2 0 0 0 0 4h4v-4z" />
               </svg>
             </div>
-            {/* Number: 28px Bold */}
-            <span style={{ fontSize: 28, fontWeight: 700, color: '#FFFFFF', lineHeight: 1, marginBottom: 2 }}>
-              {belumCount}
-            </span>
-            {/* Label: 12px Medium */}
-            <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.1, textAlign: 'center', whiteSpace: 'nowrap' }}>
-              Belum Bayar
-            </span>
+            {/* Text Stack: Title above, Value below */}
+            <div style={{ overflow: 'hidden' }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255, 255, 255, 0.85)', display: 'block', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+                Belum Bayar
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', display: 'block', lineHeight: 1.15, marginTop: 1 }}>
+                {belumCount} Sesi
+              </span>
+            </div>
           </button>
         </div>
       </div>
