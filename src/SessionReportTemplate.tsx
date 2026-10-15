@@ -1018,10 +1018,11 @@ export const SessionReportTemplate: React.FC<SessionReportProps> = ({
             <table className="ses-table">
               <thead>
                 <tr>
-                  <th style={{ width: '22%' }}>Tanggal</th>
-                  <th className="tc" style={{ width: '23%' }}>Kategori</th>
-                  <th style={{ width: '33%' }}>Keterangan</th>
-                  <th className="tr" style={{ width: '22%' }}>Nominal</th>
+                  <th style={{ width: '20%' }}>Tanggal</th>
+                  <th className="tc" style={{ width: '20%' }}>Kategori</th>
+                  <th style={{ width: '32%' }}>Keterangan</th>
+                  <th className="tc" style={{ width: '10%' }}>Bukti</th>
+                  <th className="tr" style={{ width: '18%' }}>Nominal</th>
                 </tr>
               </thead>
               <tbody>
@@ -1032,11 +1033,14 @@ export const SessionReportTemplate: React.FC<SessionReportProps> = ({
                       <span className="ses-chip red">{e.kategori || '-'}</span>
                     </td>
                     <td>{e.keterangan || '-'}</td>
+                    <td className="tc" style={{ fontSize: '11px', color: e.receipt_path ? '#059669' : '#6b7280' }}>
+                      {e.receipt_path ? '📎' : '-'}
+                    </td>
                     <td className="td-amount ses-amount-expense">-{formatRp(e.nominal)}</td>
                   </tr>
                 ))}
                 <tr className="row-final">
-                  <td colSpan={3} className="tr" style={{ color: '#3f4943' }}>Total Pengeluaran Sesi</td>
+                  <td colSpan={4} className="tr" style={{ color: '#3f4943' }}>Total Pengeluaran Sesi</td>
                   <td className="td-amount ses-amount-expense">-{formatRp(totalPengeluaranSesi)}</td>
                 </tr>
               </tbody>

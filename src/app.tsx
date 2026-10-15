@@ -6,7 +6,7 @@ import {
   User as UserIcon, Activity, Calendar, MapPin, 
   TrendingUp, TrendingDown, PlusCircle, DollarSign, AlertCircle, AlertTriangle, 
   ChevronDown, Check, RefreshCw, Key, Shield, UserCheck,
-  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera, FileText
+  Sun, Moon, Lock, Mail, Eye, EyeOff, Smartphone, MoreVertical, Trash2, Edit, Download, Camera, FileText, Paperclip
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { createClient } from '@supabase/supabase-js';
@@ -442,6 +442,19 @@ export default function App() {
   const [txNominal, setTxNominal] = useState('');
   const [txKeterangan, setTxKeterangan] = useState('');
   const [editingTx, setEditingTx] = useState<any>(null);
+  // Receipt upload states for Kas Transaction (Khusus Bendahara)
+  const [txReceiptFile, setTxReceiptFile] = useState<File | null>(null);
+  const [txReceiptPreview, setTxReceiptPreview] = useState<string | null>(null);
+  const [existingReceiptPath, setExistingReceiptPath] = useState<string | null>(null);
+  const [existingReceiptName, setExistingReceiptName] = useState<string | null>(null);
+  const [removeExistingReceipt, setRemoveExistingReceipt] = useState(false);
+  const [isSavingKas, setIsSavingKas] = useState(false);
+  const receiptFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Detail & View Receipt Modal states
+  const [selectedExpenseDetail, setSelectedExpenseDetail] = useState<any>(null);
+  const [viewReceiptModal, setViewReceiptModal] = useState<{ url: string; fileName: string; isPdf: boolean; path: string } | null>(null);
+  const [isLoadingReceipt, setIsLoadingReceipt] = useState(false);
 
   // Notification read-state (localStorage-backed, no DB needed)
   const [readNotificationIds, setReadNotificationIds] = useState<Set<number>>(() => {
@@ -1617,6 +1630,112 @@ export default function App() {
     setTxKategori('');
   };
 
+  const isBendahara = profile?.role === 'admin' || profile?.role === 'bendahara';
+
+  const handleReceiptFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validasi ekstensi: JPG, JPEG, PNG, PDF
+    const allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    if (!allowedExts.includes(ext)) {
+      showToast('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.', 'error');
+      if (receiptFileInputRef.current) receiptFileInputRef.current.value = '';
+      return;
+    }
+
+    // Validasi ukuran: Maksimal 5 MB
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Ukuran file maksimal 5 MB.', 'error');
+      if (receiptFileInputRef.current) receiptFileInputRef.current.value = '';
+      return;
+    }
+
+    setTxReceiptFile(file);
+    setRemoveExistingReceipt(false);
+
+    if (ext === 'pdf') {
+      setTxReceiptPreview(null);
+    } else {
+      const objUrl = URL.createObjectURL(file);
+      setTxReceiptPreview(objUrl);
+    }
+  };
+
+  const handleRemoveReceiptFile = () => {
+    setTxReceiptFile(null);
+    if (txReceiptPreview) {
+      URL.revokeObjectURL(txReceiptPreview);
+      setTxReceiptPreview(null);
+    }
+    if (receiptFileInputRef.current) {
+      receiptFileInputRef.current.value = '';
+    }
+  };
+
+  const handleViewReceipt = async (expense: any) => {
+    if (!expense?.receipt_path) {
+      showToast('Belum ada bukti transaksi.', 'info');
+      return;
+    }
+    try {
+      setIsLoadingReceipt(true);
+      const { data, error } = await supabase.storage
+        .from('expense-receipts')
+        .createSignedUrl(expense.receipt_path, 3600);
+
+      if (error || !data?.signedUrl) {
+        throw error || new Error('Gagal membuat signed URL');
+      }
+
+      const fileName = expense.receipt_file_name || 'bukti-transaksi';
+      const isPdf = fileName.toLowerCase().endsWith('.pdf') || expense.receipt_path.toLowerCase().endsWith('.pdf');
+
+      setViewReceiptModal({
+        url: data.signedUrl,
+        fileName,
+        isPdf,
+        path: expense.receipt_path
+      });
+    } catch (err: any) {
+      console.error('Error loading receipt proof:', err);
+      showToast('Gagal memuat bukti transaksi.', 'error');
+    } finally {
+      setIsLoadingReceipt(false);
+    }
+  };
+
+  const handleDownloadReceipt = async (path: string, fileName?: string) => {
+    if (!path) return;
+    try {
+      const { data, error } = await supabase.storage.from('expense-receipts').download(path);
+      if (error) throw error;
+      if (data) {
+        const url = URL.createObjectURL(data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName || 'bukti-transaksi';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      console.error('Error downloading receipt, trying signedUrl fallback:', err);
+      try {
+        const { data } = await supabase.storage.from('expense-receipts').createSignedUrl(path, 60);
+        if (data?.signedUrl) {
+          window.open(data.signedUrl, '_blank');
+        } else {
+          showToast('Gagal mengunduh bukti transaksi.', 'error');
+        }
+      } catch (e) {
+        showToast('Gagal mengunduh bukti transaksi.', 'error');
+      }
+    }
+  };
+
   const handleTambahKasClick = () => {
     setEditingTx(null);
     setTxJenis('masuk');
@@ -1624,6 +1743,10 @@ export default function App() {
     setTxKategori('');
     setTxNominal('');
     setTxKeterangan('');
+    handleRemoveReceiptFile();
+    setExistingReceiptPath(null);
+    setExistingReceiptName(null);
+    setRemoveExistingReceipt(false);
     setShowAddKasModal(true);
   };
 
@@ -1640,24 +1763,96 @@ export default function App() {
         return;
       }
 
+      // Validasi file bukti jika ada file yang dipilih
+      if (txReceiptFile) {
+        const allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
+        const ext = txReceiptFile.name.split('.').pop()?.toLowerCase() || '';
+        if (!allowedExts.includes(ext)) {
+          showToast('Format file tidak didukung. Gunakan JPG, PNG, atau PDF.', 'error');
+          return;
+        }
+        if (txReceiptFile.size > 5 * 1024 * 1024) {
+          showToast('Ukuran file maksimal 5 MB.', 'error');
+          return;
+        }
+      }
+
+      setIsSavingKas(true);
       const dateISO = txTanggal ? `${txTanggal}T12:00:00.000Z` : new Date().toISOString();
 
       if (editingTx) {
         const oldVal = editingTx;
+        let newReceiptPath = oldVal.receipt_path;
+        let newReceiptFileName = oldVal.receipt_file_name;
+        let newReceiptUploadedAt = oldVal.receipt_uploaded_at;
+        let uploadedNewFile = false;
+
+        // Flow penggantian bukti: Upload file baru terlebih dahulu sebelum hapus file lama
+        if (txReceiptFile && isBendahara) {
+          const cleanName = txReceiptFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const uniqueName = `${Date.now()}_${cleanName}`;
+          const uploadPath = `${oldVal.id}/${uniqueName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('expense-receipts')
+            .upload(uploadPath, txReceiptFile);
+
+          if (uploadError) {
+            console.error('Error uploading receipt:', uploadError);
+            showToast('Upload bukti gagal. Silakan coba lagi.', 'error');
+            setIsSavingKas(false);
+            return;
+          }
+
+          newReceiptPath = uploadPath;
+          newReceiptFileName = txReceiptFile.name;
+          newReceiptUploadedAt = new Date().toISOString();
+          uploadedNewFile = true;
+        } else if (removeExistingReceipt && isBendahara) {
+          newReceiptPath = null;
+          newReceiptFileName = null;
+          newReceiptUploadedAt = null;
+        }
+
+        const updatePayload: any = {
+          keterangan: txKeterangan,
+          nominal: nominalNum,
+          kategori: txKategori,
+          jenis_transaksi: txJenis,
+          created_at: dateISO
+        };
+
+        if (isBendahara && txJenis === 'keluar') {
+          updatePayload.receipt_path = newReceiptPath;
+          updatePayload.receipt_file_name = newReceiptFileName;
+          updatePayload.receipt_uploaded_at = newReceiptUploadedAt;
+        }
+
         const { data: updatedTx, error } = await supabase
           .from('session_expenses')
-          .update({
-            keterangan: txKeterangan,
-            nominal: nominalNum,
-            kategori: txKategori,
-            jenis_transaksi: txJenis,
-            created_at: dateISO
-          })
+          .update(updatePayload)
           .eq('id', oldVal.id)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          // Cleanup file baru jika penyimpanan database gagal
+          if (uploadedNewFile && newReceiptPath) {
+            await supabase.storage.from('expense-receipts').remove([newReceiptPath]);
+          }
+          throw error;
+        }
+
+        // Hapus file lama hanya setelah file baru dan DB berhasil disimpan
+        if (oldVal.receipt_path && (uploadedNewFile || (removeExistingReceipt && !newReceiptPath))) {
+          if (oldVal.receipt_path !== newReceiptPath) {
+            try {
+              await supabase.storage.from('expense-receipts').remove([oldVal.receipt_path]);
+            } catch (delErr) {
+              console.warn('Could not remove old receipt file:', delErr);
+            }
+          }
+        }
 
         setSessionExpenses(prev => prev.map(item => item.id === oldVal.id ? updatedTx : item));
         
@@ -1673,22 +1868,70 @@ export default function App() {
 
         showToast('✅ Transaksi berhasil diperbarui', 'success');
       } else {
+        const insertPayload: any = {
+          session_id: null,
+          keterangan: txKeterangan,
+          nominal: nominalNum,
+          kategori: txKategori,
+          jenis_transaksi: txJenis,
+          created_at: dateISO
+        };
+
         const { data: insertedTx, error } = await supabase
           .from('session_expenses')
-          .insert({
-            session_id: null,
-            keterangan: txKeterangan,
-            nominal: nominalNum,
-            kategori: txKategori,
-            jenis_transaksi: txJenis,
-            created_at: dateISO
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
         if (error) throw error;
 
-        setSessionExpenses(prev => [...prev, insertedTx]);
+        let finalTx = insertedTx;
+
+        // Upload bukti jika dipilih oleh Bendahara
+        if (txReceiptFile && isBendahara && insertedTx && txJenis === 'keluar') {
+          const cleanName = txReceiptFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const uniqueName = `${Date.now()}_${cleanName}`;
+          const uploadPath = `${insertedTx.id}/${uniqueName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('expense-receipts')
+            .upload(uploadPath, txReceiptFile);
+
+          if (uploadError) {
+            console.error('Error uploading receipt:', uploadError);
+            // Cleanup database record jika upload gagal
+            await supabase.from('session_expenses').delete().eq('id', insertedTx.id);
+            showToast('Upload bukti gagal. Silakan coba lagi.', 'error');
+            setIsSavingKas(false);
+            return;
+          }
+
+          const receiptUploadTime = new Date().toISOString();
+          const { data: updatedWithReceipt, error: updateReceiptErr } = await supabase
+            .from('session_expenses')
+            .update({
+              receipt_path: uploadPath,
+              receipt_file_name: txReceiptFile.name,
+              receipt_uploaded_at: receiptUploadTime
+            })
+            .eq('id', insertedTx.id)
+            .select()
+            .single();
+
+          if (updateReceiptErr) {
+            console.error('Error saving receipt metadata:', updateReceiptErr);
+            // Cleanup file dan database record
+            await supabase.storage.from('expense-receipts').remove([uploadPath]);
+            await supabase.from('session_expenses').delete().eq('id', insertedTx.id);
+            showToast('Upload bukti gagal. Silakan coba lagi.', 'error');
+            setIsSavingKas(false);
+            return;
+          }
+
+          finalTx = updatedWithReceipt || insertedTx;
+        }
+
+        setSessionExpenses(prev => [...prev, finalTx]);
 
         const roleStr = profile.role === 'superadmin' ? 'SUPERADMIN' : profile.role === 'admin' ? 'BENDAHARA' : 'ANGGOTA';
         const logDetail = `Menambahkan Transaksi Baru. Jenis: ${txJenis}, Kategori: ${txKategori}, Nominal: ${nominalNum}, Keterangan: ${txKeterangan}, Tanggal: ${txTanggal}.`;
@@ -1700,7 +1943,11 @@ export default function App() {
           detail: `User: ${profile.nama || profile.email} | Role: ${roleStr} | Tanggal & Jam: ${new Date().toLocaleString('id-ID')} | ${logDetail}`
         });
 
-        showToast('✅ Transaksi berhasil dicatat', 'success');
+        if (txJenis === 'keluar') {
+          showToast('Pengeluaran berhasil disimpan.', 'success');
+        } else {
+          showToast('✅ Transaksi berhasil dicatat', 'success');
+        }
       }
 
       setShowAddKasModal(false);
@@ -1709,15 +1956,29 @@ export default function App() {
       setTxKategori('');
       setTxNominal('');
       setTxKeterangan('');
+      handleRemoveReceiptFile();
+      setExistingReceiptPath(null);
+      setExistingReceiptName(null);
+      setRemoveExistingReceipt(false);
     } catch (err: any) {
       console.error('Error saving transaction:', err);
       showToast(`❌ Gagal menyimpan transaksi: ${err.message || err}`, 'error');
+    } finally {
+      setIsSavingKas(false);
     }
   };
 
   const deleteKasTransaction = async (tx: any) => {
     if (!profile) return;
     try {
+      if (tx.receipt_path) {
+        try {
+          await supabase.storage.from('expense-receipts').remove([tx.receipt_path]);
+        } catch (storageErr) {
+          console.warn('Gagal menghapus file bukti dari storage:', storageErr);
+        }
+      }
+
       const { error } = await supabase
         .from('session_expenses')
         .delete()
@@ -1751,6 +2012,10 @@ export default function App() {
     setTxKategori(tx.kategori);
     setTxNominal(tx.nominal.toString());
     setTxKeterangan(tx.keterangan);
+    handleRemoveReceiptFile();
+    setExistingReceiptPath(tx.receipt_path || null);
+    setExistingReceiptName(tx.receipt_file_name || null);
+    setRemoveExistingReceipt(false);
     setShowAddKasModal(true);
   };
 
@@ -2876,8 +3141,12 @@ export default function App() {
               payments={payments}
               members={members}
               isAdmin={isAdmin}
+              isBendahara={isBendahara}
               handleEditKasTransaction={handleEditKasTransaction}
               handleDeleteKasTransaction={handleDeleteKasTransaction}
+              handleViewReceipt={handleViewReceipt}
+              handleDownloadReceipt={handleDownloadReceipt}
+              setSelectedExpenseDetail={setSelectedExpenseDetail}
               iuranKasConfig={iuranKasConfig}
             />
           )}
@@ -3383,19 +3652,286 @@ export default function App() {
                   />
                 </div>
 
+                {/* Bukti Transaksi (Opsional) - Khusus Bendahara pada Pengeluaran Kas */}
+                {txJenis === 'keluar' && isBendahara && (
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black text-secondary uppercase tracking-wider mb-1">
+                      Bukti Transaksi (Opsional)
+                    </label>
+
+                    <input 
+                      ref={receiptFileInputRef}
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={handleReceiptFileSelect}
+                      className="hidden"
+                    />
+
+                    {txReceiptFile ? (
+                      <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-background flex items-center justify-center flex-shrink-0 text-secondary">
+                          {txReceiptPreview ? (
+                            <img src={txReceiptPreview} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <FileText size={20} className="text-accent" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-extrabold text-primary truncate">{txReceiptFile.name}</p>
+                          <p className="text-[9px] text-secondary font-semibold">
+                            {(txReceiptFile.size / (1024 * 1024)).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={handleRemoveReceiptFile}
+                          disabled={isSavingKas}
+                          className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors flex-shrink-0"
+                          title="Hapus file"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </div>
+                    ) : existingReceiptPath && !removeExistingReceipt ? (
+                      <div className="border border-border rounded-2xl p-3 bg-background/50 flex items-center gap-3 w-full">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-shrink-0">
+                          <Paperclip size={18} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-extrabold text-primary truncate">
+                            {existingReceiptName || 'Bukti Tersimpan'}
+                          </p>
+                          <p className="text-[9px] text-emerald-500 font-semibold">Bukti tersimpan</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => receiptFileInputRef.current?.click()}
+                            disabled={isSavingKas}
+                            className="px-2.5 py-1 text-[9px] font-bold bg-background border border-border hover:bg-border/30 rounded-lg text-primary transition-colors"
+                          >
+                            Ganti
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRemoveExistingReceipt(true)}
+                            disabled={isSavingKas}
+                            className="p-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-full transition-colors"
+                            title="Hapus bukti"
+                          >
+                            <XCircle size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button 
+                        type="button"
+                        onClick={() => receiptFileInputRef.current?.click()}
+                        disabled={isSavingKas}
+                        className="w-full border border-dashed border-border hover:border-accent/40 rounded-2xl p-3.5 flex flex-col items-center justify-center gap-1 bg-background/40 hover:bg-background transition-colors cursor-pointer"
+                      >
+                        <Upload size={18} className="text-secondary" />
+                        <span className="text-[10px] font-bold text-primary">Upload / pilih file</span>
+                        <span className="text-[8px] text-secondary">Format: JPG, JPEG, PNG atau PDF (Maksimal 5 MB)</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Submit Button */}
                 <button 
                   type="submit" 
-                  className={`w-full text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs ${
+                  disabled={isSavingKas}
+                  className={`w-full text-white font-extrabold py-3.5 rounded-2xl mt-4 transition-all shadow-lg active:scale-[0.98] text-xs flex items-center justify-center gap-2 ${
                     txJenis === 'masuk' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
-                  }`}
+                  } disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
-                  {editingTx 
-                    ? 'Simpan Perubahan' 
-                    : (txJenis === 'masuk' ? 'Simpan Pemasukan' : 'Simpan Pengeluaran')
-                  }
+                  {isSavingKas ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      </svg>
+                      <span>{txReceiptFile ? 'Mengupload bukti...' : 'Menyimpan...'}</span>
+                    </>
+                  ) : (
+                    editingTx 
+                      ? 'Simpan Perubahan' 
+                      : (txJenis === 'masuk' ? 'Simpan Pemasukan' : 'Simpan Pengeluaran')
+                  )}
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* DETAIL PENGELUARAN MODAL */}
+        {selectedExpenseDetail && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setSelectedExpenseDetail(null)}>
+            <div className="bg-card w-full max-w-sm rounded-[24px] p-6 relative border border-border shadow-theme animate-scaleUp transition-colors duration-200" onClick={e => e.stopPropagation()}>
+              <button 
+                type="button"
+                onClick={() => setSelectedExpenseDetail(null)} 
+                className="absolute top-5 right-5 p-2 bg-background border border-border/45 text-secondary hover:text-primary rounded-full transition-colors"
+              >
+                <XCircle size={18} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <Wallet size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-primary uppercase tracking-wide">
+                    Detail Pengeluaran
+                  </h3>
+                  <p className="text-[10px] font-bold text-secondary">
+                    {formatDate(selectedExpenseDetail.created_at || selectedExpenseDetail.tanggal)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 bg-background/50 border border-border rounded-2xl p-4 text-xs mb-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-secondary font-bold">Kategori</span>
+                  <span className="font-extrabold text-primary px-2 py-0.5 rounded bg-background border border-border/40 text-[10px]">
+                    {selectedExpenseDetail.kategori}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-border/40 pt-2.5">
+                  <span className="text-secondary font-bold">Nominal</span>
+                  <span className="font-black text-red-400 text-sm">
+                    -{formatRp(selectedExpenseDetail.nominal)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-start border-t border-border/40 pt-2.5">
+                  <span className="text-secondary font-bold flex-shrink-0">Keterangan</span>
+                  <span className="font-bold text-primary text-right pl-4">
+                    {selectedExpenseDetail.keterangan}
+                  </span>
+                </div>
+              </div>
+
+              {/* BUKTI TRANSAKSI SECTION */}
+              <div className="border border-border rounded-2xl p-4 bg-background/30 space-y-3 mb-4">
+                <p className="text-[10px] font-black text-secondary uppercase tracking-wider">
+                  Bukti Transaksi
+                </p>
+
+                {selectedExpenseDetail.receipt_path ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2.5 bg-card border border-border p-2.5 rounded-xl">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                        {selectedExpenseDetail.receipt_file_name?.toLowerCase().endsWith('.pdf') ? (
+                          <FileText size={16} />
+                        ) : (
+                          <Paperclip size={16} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-primary truncate">
+                          {selectedExpenseDetail.receipt_file_name || 'Bukti Transaksi'}
+                        </p>
+                        {selectedExpenseDetail.receipt_uploaded_at && (
+                          <p className="text-[9px] text-secondary font-semibold">
+                            Diupload: {formatDate(selectedExpenseDetail.receipt_uploaded_at)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleViewReceipt(selectedExpenseDetail)}
+                        disabled={isLoadingReceipt}
+                        className="flex-1 py-2.5 bg-accent hover:opacity-90 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-[0.98] disabled:opacity-60"
+                      >
+                        {isLoadingReceipt ? (
+                          <span className="animate-pulse">Memuat...</span>
+                        ) : (
+                          <><Eye size={14} /> Lihat Bukti</>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadReceipt(selectedExpenseDetail.receipt_path, selectedExpenseDetail.receipt_file_name)}
+                        className="py-2.5 px-3.5 bg-background border border-border hover:bg-border/30 text-primary font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                        title="Download Bukti"
+                      >
+                        <Download size={14} /> Download
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-secondary font-semibold italic py-1">
+                    Belum ada bukti transaksi
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedExpenseDetail(null)}
+                className="w-full py-2.5 bg-background border border-border text-secondary hover:text-primary font-extrabold rounded-xl text-xs uppercase tracking-wider transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL LIHAT BUKTI TRANSAKSI (IMAGE / PDF PREVIEW) */}
+        {viewReceiptModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn" onClick={() => setViewReceiptModal(null)}>
+            <div className="bg-card p-4 rounded-3xl border border-border max-w-lg w-full relative overflow-hidden shadow-theme space-y-3" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center pr-8">
+                <h3 className="font-extrabold text-xs text-primary truncate flex items-center gap-1.5">
+                  <Paperclip size={14} className="text-accent" />
+                  {viewReceiptModal.fileName || 'Bukti Transaksi'}
+                </h3>
+                <button 
+                  onClick={() => setViewReceiptModal(null)} 
+                  className="absolute top-4 right-4 p-1.5 bg-background text-secondary hover:text-primary rounded-full hover:bg-border transition-colors"
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+
+              {viewReceiptModal.isPdf ? (
+                <div className="w-full h-[65vh] bg-background rounded-2xl overflow-hidden border border-border flex flex-col">
+                  <iframe 
+                    src={`${viewReceiptModal.url}#toolbar=0`} 
+                    title="Bukti Transaksi PDF"
+                    className="w-full h-full border-0" 
+                  />
+                </div>
+              ) : (
+                <div className="bg-background rounded-2xl overflow-hidden max-h-[65vh] border border-border flex items-center justify-center p-1">
+                  <img 
+                    src={viewReceiptModal.url} 
+                    alt="Bukti Transaksi" 
+                    className="w-full h-full object-contain max-h-[65vh] rounded-xl" 
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-2 justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadReceipt(viewReceiptModal.path, viewReceiptModal.fileName)}
+                  className="py-2 px-3 bg-background border border-border hover:bg-border/30 text-primary font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <Download size={14} /> Download
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewReceiptModal(null)}
+                  className="py-2 px-4 bg-accent hover:opacity-90 text-white font-extrabold rounded-xl text-xs transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -6594,7 +7130,8 @@ function PaymentModal({
 // --- TREASURY (KAS) COMPONENT ---
 function Treasury({ 
   saldoKas, totalIncome, totalExpense, sessionExpenses, sessions, payments, members, isAdmin,
-  handleEditKasTransaction, handleDeleteKasTransaction, iuranKasConfig
+  isBendahara, handleEditKasTransaction, handleDeleteKasTransaction, handleViewReceipt, handleDownloadReceipt,
+  setSelectedExpenseDetail, iuranKasConfig
 }: any) {
   const [subTab, setSubTab] = useState('histori'); // 'histori' | 'laporan'
   const [kasType, setKasType] = useState('organisasi'); // 'organisasi' | 'sesi'
@@ -6861,7 +7398,9 @@ function Treasury({
             tanggal: tgl,
             keterangan: e.keterangan,
             kategori: e.kategori,
-            nominal: e.nominal
+            nominal: e.nominal,
+            receipt_path: e.receipt_path,
+            receipt_file_name: e.receipt_file_name
           });
         } else {
           sessionExpenseMonthList.push(e);
@@ -7459,10 +7998,14 @@ function Treasury({
                   {orgLedger.map((evt: any) => (
                     <div 
                       key={evt.id} 
-                      onClick={() => evt.isGroupedIuran && setSelectedGroupedIuran(evt)}
-                      className={`bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all ${
-                        evt.isGroupedIuran ? 'cursor-pointer hover:bg-border/20 active:scale-[0.99] hover:shadow-md' : ''
-                      }`}
+                      onClick={() => {
+                        if (evt.isGroupedIuran) {
+                          setSelectedGroupedIuran(evt);
+                        } else if (evt.rawExpense) {
+                          setSelectedExpenseDetail(evt.rawExpense);
+                        }
+                      }}
+                      className={`bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all cursor-pointer hover:bg-border/20 active:scale-[0.99] hover:shadow-md`}
                     >
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         evt.type === 'inflow' 
@@ -7476,6 +8019,23 @@ function Treasury({
                         <div className="flex items-center gap-2 mt-1 text-[9px] text-secondary font-bold">
                           <span className="bg-background text-secondary px-1.5 py-0.5 rounded">{evt.sub}</span>
                           <span>{formatDate(evt.tanggal)}</span>
+                          {evt.type === 'outflow' && (
+                            evt.rawExpense?.receipt_path ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewReceipt(evt.rawExpense);
+                                }}
+                                className="inline-flex items-center gap-0.5 text-accent hover:text-emerald-400 font-extrabold transition-colors cursor-pointer"
+                                title="Lihat Bukti Transaksi"
+                              >
+                                <Paperclip size={11} className="transform rotate-45" />
+                              </button>
+                            ) : (
+                              <span className="text-secondary/50 font-normal">-</span>
+                            )
+                          )}
                         </div>
                       </div>
                       <div className="text-right flex flex-col items-end gap-1.5">
@@ -7518,7 +8078,11 @@ function Treasury({
                     .map((exp: any) => {
                       const session = sessions.find((s: any) => s.id === exp.session_id);
                       return (
-                        <div key={exp.id} className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all">
+                        <div 
+                          key={exp.id} 
+                          onClick={() => setSelectedExpenseDetail(exp)}
+                          className="bg-card p-4 rounded-2xl border border-border flex items-center gap-3.5 shadow-theme transition-all cursor-pointer hover:bg-border/20 active:scale-[0.99] hover:shadow-md"
+                        >
                           <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center flex-shrink-0">
                             <Wallet size={16} />
                           </div>
@@ -7527,10 +8091,43 @@ function Treasury({
                             <div className="flex items-center gap-2 mt-1 text-[9px] text-secondary font-bold">
                               <span className="bg-background text-secondary px-1.5 py-0.5 rounded">{exp.kategori}</span>
                               <span>{session?.nama_sesi || 'Sesi Game'}</span>
+                              {exp.receipt_path ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewReceipt(exp);
+                                  }}
+                                  className="inline-flex items-center gap-0.5 text-accent hover:text-emerald-400 font-extrabold transition-colors cursor-pointer"
+                                  title="Lihat Bukti Transaksi"
+                                >
+                                  <Paperclip size={11} className="transform rotate-45" />
+                                </button>
+                              ) : (
+                                <span className="text-secondary/50 font-normal">-</span>
+                              )}
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex flex-col items-end gap-1.5">
                             <p className="text-xs font-black text-red-400">-{formatRp(exp.nominal)}</p>
+                            {isAdmin && (
+                              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => handleEditKasTransaction(exp)}
+                                  className="p-1 text-secondary hover:text-accent rounded hover:bg-background transition-colors"
+                                  title="Edit Transaksi"
+                                >
+                                  <Edit size={12} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteKasTransaction(exp)}
+                                  className="p-1 text-red-455 hover:text-red-600 rounded hover:bg-background transition-colors"
+                                  title="Hapus Transaksi"
+                                >
+                                  <Trash2 size={12} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

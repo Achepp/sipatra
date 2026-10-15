@@ -901,15 +901,16 @@ export const ReportTemplateV2: React.FC<ReportTemplateV2Props> = ({
           <table className="rpt-table">
             <thead>
               <tr>
-                <th className="tc" style={{ width: '20%' }}>Tanggal</th>
-                <th style={{ width: '35%' }}>Keterangan</th>
+                <th className="tc" style={{ width: '18%' }}>Tanggal</th>
+                <th style={{ width: '32%' }}>Keterangan</th>
                 <th className="tc" style={{ width: '20%' }}>Kategori</th>
-                <th className="tr" style={{ width: '25%' }}>Nominal</th>
+                <th className="tc" style={{ width: '10%' }}>Bukti</th>
+                <th className="tr" style={{ width: '20%' }}>Nominal</th>
               </tr>
             </thead>
             <tbody>
               {reportData.pengeluaranKas.length === 0 ? (
-                <tr><td colSpan={4} className="rpt-empty">Tidak ada pengeluaran pada periode ini.</td></tr>
+                <tr><td colSpan={5} className="rpt-empty">Tidak ada pengeluaran pada periode ini.</td></tr>
               ) : (
                 reportData.pengeluaranKas.map((e: any) => (
                   <tr key={e.id}>
@@ -918,12 +919,15 @@ export const ReportTemplateV2: React.FC<ReportTemplateV2Props> = ({
                     <td className="tc">
                       <span className="rpt-chip red">{e.kategori}</span>
                     </td>
+                    <td className="tc" style={{ fontSize: '11px', color: e.receipt_path ? '#059669' : '#6b7280' }}>
+                      {e.receipt_path ? '📎' : '-'}
+                    </td>
                     <td className="td-amount rpt-amount-expense">-{formatRp(Math.abs(e.nominal))}</td>
                   </tr>
                 ))
               )}
               <tr className="row-subtotal">
-                <td colSpan={3} className="tr" style={{ color: '#3f4943' }}>Subtotal</td>
+                <td colSpan={4} className="tr" style={{ color: '#3f4943' }}>Subtotal</td>
                 <td className="td-amount rpt-amount-expense">-{formatRp(Math.abs(reportData.kasKeluar))}</td>
               </tr>
             </tbody>
